@@ -158,10 +158,13 @@ export interface CodexOptions {
 export function codexArgs(o: CodexOptions, host: Host | null): string[] {
   const args = ['exec']
   if (o.thread) args.push('resume', o.thread)
-  args.push('--json', '--skip-git-repo-check', '-s', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=true')
+  // The sandbox as config values, not -s/--add-dir: `exec resume` takes
+  // only -c (newer Codex rejects the flags there, and every follow-up died).
+  args.push('--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.network_access=true')
   // The same video-making instructions Claude Code gets (as a TOML string).
   args.push('-c', `developer_instructions=${JSON.stringify(o.instructions)}`)
-  args.push('--add-dir', host ? `${host.root.replace(/\/+$/, '')}/Library` : libraryDir())
+  // The shared library is writable too (TOML array; a JSON string is valid TOML).
+  args.push('-c', `sandbox_workspace_write.writable_roots=[${JSON.stringify(host ? `${host.root.replace(/\/+$/, '')}/Library` : libraryDir())}]`)
   if (o.model) args.push('-m', o.model)
   args.push(o.text)
   return args
@@ -185,9 +188,9 @@ export class CodexRun {
     const child = where
       ? (() => {
           const r = remote.remoteCommand(where.host, remote.remoteDir(where.host, where.name), 'codex', args)
-          return spawn(r.cmd, r.args, { env: toolEnv(), stdio: ['ignore', 'pipe', 'ignore'] })
+          return spawn(r.cmd, r.args, { env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
         })()
-      : spawn(codexBin(), args, { cwd: o.dir, env: toolEnv(), stdio: ['ignore', 'pipe', 'ignore'] })
+      : spawn(codexBin(), args, { cwd: o.dir, env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
     child.on('error', () => {})
     if (child.pid === undefined) throw new Error(`could not run ${where ? 'ssh' : codexBin()}`)
     this.child = child
@@ -205,6 +208,10 @@ export class CodexRun {
       }
       if (line.includes('"turn.completed"') || line.includes('"turn.failed"')) ended = true
       for (const e of parse(line, st)) out(e)
+    })
+    // What Codex says when it fails (a bad flag, no sign-in): shown, not lost.
+    createInterface({ input: child.stderr! }).on('line', (line) => {
+      if (line.trim()) out({ type: 'stderr', line: line.trim() })
     })
     lines.on('close', () => {
       if (!ended) out({ type: 'exited' })

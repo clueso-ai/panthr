@@ -145,9 +145,12 @@ describe('parse', () => {
 describe('the command line', () => {
   it('a new thread', () => {
     const a = codexArgs({ dir: '/p', thread: null, text: 'Make it blue', model: null, instructions: 'Be "nice"\nok' }, null)
-    expect(a.slice(0, 7)).toEqual(['exec', '--json', '--skip-git-repo-check', '-s', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=true'])
+    expect(a.slice(0, 7)).toEqual(['exec', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"', '-c', 'sandbox_workspace_write.network_access=true'])
+    // `exec resume` rejects -s and --add-dir: only -c config works for both.
+    expect(a).not.toContain('-s')
+    expect(a).not.toContain('--add-dir')
     expect(a[8]).toBe('developer_instructions="Be \\"nice\\"\\nok"')
-    expect(a[a.indexOf('--add-dir') + 1].endsWith('/Panthr/Library')).toBe(true)
+    expect(a.find((x) => x.startsWith('sandbox_workspace_write.writable_roots='))).toMatch(/\/Panthr\/Library"\]$/)
     expect(a).not.toContain('-m')
     expect(a.at(-1)).toBe('Make it blue')
   })
@@ -156,7 +159,8 @@ describe('the command line', () => {
     const a = codexArgs({ dir: '/p', thread: 't1', text: 'x', model: 'gpt-5', instructions: '' }, { name: 'b', target: 'b', root: '/srv/Panthr' })
     expect(a.slice(0, 3)).toEqual(['exec', 'resume', 't1'])
     expect(a[a.indexOf('-m') + 1]).toBe('gpt-5')
-    expect(a[a.indexOf('--add-dir') + 1]).toBe('/srv/Panthr/Library')
+    expect(a).toContain('sandbox_workspace_write.writable_roots=["/srv/Panthr/Library"]')
+    expect(a).not.toContain('-s')
   })
 })
 
