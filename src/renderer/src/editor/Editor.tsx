@@ -18,7 +18,7 @@ import { Chat } from './Chat'
 import { Inspector, describe, whereLine, type ControlChange } from './Inspector'
 import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, type Edit } from './Timeline'
-import { usePreview } from './usePreview'
+import { PreviewFrames, usePreview } from './usePreview'
 import './editor.css'
 
 type Side = 'chat' | 'notes' | 'versions' | 'library'
@@ -65,7 +65,6 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   const redo = useRef<Op[]>([])
   const composer = useRef<ComposerHandle>(null)
   const sentFirst = useRef(false)
-  const skimFrom = useRef<number | null>(null)
 
   const say = useCallback((text: string) => setStatus({ text, id: Date.now() }), [])
   useEffect(() => {
@@ -139,8 +138,17 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
       }
     },
     onPen: setStrokes,
-    onReady: () => preview.post({ type: 'pick', on: tool === 'select' })
+    onReady: () => {
+      // A new page (or one just swapped in): pick mode and the outline again.
+      preview.post({ type: 'pick', on: toolRef.current === 'select' })
+      const ref = pickedRef.current?.layer || pickedRef.current?.id
+      if (ref) preview.post({ type: 'highlight', id: ref })
+    }
   })
+  const toolRef = useRef(tool)
+  toolRef.current = tool
+  const pickedRef = useRef(picked)
+  pickedRef.current = picked
   const layers = preview.state.layers
   const layersRef = useRef<Layer[]>([])
   // The chosen layer by what it is, not its row: rows re-sort when timing
@@ -172,13 +180,20 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
     if (layers.length) refreshTiming()
   }, [layersKey, refreshTiming]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Our own write (a control, a dragged bar): the picture reloads at once,
+  // and the watcher's report of it shortly after is not reloaded again.
+  const ownReload = useRef(0)
+  const reloadNow = (): void => {
+    ownReload.current = Date.now()
+    preview.reload()
+  }
   // Files changed (the agent, an edit): the picture reloads at the same moment.
   const reloadTimer = useRef<number | undefined>(undefined)
   useEvent('project:changed', (e) => {
     if (e.dir !== dir) return
     window.clearTimeout(reloadTimer.current)
     reloadTimer.current = window.setTimeout(() => {
-      preview.reload()
+      if (Date.now() - ownReload.current > 1500) preview.reload()
       refreshTiming()
       api.review.comments(dir).then(setComments)
     }, 300)
@@ -306,6 +321,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
         if (after != null) push({ kind: 'file', rel: v.file, before: v.before, after, label: what })
       }
       say(`Changed ${what}`)
+      reloadNow()
       refreshTiming()
     } catch (e) {
       say(`Couldn't change ${what}: ${String((e as Error).message ?? e).split('\n')[0]}`)
@@ -649,7 +665,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
           {size && <span className="fit mono faint">Fit · {size[0]}×{size[1]}</span>}
           <div className="no-drag stagebar-right">
             <Tip title="Versions" body="Every export, to play or compare.">
-              <button className="btn" onClick={() => showSide('versions')}><Icon name="history" size={15} /> {versions.length ? `v${versions.length}` : 'Versions'}</button>
+              <button className="btn" onClick={() => showSide('versions')}><Icon name="history" size={15} /><span className="btn-label">{versions.length ? `v${versions.length}` : 'Versions'}</span></button>
             </Tip>
             <Tip title="Export" keys="⌘E" body="Render the video to MP4; each export is kept in Versions.">
               <button className={`btn primary export${exporting !== null ? ' busy' : ''}`} onClick={exportNow}>
@@ -667,7 +683,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
           <div className="stage-box">
             <div className="stage-fit" style={{ '--aspect': aspect } as React.CSSProperties}>
               <div className="video-card">
-                {url && <iframe ref={preview.frame} src={url} title="Preview" />}
+                {url && <PreviewFrames preview={preview} />}
                 {!preview.state.ready && url && <div className="video-wait"><span className="shine" data-text="Loading the video">Loading the video</span></div>}
               </div>
             </div>
@@ -704,20 +720,10 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
             skimming={settings.skimming}
             onPlay={() => (preview.state.playing ? preview.pause() : preview.play())}
             onSeek={(t) => {
-              skimFrom.current = null
+              preview.skim(null)
               preview.seek(t)
             }}
-            onSkim={(t) => {
-              // The picture follows the pointer; leaving puts it back at the playhead.
-              if (t === null) {
-                if (skimFrom.current !== null) preview.seek(skimFrom.current)
-                skimFrom.current = null
-              } else {
-                if (skimFrom.current === null) skimFrom.current = preview.now()
-                preview.post({ type: 'noop' })
-                frameSeek(preview, t)
-              }
-            }}
+            onSkim={(t) => preview.skim(t)}
             onSelect={selectLayer}
             onEdit={commitEdit}
             onRange={(a, b) => {
@@ -759,6 +765,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
               }}
               onAsk={ask}
               onPreview={(m) => preview.post(m)}
+              onWritten={reloadNow}
               onChanged={(change) => {
                 push({ kind: 'control', change })
                 say(`Changed ${change.label}`)
@@ -784,10 +791,6 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   )
 }
 
-/** Skimming seeks without disturbing the remembered playhead. */
-function frameSeek(preview: ReturnType<typeof usePreview>, t: number): void {
-  preview.frame.current?.contentWindow?.postMessage({ source: 'panthr', op: 'seek', t }, '*')
-}
 
 function ToolButton({ icon, on, hint, onHint, onClick }: { icon: 'cursor' | 'pen' | 'pin'; on: boolean; hint: [string, string]; onHint(h: [string, string] | null): void; onClick(): void }) {
   return (

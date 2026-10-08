@@ -77,7 +77,7 @@ export const Field = ({ label, value, unit }: { label: string; value: React.Reac
 )
 
 export function Inspector({
-  dir, engine, picked, at, layer, layerIx, win, tween, onClose, onAskAbout, onAsk, onPreview, onChanged, onSelectTween, onNudge, onAdjustable, onSeek
+  dir, engine, picked, at, layer, layerIx, win, tween, onClose, onAskAbout, onAsk, onPreview, onWritten, onChanged, onSelectTween, onNudge, onAdjustable, onSeek
 }: {
   dir: string
   /** The agent the question goes to: its mark on the ask box. */
@@ -92,6 +92,8 @@ export function Inspector({
   onAskAbout(): void
   onAsk(msg: string): void
   onPreview(msg: Record<string, unknown>): void
+  /** A value went into the file: show it now (don't wait for the watcher). */
+  onWritten(): void
   onChanged(c: ControlChange): void
   onSelectTween(k: number): void
   onNudge(dStart: number, dLen: number): void
@@ -119,9 +121,35 @@ export function Inspector({
   const name = layer?.label || ((picked.text || '').trim().slice(0, 28) || picked.tag || 'Element')
   const [kind, glyph] = kindOf(picked)
 
-  /** Show a value in the picture now (no file change). */
+  // A value the page's script reads when it starts (a data- attribute)
+  // only shows once the page runs again: while dragging, it goes into the
+  // file (one write at a time, the newest value winning) and the page
+  // reloads behind the picture.
+  const scrub = useRef<{ busy: boolean; next: [number, unknown] | null }>({ busy: false, next: null })
+  const scrubWrite = async (i: number, v: unknown): Promise<void> => {
+    if (!set) return
+    if (scrub.current.busy) {
+      scrub.current.next = [i, v]
+      return
+    }
+    scrub.current.busy = true
+    try {
+      await api.controls.run(dir, setRequest(set, set.controls[i], v))
+      onWritten()
+    } catch {}
+    scrub.current.busy = false
+    const n = scrub.current.next
+    scrub.current.next = null
+    if (n) scrubWrite(n[0], n[1])
+  }
+  /** Show a value in the picture now: styles and words at once, values the
+   *  script reads through the file. */
   const live = (c: Control, v: unknown): void => {
     if (!set) return
+    if (c.write.startsWith('attr:')) {
+      scrubWrite(set.controls.indexOf(c), v)
+      return
+    }
     for (const id of c.targets?.length ? c.targets : [set.element]) onPreview({ type: 'set', id, write: c.write, value: written(c, v) })
   }
   /** Write a value into the file and controls.json; it becomes a change. */
@@ -130,6 +158,7 @@ export function Inspector({
     const c = set.controls[i]
     try {
       await api.controls.run(dir, setRequest(set, c, v))
+      onWritten()
       const next = { ...all, [key]: { ...set, controls: set.controls.map((x, k) => (k === i ? { ...x, value: v } : x)) } }
       setAll(next)
       await api.controls.save(dir, next)
@@ -321,17 +350,20 @@ function ControlRow({ c, onLive, onApply }: { c: Control; onLive(v: unknown): vo
       )
     }
     default:
-      return <TextControl c={c} onApply={onApply} />
+      return <TextControl c={c} onLive={onLive} onApply={onApply} />
   }
 }
 
-function TextControl({ c, onApply }: { c: Control; onApply(v: unknown): void }) {
+function TextControl({ c, onLive, onApply }: { c: Control; onLive(v: unknown): void; onApply(v: unknown): void }) {
   const [v, setV] = useState(String(c.value ?? ''))
   useEffect(() => setV(String(c.value ?? '')), [c.value])
   return (
     <div className="ctl-choice">
       <span className="ctl-label">{c.label}</span>
-      <input className="ctl-text" value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => {
+      <input className="ctl-text" value={v} onChange={(e) => {
+        setV(e.target.value)
+        onLive(e.target.value)
+      }} onKeyDown={(e) => {
         if (e.key === 'Enter') onApply(v)
       }} onBlur={() => v !== String(c.value ?? '') && onApply(v)} />
     </div>
