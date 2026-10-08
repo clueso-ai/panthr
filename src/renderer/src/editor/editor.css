@@ -179,6 +179,8 @@
 .tl-range { position: absolute; top: 1px; bottom: 1px; border-radius: 4px; background: var(--acc-sel); }
 .tl-layers { overflow: hidden; }
 .tl-layers-scroll { overflow-y: auto; margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+/* Rows keep their height; more than fit scroll (never squash). */
+.tl-layers-scroll > .tl-row { flex: none; }
 .tl-empty { padding: 6px 0 0 176px; font-size: 12px; }
 .tl-layer .tl-track { border-radius: 5px; transition: background var(--quick) var(--ease); }
 .tl-layer.lit .tl-track { background: var(--hover); }

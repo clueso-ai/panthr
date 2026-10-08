@@ -8,6 +8,7 @@ import { tr, QUICK, MOVE } from '@/lib/motion'
 import { Icon, type IconName } from './Icon'
 import { MenuItem, MenuSep, MenuTitle, Popover } from './Popover'
 import { Tip } from './Tooltip'
+import { AgentMark } from './AgentMark'
 
 /** A square icon button (26-30 pt), tinted when on. */
 export function IconButton({ icon, on, size = 28, onClick, tip, keys, body, disabled, className }: {
@@ -139,12 +140,11 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
   const other: Engine = shown === 'codex' ? 'claude' : 'codex'
   const off = locked && other !== engine
   const title = (e: Engine): string => (e === 'codex' ? 'Codex' : 'Claude Code')
-  const mark = (e: Engine): IconName => (e === 'codex' ? 'prompt' : 'spark')
   return (
     <>
       <Tip title={title(engine)} body="The agent and model for this project.">
         <button ref={anchor} className={`chip model-chip${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
-          <Icon name={mark(engine)} size={15} style={{ color: 'var(--acc)' }} />
+          <AgentMark engine={engine} size={15} />
           <span>{label}</span>
           <Icon name="chevron" size={12} className="faint" />
         </button>
@@ -153,7 +153,7 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
         <div className="menu">
           <motion.div key={shown} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr(QUICK)}>
             <MenuTitle>
-              <Icon name={mark(shown)} size={12} /> {title(shown)}
+              <AgentMark engine={shown} size={12} /> {title(shown)}
             </MenuTitle>
             {models[shown].map((m) => (
               <MenuItem key={m.id} label={m.name} on={shown === engine && m.id === model} onSelect={() => {
@@ -164,7 +164,7 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
           </motion.div>
           <MenuSep />
           <MenuItem
-            icon={<Icon name={mark(other)} size={14} />}
+            icon={<AgentMark engine={other} size={14} />}
             label={title(other)}
             disabled={off}
             trailing={off ? <span className="menu-hint">New chat to switch</span> : <Icon name="chevron-right" size={12} className="faint" />}

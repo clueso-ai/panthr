@@ -10,6 +10,7 @@ import { Icon, type IconName } from '@/ui/Icon'
 import { IconButton, Segmented, Switch } from '@/ui/Controls'
 import { MenuItem, Popover } from '@/ui/Popover'
 import { EyeMark } from '@/ui/Eye'
+import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
 export type Pane = 'general' | 'agents' | 'skills' | 'hosts' | 'editor' | 'export' | 'about'
@@ -73,9 +74,10 @@ const set = (patch: Partial<S>): void => {
   api.settings.set(patch)
 }
 
-function Row({ title, body, children }: { title: string; body?: string; children: React.ReactNode }) {
+function Row({ title, body, children, mark }: { title: string; body?: string; children: React.ReactNode; mark?: 'claude' | 'codex' }) {
   return (
     <div className="row">
+      {mark && <span className="row-mark"><AgentMark engine={mark} size={18} /></span>}
       <div className="row-words"><b>{title}</b>{body && <span>{body}</span>}</div>
       <div className="row-control">{children}</div>
     </div>
@@ -138,12 +140,12 @@ function Agents() {
     <>
       <Card>
         <Row title="New chats use" body="Whichever is signed in on this Mac.">
-          <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[{ value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }]} />
+          <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[{ value: 'claude', label: <span className="seg-mark"><AgentMark engine="claude" size={13} />Claude Code</span> }, { value: 'codex', label: <span className="seg-mark"><AgentMark engine="codex" size={13} />Codex</span> }]} />
         </Row>
       </Card>
       <Card title="Default models">
-        <Row title="Claude Code" body="Default is what Claude Code is set to."><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
-        <Row title="Codex" body="Default is what Codex is set to."><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
+        <Row title="Claude Code" body="Default is what Claude Code is set to." mark="claude"><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
+        <Row title="Codex" body="Default is what Codex is set to." mark="codex"><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
       </Card>
       <Card>
         <Row title="Helper agents" body="New projects start with them. Better results on big jobs; more time and cost."><Switch on={s.agents_default} onChange={(v) => set({ agents_default: v })} /></Row>
