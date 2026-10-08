@@ -285,6 +285,30 @@ function ExportPane() {
   )
 }
 
+function CommandLine() {
+  const [st, setSt] = useState<{ path: string; onPath: boolean; installed: boolean } | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    api.app.cliStatus().then(setSt)
+  }, [])
+  return (
+    <Card title="Command line">
+      <Row title="panthr" body={st?.installed ? (st.onPath ? `Installed at ${st.path}` : `Installed at ${st.path}; add ~/.local/bin to your PATH to use it.`) : 'Drive Panthr from a terminal, a script, or another agent.'}>
+        <button className="btn small" onClick={async () => {
+          try {
+            setSt(await api.app.installCli())
+            setErr(null)
+          } catch (e) {
+            setErr((e as Error).message)
+          }
+        }}>{st?.installed ? 'Reinstall' : 'Install'}</button>
+      </Row>
+      {err && <div className="error-line">{err}</div>}
+      <pre className="cli-example">{'panthr new "A 15-second logo reveal" --wait\npanthr chat "Make the title bigger" --wait\npanthr export --wait\npanthr help'}</pre>
+    </Card>
+  )
+}
+
 function About() {
   const [missing, setMissing] = useState<string[] | null>(null)
   useEffect(() => {
@@ -300,6 +324,7 @@ function About() {
           <Row key={m} title={`${m === 'claude' ? 'Claude Code' : m} is missing`} body={m === 'claude' ? 'curl -fsSL https://claude.ai/install.sh | bash' : `brew install ${m === 'npx' ? 'node' : m}`}><span className="bad">×</span></Row>
         ))}
       </Card>
+      <CommandLine />
     </>
   )
 }

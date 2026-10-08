@@ -157,7 +157,7 @@ export function Chat({ chat }: { chat: ChatState }) {
                   </motion.div>
                 )}
               </AnimatePresence>
-              {active && steps.length > 0 && <LiveStep step={steps[steps.length - 1]} count={steps.length} />}
+              {active && steps.length > 0 && <LiveStep steps={steps} />}
               {foldable && finalText && <ItemView item={finalText.x} streaming={false} fresh={isNew(finalText.i)} />}
               {active && !steps.length && !texts.length && (
                 <div className="thinking"><EyeMark width={18} watch={0.7} /> <Shine text="Thinking" /></div>
@@ -246,13 +246,33 @@ function StepRow({ s, live }: { s: Step; live?: boolean }) {
   )
 }
 
-function LiveStep({ step, count }: { step: Step; count: number }) {
+/** While it works: the step under way, shining, and how many so far. A
+ *  click opens them all (and folds them again). */
+function LiveStep({ steps }: { steps: Step[] }) {
+  const [open, setOpen] = useState(false)
+  const step = steps[steps.length - 1]
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div key={step.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={tr(MOVE)} className="live-step">
-        <StepRow s={step} live />
-        {count > 1 && <span className="faint live-count">{count} steps</span>}
-      </motion.div>
-    </AnimatePresence>
+    <div className="live">
+      <button className="live-step" onClick={() => setOpen((o) => !o)}>
+        <motion.span className="fold-mark live-fold" animate={{ rotate: open ? 90 : 0 }} transition={tr(QUICK)}>›</motion.span>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={step.id} className="live-now" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={tr(MOVE)}>
+            <StepRow s={step} live />
+          </motion.span>
+        </AnimatePresence>
+        {steps.length > 1 && <span className="faint live-count">{steps.length} steps</span>}
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div className="live-all" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)} style={{ overflow: 'hidden' }}>
+            {steps.slice(0, -1).map((s, i) => (
+              <motion.div key={s.id || i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={tr(MOVE, Math.min(i, 12) * 0.02)}>
+                <StepRow s={s} />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

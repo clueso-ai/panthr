@@ -7,7 +7,7 @@ import type { Api } from './api'
 type All = { [N in keyof Api]: { [M in keyof Api[N]]: true } }
 
 export const METHODS: All = {
-  app: { missingTools: true, reveal: true, openPath: true, openExternal: true, fileUrl: true, chooseFolder: true, chooseFiles: true, quit: true },
+  app: { missingTools: true, reveal: true, openPath: true, openExternal: true, fileUrl: true, chooseFolder: true, chooseFiles: true, quit: true, installCli: true, cliStatus: true },
   settings: { get: true, set: true },
   state: { get: true, set: true },
   projects: { list: true, create: true, load: true, saveMeta: true, rename: true, openFolder: true, previewUrl: true, watch: true, unwatch: true },

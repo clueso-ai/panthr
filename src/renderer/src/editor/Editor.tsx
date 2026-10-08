@@ -78,11 +78,12 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   useEffect(() => {
     let alive = true
     sentFirst.current = false
+    // A project opens on its conversation.
+    setSide('chat')
     api.state.get().then((s) => {
       if (s.chat_w) setChatW(Math.min(CHAT_MAX, Math.max(CHAT_MIN, s.chat_w)))
       if (s.inspector_w) setInspW(Math.min(INSP_MAX, Math.max(INSP_MIN, s.inspector_w)))
       if (s.tl_rows) setRows(s.tl_rows)
-      if (s.side && ['chat', 'notes', 'versions', 'library'].includes(s.side)) setSide(s.side as Side)
     })
     api.projects.load(dir).then(async (p) => {
       if (!alive || !p) return
@@ -202,8 +203,8 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
       case 'rendered':
         setExporting(null)
         setVersions(await api.review.versions(dir))
-        say(`Exported v${j.version.n}`)
-        showSide('versions')
+        // Said, not shown: the export does not take you away from what you are doing.
+        say(`Exported v${j.version.n} · in Versions`)
         break
       case 'posters': setVersions(await api.review.versions(dir)); break
       case 'failed':

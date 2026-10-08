@@ -62,7 +62,12 @@
 .step-glyph { width: 14px; text-align: center; color: var(--t3); font-size: 11px; flex: none; transition: color var(--settle) var(--ease); }
 .step-glyph.live { color: var(--ok); animation: breathe 1.2s var(--ease) infinite alternate; }
 .step-glyph.done { color: var(--t3); }
-.live-step { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
+.live { margin: 2px 0 8px; }
+.live-step { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border-radius: 6px; padding: 0 4px 0 0; transition: background var(--quick) var(--ease); }
+.live-step:hover { background: var(--hover); }
+.live-fold { width: 14px; text-align: center; color: var(--t3); flex: none; }
+.live-now { flex: 1; min-width: 0; }
+.live-all { padding-left: 20px; border-left: 1px solid var(--hair); margin: 2px 0 0 7px; }
 .live-count { font-size: 11.5px; margin-left: auto; flex: none; }
 .thinking { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; }
 .note-line { font-size: 12px; color: var(--t3); padding: 4px 0 8px; }

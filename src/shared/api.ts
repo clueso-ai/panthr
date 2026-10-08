@@ -22,6 +22,10 @@ export interface Api {
     chooseFolder(): Promise<string | null>
     chooseFiles(): Promise<string[]>
     quit(): Promise<void>
+    /** Put the `panthr` command on the PATH (~/.local/bin); where it went and whether the shell will find it. */
+    installCli(): Promise<{ path: string; onPath: boolean; installed: boolean }>
+    /** Whether `panthr` is installed (and where). */
+    cliStatus(): Promise<{ path: string; onPath: boolean; installed: boolean }>
   }
   settings: {
     get(): Promise<Settings>
@@ -121,6 +125,8 @@ export interface Events {
   'project:changed': { dir: string; files: string[] }
   job: import('./types').JobEvent
   'skills:state': SkillsState
+  /** Open a project in the window (from the command line), with a first message. */
+  open: { dir: string; first: string | null }
   /** A menu command (from the app menu or a shortcut). */
   command: { name: string }
 }

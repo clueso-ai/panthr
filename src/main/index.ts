@@ -11,6 +11,9 @@ import { METHODS } from '@shared/methods'
 import type { Api } from '@shared/api'
 import { handleProtocol, registerScheme } from './preview'
 import { emit } from './bus'
+import { socketPath, startControl } from './control'
+import { dataDir } from './paths'
+import { getState as readState } from './state'
 import { settings, getSettings } from './settings'
 import { state, getState } from './state'
 import { appApi } from './app'
@@ -26,6 +29,8 @@ const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
 app.setName('Panthr')
 registerScheme()
+// A test run never puts up a dialog: errors go to its log.
+if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
 
 const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts }
 
@@ -54,7 +59,8 @@ function createWindow(): BrowserWindow {
     show: false,
     title: 'Panthr',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    // Centred on the 52 pt title row (14 pt controls), with the back arrow and the name.
+    trafficLightPosition: { x: 18, y: 19 },
     vibrancy: 'under-window',
     visualEffectState: 'followWindow',
     backgroundColor: '#00000000',
@@ -182,6 +188,41 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+/** The command line's requests: the API by "<namespace>.<method>", and
+ *  the window itself by "ui.<what>". */
+async function dispatch(method: string, params: unknown[]): Promise<unknown> {
+  const [ns, m] = method.split('.')
+  if (ns === 'ui') {
+    const w = win && !win.isDestroyed() ? win : null
+    switch (m) {
+      case 'open':
+        // A project in the window (and, given one, a first message for it).
+        emit('open', { dir: String(params[0]), first: typeof params[1] === 'string' ? params[1] : null })
+        return true
+      case 'command':
+        emit('command', { name: String(params[0]) })
+        return true
+      case 'status':
+        return { version: app.getVersion(), window: !!w, visible: !!w?.isVisible(), working: await anyWorking(), state: readState() }
+      case 'screenshot': {
+        if (!w) throw new Error('no window')
+        const img = await w.webContents.capturePage()
+        const path = String(params[0] || join(app.getPath('temp'), `panthr-${Date.now()}.png`))
+        writeFileSync(path, img.toPNG())
+        return path
+      }
+      case 'show':
+        w?.show()
+        w?.focus()
+        return true
+    }
+    throw new Error(`no such command: ${method}`)
+  }
+  const methods = (METHODS as Record<string, Record<string, true>>)[ns]
+  if (!methods || !methods[m]) throw new Error(`no such method: ${method}`)
+  return (handlers as any)[ns][m](...params)
+}
+
 app.whenReady().then(() => {
   applyAppearance()
   handleProtocol()
@@ -191,6 +232,8 @@ app.whenReady().then(() => {
   if (HEADLESS) headlessCapture(win)
   // The default skills, put in once (not in a test run).
   else seedSkills()
+  // The command line's way in (not in a test run unless asked).
+  if (!HEADLESS || process.env.PANTHR_CONTROL) startControl(socketPath(dataDir()), dispatch)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) win = createWindow()
   })

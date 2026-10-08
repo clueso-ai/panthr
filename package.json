@@ -70,5 +70,8 @@
       }
     },
     "asar": true
+  },
+  "bin": {
+    "panthr": "resources/cli/panthr.mjs"
   }
 }

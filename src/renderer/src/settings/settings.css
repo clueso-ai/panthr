@@ -40,3 +40,4 @@
 .about-mark .wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 22px; }
 .seg-mark { display: inline-flex; align-items: center; gap: 6px; }
 .row-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--field); display: grid; place-items: center; flex: none; }
+.cli-example { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--hair); font-family: var(--mono); font-size: 11.5px; color: var(--t2); line-height: 1.7; user-select: text; white-space: pre-wrap; }

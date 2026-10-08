@@ -71,6 +71,11 @@ export function App() {
     open({ ...p, meta }, idea)
   }
 
+  // The command line opened a project here.
+  useEvent('open', async ({ dir, first }) => {
+    const p = await api.projects.load(dir)
+    if (p) open(p, first)
+  })
   useEvent('command', ({ name }) => {
     if (name === 'settings') setSettings((x) => ({ ...x, open: !x.open }))
     else if (name === 'home' || name === 'new-project') home()

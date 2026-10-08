@@ -5,7 +5,10 @@ import { promisify } from 'node:util'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import type { Api } from '@shared/api'
 import { fileUrl, projectId } from './preview'
-import { toolEnv } from './paths'
+import { resource, toolEnv } from './paths'
+import { chmodSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 const run = promisify(execFile)
 
@@ -16,6 +19,24 @@ async function has(tool: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/** Where the command goes: ~/.local/bin, where Claude Code puts its own. */
+const cliLink = (): string => join(homedir(), '.local/bin/panthr')
+
+async function cliStatus(): Promise<{ path: string; onPath: boolean; installed: boolean }> {
+  const path = cliLink()
+  let installed = false
+  try {
+    installed = lstatSync(path).isSymbolicLink() && readlinkSync(path) === resource('cli/panthr.mjs')
+  } catch {}
+  // The user's own shell PATH (a GUI app's is not theirs).
+  let onPath = false
+  try {
+    const { stdout } = await run(process.env.SHELL || '/bin/zsh', ['-lic', 'echo $PATH'], { timeout: 5000 })
+    onPath = stdout.split(':').map((x) => x.trim()).includes(join(homedir(), '.local/bin'))
+  } catch {}
+  return { path, onPath, installed }
 }
 
 export const appApi: Api['app'] = {
@@ -52,5 +73,24 @@ export const appApi: Api['app'] = {
   },
   async quit() {
     app.quit()
-  }
+  },
+  async installCli() {
+    const target = resource('cli/panthr.mjs')
+    const link = cliLink()
+    mkdirSync(join(homedir(), '.local/bin'), { recursive: true })
+    try {
+      chmodSync(target, 0o755)
+    } catch {}
+    // Ours, or nothing: never replace someone else's panthr.
+    try {
+      const st = lstatSync(link)
+      if (!st.isSymbolicLink()) throw new Error(`${link} exists and is not Panthr's`)
+      unlinkSync(link)
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+    }
+    symlinkSync(target, link)
+    return cliStatus()
+  },
+  cliStatus
 }
