@@ -72,10 +72,14 @@
         const named = t.getAttribute('data-label') || t.getAttribute('data-timeline-label') || (t.dataset && t.dataset.layer);
         if (named) return named;
         const txt = !t.children.length ? t.textContent.trim().replace(/\s+/g, ' ') : '';
-        return txt ? (txt.length > 40 ? txt.slice(0, 39) + '\u2026' : txt) : (t.id || t.getAttribute('data-composition-id') || t.className || t.tagName.toLowerCase());
+        const cls = typeof t.className === 'string' ? t.className.split(/\s+/)[0] : '';
+        return txt ? (txt.length > 40 ? txt.slice(0, 39) + '\u2026' : txt) : (t.id || t.getAttribute('data-composition-id') || cls || t.tagName.toLowerCase());
       }
       for (const k of Object.keys(window)) { try { if (window[k] === t) return k; } catch (e) {} }
-      return 'Animation';
+      // A script's own object (a 3D scene's, a canvas's): named by what it
+      // animates, so two read differently.
+      const keys = t && typeof t === 'object' ? Object.keys(t).filter((k) => !k.startsWith('_') && typeof t[k] === 'number').slice(0, 3) : [];
+      return keys.length ? 'Motion \u00b7 ' + keys.join(', ') : 'Motion';
     };
     // A script's state object (a 3D scene's) names its element: __layer.
     const own = (t) => (t && !(t instanceof Element) && t.__layer && document.getElementById(t.__layer)) || t;
@@ -118,6 +122,9 @@
       if (d > 0 && (clip || !whole)) add(el, a, a + d);
     });
     const out = [...rows.values()].filter((r) => r.spans.length);
+    // The same name twice: numbered, so each row is told apart.
+    const seen = {};
+    for (const r of out) { seen[r.label] = (seen[r.label] || 0) + 1; if (seen[r.label] > 1) r.label += ' ' + seen[r.label]; }
     out.forEach((r) => r.spans.sort((x, y) => x[0] - y[0]));
     out.sort((x, y) => x.spans[0][0] - y.spans[0][0]);
     return out.slice(0, 40);

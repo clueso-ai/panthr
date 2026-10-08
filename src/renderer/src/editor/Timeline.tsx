@@ -458,19 +458,23 @@ function LayerRow({ l, ix, x, width, win, edit, selected, tween, lit, cursor, on
       </>
     )
   } else {
-    // Can't move here: its spans, outlined.
+    // Can't move here: a faint lane from its first moment to its last, the
+    // moments it moves as solid segments, its name on a backing at the start.
     const a = Math.min(...l.spans.map((s) => s[0]))
     const b = Math.max(...l.spans.map((s) => s[1]))
     const la = x(a)
     const lb = x(b)
-    const fits = lb - la >= l.label.length * 6.4 + 30
+    const need = l.label.length * 6.6 + 34
+    const inside = lb - la >= need
+    // Inside the lane when it fits; after it, or before it at the right edge.
+    const nameAt = inside ? Math.max(la, 0) + 3 : lb + need + 8 <= width ? lb + 8 : Math.max(0, la - need - 8)
     bar = (
       <>
+        <div className={`tl-lane${selected ? ' on' : ''}`} style={{ left: la, width: Math.max(6, lb - la) }} />
         {l.spans.map(([s0, s1], k) => (
-          <div key={k} className={`tl-span${selected ? ' on' : ''}`} style={{ left: x(s0), width: Math.max(3, x(s1) - x(s0)) }} />
+          <div key={k} className={`tl-seg${selected ? ' on' : ''}`} style={{ left: x(s0), width: Math.max(3, x(s1) - x(s0)) }} />
         ))}
-        {fits ? <span className="tl-bar-label floating" style={{ left: la }}><b>{glyph}</b>{l.label}</span>
-              : <span className="tl-after" style={{ left: Math.min(lb + 8, width - 60) }}><b>{glyph}</b>{l.label}</span>}
+        <span className={`tl-name${selected ? ' on' : ''}`} style={{ left: nameAt }}><b>{glyph}</b>{l.label}</span>
       </>
     )
   }

@@ -189,7 +189,9 @@
 .tl-empty { padding: 6px 0 0 176px; font-size: 12px; }
 .tl-layer .tl-track { border-radius: 5px; transition: background var(--quick) var(--ease); }
 .tl-layer.lit .tl-track { background: var(--hover); }
-.tl-bar { position: absolute; top: 1px; height: 26px; border-radius: 6px; background: var(--raised); border: 1px solid var(--hair-2); overflow: hidden; transition: background var(--quick) var(--ease), border-color var(--quick) var(--ease); }
+/* A bar that can be dragged: filled like the lanes, a step brighter, and taller to grab. */
+.tl-bar { position: absolute; top: 2px; height: 24px; border-radius: 6px; background: color-mix(in srgb, var(--t2) 20%, var(--pane)); border: 1px solid color-mix(in srgb, var(--t2) 32%, transparent); overflow: hidden; transition: background var(--quick) var(--ease), border-color var(--quick) var(--ease); }
+.tl-layer .tl-track:hover .tl-bar:not(.on) { border-color: color-mix(in srgb, var(--t2) 55%, transparent); }
 .tl-bar.on { background: var(--acc-soft); border-color: var(--acc); }
 .tl-step { position: absolute; top: 5px; bottom: 5px; border-radius: 3px; background: color-mix(in srgb, var(--t2) 30%, transparent); }
 .tl-bar.on .tl-step { background: color-mix(in srgb, var(--acc) 35%, transparent); }
@@ -199,10 +201,15 @@
 .tl-bar-label { position: relative; display: flex; align-items: center; gap: 6px; height: 100%; padding-left: 8px; font-size: 12px; font-weight: 500; white-space: nowrap; pointer-events: none; }
 .tl-bar.on .tl-bar-label { color: var(--acc-text); }
 .tl-bar-label b, .tl-after b { font-family: var(--mono); font-size: 9.5px; font-weight: 400; opacity: 0.7; }
-.tl-bar-label.floating { position: absolute; top: 1px; height: 26px; }
+
 .tl-after { position: absolute; top: 0; height: 28px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t2); white-space: nowrap; pointer-events: none; }
-.tl-span { position: absolute; top: 1px; height: 26px; border-radius: 6px; border: 1px solid var(--hair-2); background: transparent; transition: border-color var(--quick) var(--ease); }
-.tl-span.on { border-color: var(--acc); background: var(--acc-soft); }
+.tl-lane { position: absolute; top: 5px; height: 18px; border-radius: 5px; background: var(--hover); transition: background var(--quick) var(--ease); }
+.tl-lane.on { background: var(--acc-soft); }
+.tl-seg { position: absolute; top: 5px; height: 18px; border-radius: 5px; background: color-mix(in srgb, var(--t2) 26%, transparent); transition: background var(--quick) var(--ease); }
+.tl-seg.on { background: color-mix(in srgb, var(--acc) 50%, transparent); }
+.tl-name { position: absolute; top: 4px; height: 20px; display: flex; align-items: center; gap: 6px; padding: 0 7px; border-radius: 5px; font-size: 12px; color: var(--t1); white-space: nowrap; pointer-events: none; background: color-mix(in srgb, var(--pane) 86%, transparent); }
+.tl-name b { font-family: var(--mono); font-size: 9.5px; font-weight: 400; color: var(--t3); }
+.tl-name.on { color: var(--acc-text); }
 .tl-over { position: absolute; top: 0; right: 0; bottom: 34px; pointer-events: none; overflow: hidden; }
 .tl-head { position: absolute; top: 2px; bottom: 0; left: -1px; width: 2px; background: var(--acc); will-change: transform; }
 .tl-head i { position: absolute; top: -2px; left: -5px; width: 12px; height: 10px; border-radius: 3px 3px 5px 5px; background: var(--acc); }
