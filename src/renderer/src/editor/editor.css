@@ -139,7 +139,9 @@
 .export { position: relative; overflow: hidden; min-width: 76px; }
 .export.busy { background: var(--raised); color: var(--t1); border-color: var(--hair-2); }
 .export-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acc-soft); }
-.export span { position: relative; white-space: pre; }
+.export span { position: relative; }
+/* Digits of one width: the count stays centred as it climbs. */
+.export-pct { font-variant-numeric: tabular-nums; }
 .stage { position: relative; background: var(--stage); min-height: 0; overflow: hidden; }
 /* The picture: the largest box of the video's shape that fits, either way. */
 .stage-box { position: absolute; inset: 20px 24px; container-type: size; display: grid; place-items: center; }

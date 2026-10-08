@@ -655,7 +655,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
                 {exporting !== null ? (
                   <>
                     <motion.i className="export-fill" animate={{ width: `${exporting}%` }} transition={tr(MOVE)} />
-                    <span className="mono">{String(Math.round(exporting)).padStart(3, ' ')}%</span>
+                    <span className="export-pct">{Math.round(exporting)}%</span>
                   </>
                 ) : 'Export'}
               </button>
