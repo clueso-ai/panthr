@@ -186,3 +186,12 @@ describe('models', () => {
     expect(models()).toEqual([{ id: 'a', name: 'a' }])
   })
 })
+
+describe('stderr', () => {
+  it('reads Codex log lines as what they say', async () => {
+    const { reason } = await import('../src/main/agents/codex')
+    expect(reason('2026-10-08T17:46:10.014842Z ERROR codex_core::util: Custom tool call output is missing')).toBe('Custom tool call output is missing')
+    expect(reason("error: unexpected argument '-s' found")).toBe("error: unexpected argument '-s' found")
+    expect(reason('   ')).toBeNull()
+  })
+})

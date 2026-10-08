@@ -170,6 +170,15 @@ export function codexArgs(o: CodexOptions, host: Host | null): string[] {
   return args
 }
 
+/** A stderr line as a person reads it: Codex's own timestamped log lines
+ *  (`2026-…Z ERROR codex_core::…: what`) lose their prefix; blank is none. */
+export function reason(line: string): string | null {
+  const l = line.trim()
+  if (!l) return null
+  const m = /^\d{4}-\d\d-\d\dT\S+\s+(?:ERROR|WARN|INFO|DEBUG|TRACE)\s+\S+:\s*(.*)$/.exec(l)
+  return (m ? m[1] : l).trim() || null
+}
+
 export class CodexRun {
   private child: ChildProcess | null = null
   /** On a remote host: the host and the program's pid there (to stop it). */
@@ -209,12 +218,17 @@ export class CodexRun {
       if (line.includes('"turn.completed"') || line.includes('"turn.failed"')) ended = true
       for (const e of parse(line, st)) out(e)
     })
-    // What Codex says when it fails (a bad flag, no sign-in): shown, not lost.
+    // Codex logs to stderr as it works (skills it skipped, history it
+    // repaired): kept out of the chat. Only when a run fails is its last
+    // real complaint shown, as the reason.
+    const said: string[] = []
     createInterface({ input: child.stderr! }).on('line', (line) => {
-      if (line.trim()) out({ type: 'stderr', line: line.trim() })
+      const l = reason(line)
+      if (l) said.push(l)
+      if (said.length > 20) said.shift()
     })
     lines.on('close', () => {
-      if (!ended) out({ type: 'exited' })
+      if (!ended) out({ type: 'exited', reason: said.at(-1) })
     })
   }
 

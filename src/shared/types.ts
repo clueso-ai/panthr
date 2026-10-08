@@ -106,7 +106,7 @@ export type AgentEvent =
   | { type: 'tool_done'; id: string; error: boolean }
   | { type: 'result'; cost_usd: number; duration_ms: number; turns: number; error: boolean }
   | { type: 'stderr'; line: string }
-  | { type: 'exited' }
+  | { type: 'exited'; reason?: string }
 
 /** A chat as the window shows it. */
 export interface ChatState {

@@ -111,7 +111,7 @@ export class Transcript {
         if (!this.working) return {}
         this.working = false
         this.streaming = null
-        this.items.push({ Note: this.engine === 'codex' ? 'Codex stopped' : 'Claude Code stopped' })
+        this.items.push({ Note: `${this.engine === 'codex' ? 'Codex' : 'Claude Code'} stopped${ev.reason ? `: ${ev.reason}` : ''}` })
         return { turnEnded: true }
     }
   }
