@@ -1,0 +1,23 @@
+Panthr bundles the following third-party work, each under its own licence.
+
+HyperFrames runtime (resources/hyperframe.runtime.iife.js)
+  Copyright HeyGen. Apache License 2.0.
+  https://github.com/heygen-com/hyperframes
+  The editor tool installs @hyperframes/parsers (Apache-2.0) at run time.
+
+Fonts (src/renderer/public/fonts, resources/fonts), SIL Open Font License 1.1:
+  Host Grotesk, Bricolage Grotesque, Azeret Mono (via Google Fonts);
+  Ortica Angular and Ortica Linear by Collletttivo; Geist and Geist Mono by
+  Vercel; Familjen Grotesk, Schibsted Grotesk, Fragment Mono, Instrument
+  Serif, and the other faces in resources/fonts. Each font's licence text is
+  in resources/fonts (OFL-*.txt, LICENSE-*.txt).
+
+Lucide icons (lucide-react), ISC License. https://lucide.dev
+
+Agent marks (src/renderer/src/ui/AgentMark.tsx): the Claude and OpenAI logos,
+  from Simple Icons (CC0 1.0, https://simpleicons.org). The marks themselves
+  are trademarks of Anthropic and OpenAI and are used only to name the agent
+  the user has chosen.
+
+Electron, React, motion and the other packages in package.json are used
+under their own licences (MIT unless noted in each package).

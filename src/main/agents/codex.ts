@@ -6,18 +6,17 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { AgentEvent, Host, Model } from '@shared/types'
-import { libraryDir, toolEnv } from '../paths'
+import { libraryDir, toolEnv, home } from '../paths'
 import * as remote from '../remote'
 import { firstLine } from './claude'
 
 /** The `codex` binary: the user's own. */
 export function codexBin(): string {
-  const home = homedir()
-  for (const p of [join(home, '.local/bin/codex'), '/opt/homebrew/bin/codex', '/usr/local/bin/codex']) {
+  const h = home()
+  for (const p of [join(h, '.local/bin/codex'), '/opt/homebrew/bin/codex', '/usr/local/bin/codex']) {
     if (existsSync(p)) return p
   }
   return 'codex'
@@ -27,7 +26,7 @@ export function codexBin(): string {
 export function models(): Model[] {
   let v: any
   try {
-    v = JSON.parse(readFileSync(join(homedir(), '.codex/models_cache.json'), 'utf8'))
+    v = JSON.parse(readFileSync(join(home(), '.codex/models_cache.json'), 'utf8'))
   } catch {
     return []
   }

@@ -7,11 +7,10 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { AgentEvent, Host } from '@shared/types'
-import { dataDir, libraryDir, resource, toolEnv } from '../paths'
+import { dataDir, libraryDir, resource, toolEnv, home } from '../paths'
 import * as remote from '../remote'
 
 let prompt: string | null = null
@@ -24,8 +23,8 @@ export function promptText(): string {
 
 /** The `claude` binary: the user's own, where Claude Code installs it. */
 export function claudeBin(): string {
-  const home = homedir()
-  for (const p of [join(home, '.local/bin/claude'), join(home, '.claude/local/claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude']) {
+  const h = home()
+  for (const p of [join(h, '.local/bin/claude'), join(h, '.claude/local/claude'), '/opt/homebrew/bin/claude', '/usr/local/bin/claude']) {
     if (existsSync(p)) return p
   }
   return 'claude'

@@ -15,10 +15,9 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import type { Host, HostCheck } from '@shared/types'
-import { dataDir, pathEnv, resource } from './paths'
+import { dataDir, pathEnv, resource, home } from './paths'
 import { readJson, writeJson } from './json'
 
 // ── Hosts and mirrors ─────────────────────────────────────────────────
@@ -89,7 +88,7 @@ export function shellPath(p: string): string {
 // ── ssh ───────────────────────────────────────────────────────────────
 
 /** Short: a socket path has a length limit. */
-const controlPath = (): string => `${homedir()}/.ssh/panthr-%C`
+const controlPath = (): string => `${home()}/.ssh/panthr-%C`
 
 const BASE_OPTS = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10']
 

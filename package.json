@@ -1,10 +1,9 @@
 {
   "name": "panthr",
   "productName": "Panthr",
-  "version": "0.2.0",
-  "description": "Make videos by talking to an agent.",
+  "version": "1.1.0",
+  "description": "Make videos by talking to an agent, on your Mac.",
   "main": "./out/main/index.js",
-  "private": true,
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
@@ -12,7 +11,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --mac --dir"
+    "dist": "electron-vite build && electron-builder --mac --dir",
+    "dist:mas": "electron-vite build && electron-builder --mac mas --arm64 -c.appId=io.clueso.lightbox"
   },
   "dependencies": {
     "lucide-react": "^1.53.0",
@@ -70,9 +70,25 @@
         "NSMicrophoneUsageDescription": "Panthr does not record audio."
       }
     },
-    "asar": true
+    "asar": true,
+    "mas": {
+      "target": [
+        "mas"
+      ],
+      "identity": null,
+      "type": "distribution",
+      "hardenedRuntime": false,
+      "entitlements": "build/entitlements.mas.plist",
+      "entitlementsInherit": "build/entitlements.mas.inherit.plist",
+      "category": "public.app-category.video",
+      "extendInfo": {
+        "ElectronTeamID": "MD9W6ZH26S",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
   },
   "bin": {
     "panthr": "resources/cli/panthr.mjs"
-  }
+  },
+  "license": "MIT"
 }

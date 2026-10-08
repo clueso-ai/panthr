@@ -5,9 +5,8 @@ import { promisify } from 'node:util'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import type { Api } from '@shared/api'
 import { fileUrl, projectId } from './preview'
-import { resource, toolEnv } from './paths'
+import { resource, toolEnv, home } from './paths'
 import { chmodSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const run = promisify(execFile)
@@ -22,7 +21,7 @@ async function has(tool: string): Promise<boolean> {
 }
 
 /** Where the command goes: ~/.local/bin, where Claude Code puts its own. */
-const cliLink = (): string => join(homedir(), '.local/bin/panthr')
+const cliLink = (): string => join(home(), '.local/bin/panthr')
 
 async function cliStatus(): Promise<{ path: string; onPath: boolean; installed: boolean }> {
   const path = cliLink()
@@ -34,7 +33,7 @@ async function cliStatus(): Promise<{ path: string; onPath: boolean; installed: 
   let onPath = false
   try {
     const { stdout } = await run(process.env.SHELL || '/bin/zsh', ['-lic', 'echo $PATH'], { timeout: 5000 })
-    onPath = stdout.split(':').map((x) => x.trim()).includes(join(homedir(), '.local/bin'))
+    onPath = stdout.split(':').map((x) => x.trim()).includes(join(home(), '.local/bin'))
   } catch {}
   return { path, onPath, installed }
 }
@@ -77,7 +76,7 @@ export const appApi: Api['app'] = {
   async installCli() {
     const target = resource('cli/panthr.mjs')
     const link = cliLink()
-    mkdirSync(join(homedir(), '.local/bin'), { recursive: true })
+    mkdirSync(join(home(), '.local/bin'), { recursive: true })
     try {
       chmodSync(target, 0o755)
     } catch {}
