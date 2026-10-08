@@ -744,6 +744,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
           {picked && (
             <Inspector
               dir={dir}
+              engine={engine}
               picked={picked}
               at={preview.state.time}
               layer={layer}

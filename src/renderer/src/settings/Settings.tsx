@@ -16,12 +16,12 @@ import './settings.css'
 export type Pane = 'general' | 'agents' | 'skills' | 'hosts' | 'editor' | 'export' | 'about'
 const PANES: [Pane, string, IconName][] = [
   ['general', 'General', 'settings'],
-  ['agents', 'Agents', 'spark'],
+  ['agents', 'Agents', 'agents'],
   ['skills', 'Skills', 'library'],
   ['hosts', 'Hosts', 'cloud'],
   ['editor', 'Editor', 'layers'],
   ['export', 'Export', 'export'],
-  ['about', 'About', 'agents']
+  ['about', 'About', 'note']
 ]
 
 export function Settings({ open, pane, onPane, onClose }: { open: boolean; pane: Pane; onPane(p: Pane): void; onClose(): void }) {

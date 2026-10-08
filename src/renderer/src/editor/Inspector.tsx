@@ -5,12 +5,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Control, ControlSet, Layer, Picked, TimingLayer } from '@shared/types'
+import type { Control, ControlSet, Engine, Layer, Picked, TimingLayer } from '@shared/types'
 import { fmtNum, keyFor, setRequest, written } from '@shared/controls'
 import { api } from '@/lib/api'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
 import { Icon } from '@/ui/Icon'
 import { IconButton, Switch } from '@/ui/Controls'
+import { AgentMark } from '@/ui/AgentMark'
 
 const SWATCHES = ['#ffffff', '#0b0b0f', '#da5cc7', '#7c3aed', '#2563eb', '#06b6d4', '#16a34a', '#f59e0b', '#ef4444', '#71717a']
 
@@ -76,9 +77,11 @@ export const Field = ({ label, value, unit }: { label: string; value: React.Reac
 )
 
 export function Inspector({
-  dir, picked, at, layer, layerIx, win, tween, onClose, onAskAbout, onAsk, onPreview, onChanged, onSelectTween, onNudge, onAdjustable, onSeek
+  dir, engine, picked, at, layer, layerIx, win, tween, onClose, onAskAbout, onAsk, onPreview, onChanged, onSelectTween, onNudge, onAdjustable, onSeek
 }: {
   dir: string
+  /** The agent the question goes to: its mark on the ask box. */
+  engine: Engine
   picked: Picked
   at: number
   layer: Layer | null
@@ -149,7 +152,7 @@ export function Inspector({
         <IconButton icon="close" size={26} tip="Close" keys="Esc" onClick={onClose} />
       </div>
       <button className="insp-ask" onClick={onAskAbout}>
-        <Icon name="spark" size={14} style={{ color: 'var(--acc-text)' }} />
+        <AgentMark engine={engine} size={14} />
         <span className="ellipsis">Ask about {name}…</span>
       </button>
       <AnimatePresence mode="wait" initial={false}>
