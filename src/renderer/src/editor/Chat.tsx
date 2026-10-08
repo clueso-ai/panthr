@@ -88,11 +88,29 @@ export function Chat({ chat }: { chat: ChatState }) {
   const now = useTicker(chat.working)
   const opened = useRef(chat.items.length)
 
+  const content = useRef<HTMLDivElement>(null)
+  /** Whether the bottom is in view: judged on scroll AND whenever the
+   *  content changes size (a turn folding away, a reply streaming in),
+   *  since those move the bottom without any scrolling. */
+  const judge = (): void => {
+    const el = scroller.current
+    if (!el) return
+    if (follow.current) el.scrollTop = el.scrollHeight
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    if (atBottom) follow.current = true
+    setAway(!atBottom)
+  }
   // Stick to the bottom while new things arrive, unless the user scrolled up.
+  useLayoutEffect(judge)
   useLayoutEffect(() => {
     const el = scroller.current
-    if (el && follow.current) el.scrollTop = el.scrollHeight
-  })
+    const inner = content.current
+    if (!el || !inner) return
+    const ro = new ResizeObserver(judge)
+    ro.observe(inner)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const onScroll = (): void => {
     const el = scroller.current!
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
@@ -115,6 +133,7 @@ export function Chat({ chat }: { chat: ChatState }) {
   return (
     <div className="chat-wrap">
       <div className="chat" ref={scroller} onScroll={onScroll}>
+        <div ref={content}>
         {all.map((turn, ti) => {
           const active = chat.working && ti === last
           const body = chat.items.slice(turn.from, turn.to)
@@ -170,6 +189,7 @@ export function Chat({ chat }: { chat: ChatState }) {
             <span className="faint">Next</span> {q}
           </motion.div>
         ))}
+        </div>
       </div>
       <AnimatePresence>
         {away && (
