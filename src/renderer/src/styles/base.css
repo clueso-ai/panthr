@@ -1,0 +1,49 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--t1);
+  /* The window is frosted (vibrancy); the page tints it. */
+  background: var(--window);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+input, textarea { font: inherit; color: inherit; }
+::selection { background: var(--acc-sel); }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--hair-2); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+.drag { -webkit-app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; }
+.mono { font-family: var(--mono); }
+.muted { color: var(--t2); }
+.faint { color: var(--t3); }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spacer { flex: 1; }
+.view { position: absolute; inset: 0; }
+#root { position: relative; }
+/* The working shine: a light passes across the words. */
+.shine { position: relative; display: inline-block; color: var(--t3); white-space: nowrap; }
+.shine::after {
+  content: attr(data-text); position: absolute; inset: 0; color: var(--t1);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 55%, transparent 100%);
+  -webkit-mask-size: 50% 100%; -webkit-mask-repeat: no-repeat;
+  animation: shine 2.2s linear infinite;
+}
+@keyframes shine { from { -webkit-mask-position: -60% 0; } to { -webkit-mask-position: 160% 0; } }
+:root[data-motion='reduced'] .shine::after { animation: none; opacity: 0; }
+.link { color: var(--t2); font-size: 12px; text-decoration: none; transition: color var(--quick) var(--ease); }
+.link:hover { color: var(--t1); }
+.link.danger:hover { color: var(--danger); }
+.btn.small { height: 24px; padding: 0 9px; font-size: 12px; border-radius: 6px; }
+.btn.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); background: var(--warn-soft); }
+.ok { color: var(--ok); }
+.bad { color: var(--danger); }
+.hidden { display: none !important; }
+kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: var(--hover); color: var(--t2); margin-left: 6px; }

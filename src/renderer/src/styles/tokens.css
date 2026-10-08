@@ -1,0 +1,100 @@
+/* Panthr's look: neutral greys, Geist, one rose accent (the refined
+   editor direction). Night is the default; Day mirrors it. Every colour
+   comes from here. */
+
+@font-face { font-family: Geist; src: url(/fonts/Geist-Regular.ttf); font-weight: 400; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-Medium.ttf); font-weight: 500; }
+@font-face { font-family: Geist; src: url(/fonts/Geist-SemiBold.ttf); font-weight: 600 700; }
+@font-face { font-family: 'Geist Mono'; src: url(/fonts/GeistMono-Regular.ttf); font-weight: 400; }
+@font-face { font-family: 'Geist Mono'; src: url(/fonts/GeistMono-Medium.ttf); font-weight: 500 600; }
+@font-face { font-family: 'Ortica Linear'; src: url(/fonts/OrticaLinear-Light.otf); font-weight: 300; }
+@font-face { font-family: 'Ortica Linear'; src: url(/fonts/OrticaLinear-Regular.otf); font-weight: 400; }
+@font-face { font-family: 'Ortica Angular'; src: url(/fonts/OrticaAngular-Bold.otf); font-weight: 700; }
+
+:root {
+  --ui: Geist, -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+  --display: 'Ortica Linear', Georgia, serif;
+  --wordmark: 'Ortica Angular', Georgia, serif;
+
+  /* Motion: one curve, three lengths. Nothing moves without them. */
+  --ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --quick: 160ms;
+  --move: 240ms;
+  --settle: 420ms;
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+}
+
+:root, :root[data-theme='night'] {
+  color-scheme: dark;
+  --window: rgb(14 14 15 / var(--frost, 0.82));
+  --page: #0e0e0f;
+  --pane: #161617;
+  --raised: #1e1e20;
+  --field: #232326;
+  --hover: rgba(255, 255, 255, 0.06);
+  --press: rgba(255, 255, 255, 0.1);
+  --stage: #0a0a0b;
+  --hair: rgba(255, 255, 255, 0.07);
+  --hair-2: rgba(255, 255, 255, 0.12);
+  --t1: #ededed;
+  --t2: #a0a0a6;
+  --t3: #6b6b71;
+  --primary: #ededed;
+  --on-primary: #161617;
+  --acc: #e5487f;
+  --acc-soft: rgba(229, 72, 127, 0.16);
+  --acc-text: #ff8fb5;
+  --acc-sel: rgba(229, 72, 127, 0.45);
+  --ok: #3fb98a;
+  --ok-soft: rgba(63, 185, 138, 0.15);
+  --warn: #e7a93b;
+  --warn-soft: rgba(231, 169, 59, 0.14);
+  --warn-text: #ffe2a8;
+  --danger: #ff6a3d;
+  --danger-soft: rgba(255, 106, 61, 0.15);
+  --track: #1d1a26;
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.35);
+  --scrim: rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme='day'] {
+  color-scheme: light;
+  --window: rgb(236 236 238 / var(--frost, 0.86));
+  --page: #ececee;
+  --pane: #ffffff;
+  --raised: #f4f4f6;
+  --field: #f1f1f3;
+  --hover: rgba(0, 0, 0, 0.05);
+  --press: rgba(0, 0, 0, 0.08);
+  --stage: #dddde1;
+  --hair: rgba(0, 0, 0, 0.08);
+  --hair-2: rgba(0, 0, 0, 0.14);
+  --t1: #141416;
+  --t2: #5f5f66;
+  --t3: #96969e;
+  --primary: #141416;
+  --on-primary: #ffffff;
+  --acc: #d63a72;
+  --acc-soft: rgba(214, 58, 114, 0.1);
+  --acc-text: #b8295e;
+  --acc-sel: rgba(214, 58, 114, 0.35);
+  --ok: #1e8a5f;
+  --ok-soft: rgba(30, 138, 95, 0.1);
+  --warn: #a86a00;
+  --warn-soft: rgba(168, 106, 0, 0.12);
+  --warn-text: #7a4e00;
+  --danger: #c23a28;
+  --danger-soft: rgba(194, 58, 40, 0.1);
+  --track: #2a2733;
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.12);
+  --scrim: rgba(0, 0, 0, 0.45);
+}
+
+:root[data-motion='reduced'] { --quick: 0ms; --move: 0ms; --settle: 0ms; }

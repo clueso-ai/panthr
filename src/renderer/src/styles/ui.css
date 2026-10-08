@@ -1,0 +1,90 @@
+/* ── Buttons, chips ───────────────────────────────────────────── */
+.icon-btn {
+  display: grid; place-items: center; flex: none; border-radius: var(--r-sm); color: var(--t2);
+  transition: background var(--quick) var(--ease), color var(--quick) var(--ease);
+}
+.icon-btn:hover { background: var(--hover); color: var(--t1); }
+.icon-btn:active { background: var(--press); }
+.icon-btn.on { background: var(--acc-soft); color: var(--acc-text); }
+.icon-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+.btn {
+  height: 28px; padding: 0 12px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 12.5px; font-weight: 500; color: var(--t1); border: 1px solid var(--hair-2); background: var(--raised);
+  transition: background var(--quick) var(--ease), border-color var(--quick) var(--ease), opacity var(--quick) var(--ease);
+}
+.btn:hover { background: var(--hover); border-color: var(--hair-2); }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; font-weight: 600; }
+.btn.primary:hover { opacity: 0.88; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--t2); }
+.btn.ghost:hover { background: var(--hover); color: var(--t1); }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: 0.45; pointer-events: none; }
+
+.chip {
+  height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px 0 8px; border-radius: var(--r-md);
+  color: var(--t2); font-size: 13px; transition: background var(--quick) var(--ease), color var(--quick) var(--ease);
+}
+.chip:hover, .chip.open { background: var(--hover); color: var(--t1); }
+
+.send {
+  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--on-primary);
+  transition: opacity var(--quick) var(--ease), transform var(--quick) var(--ease), background var(--quick) var(--ease);
+}
+.send:hover { opacity: 0.88; }
+.send:active { transform: scale(0.94); }
+.send:disabled { opacity: 0.3; }
+.send.stop { background: var(--raised); color: var(--t1); border: 1px solid var(--hair-2); }
+
+/* ── Menus, popovers, tooltips ────────────────────────────────── */
+.popover { will-change: transform, opacity; }
+.menu {
+  padding: 4px; border-radius: var(--r-lg); background: var(--raised); box-shadow: var(--shadow-pop);
+  display: flex; flex-direction: column; min-width: 180px;
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+.menu-item {
+  height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 7px; font-size: 13px; color: var(--t1); text-align: left; width: 100%;
+  transition: background var(--quick) var(--ease);
+}
+.menu-item:hover { background: var(--hover); }
+.menu-item.disabled { color: var(--t3); }
+.menu-item.disabled:hover { background: transparent; }
+.menu-check { width: 16px; display: grid; place-items: center; color: var(--acc); font-size: 12px; flex: none; }
+.menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-hint { font-size: 11px; color: var(--t3); flex: none; }
+.menu-sep { height: 1px; background: var(--hair); margin: 4px 8px; }
+.menu-title { display: flex; align-items: center; gap: 6px; padding: 6px 8px 4px; font-size: 11px; color: var(--t3); }
+
+.tip {
+  max-width: 250px; padding: 7px 10px; border-radius: var(--r-md); background: var(--raised); box-shadow: var(--shadow-pop);
+  font-size: 12px; display: grid; gap: 3px;
+}
+.tip.wide { width: 250px; }
+.tip-title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.tip-keys { margin-left: auto; font-family: var(--mono); font-weight: 400; color: var(--t3); font-size: 11px; }
+.tip-body { color: var(--t2); line-height: 1.4; }
+
+/* ── Switch, segmented ────────────────────────────────────────── */
+.switch {
+  width: 32px; height: 19px; border-radius: 10px; background: var(--hair-2); position: relative; flex: none; display: flex; padding: 2px;
+  transition: background var(--move) var(--ease); justify-content: flex-start;
+}
+.switch.on { background: var(--acc); justify-content: flex-end; }
+.switch i { width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); display: block; }
+.switch.small { width: 26px; height: 15px; }
+.switch.small i { width: 11px; height: 11px; }
+
+.segmented { display: inline-flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--field); }
+.segmented button { position: relative; height: 24px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--t3); transition: color var(--quick) var(--ease); }
+.segmented button.on { color: var(--t1); }
+.segmented button:hover { color: var(--t1); }
+.seg-pill { position: absolute; inset: 0; border-radius: 6px; background: var(--pane); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.seg-label { position: relative; }
+
+/* ── The message box ──────────────────────────────────────────── */
+.composer-input {
+  display: block; width: 100%; resize: none; border: 0; outline: 0; background: transparent; padding: 0; margin: 0;
+  color: var(--t1); font-size: 14px; line-height: 21px; min-height: 21px; user-select: text; cursor: text; overflow-y: auto;
+}
+.composer-input::placeholder { color: var(--t3); }

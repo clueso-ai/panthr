@@ -94,6 +94,13 @@ export interface Api {
     /** Link the shared skills into a project. */
     link(dir: string): Promise<void>
   }
+  files: {
+    /** A project file's text (null: missing). */
+    read(dir: string, rel: string): Promise<string | null>
+    /** Write `next` only if the file still holds `expected` (undo/redo:
+     *  never over a change someone else made since). */
+    replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
+  }
   hosts: {
     list(): Promise<Host[]>
     save(hosts: Host[]): Promise<void>

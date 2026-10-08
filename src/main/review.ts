@@ -407,11 +407,14 @@ export function currentFrames(dir: string): { files: string[]; stamp: number } {
     .filter((n) => /^\d+$/.test(n))
     .map((n) => Number(n))
     .sort((a, b) => a - b)
-  const stamp = sets.pop()
-  if (stamp == null) return { files: [], stamp: 0 }
-  const set = join(framesRoot(dir), String(stamp))
-  const files = list(set).filter(isFrame).sort().map((n) => join(set, n))
-  return { files, stamp }
+  // The newest set that has frames: one being made (or cut short) is
+  // still empty, and must not blank the filmstrip.
+  for (const stamp of sets.reverse()) {
+    const set = join(framesRoot(dir), String(stamp))
+    const files = list(set).filter(isFrame).sort().map((n) => join(set, n))
+    if (files.length) return { files, stamp }
+  }
+  return { files: [], stamp: 0 }
 }
 
 /** The newest time any file of the composition changed (what frames go stale against). */

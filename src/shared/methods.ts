@@ -15,5 +15,6 @@ export const METHODS: All = {
   controls: { all: true, save: true, run: true, timing: true },
   review: { comments: true, saveComments: true, versions: true, render: true, cancelRender: true, frames: true, annotate: true, library: true, addToLibrary: true, importFiles: true },
   skills: { state: true, add: true, remove: true, setOn: true, link: true },
+  files: { read: true, replace: true },
   hosts: { list: true, save: true, check: true, refresh: true }
 }

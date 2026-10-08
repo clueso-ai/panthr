@@ -18,15 +18,16 @@ import { projects } from './projects'
 import { chats, anyWorking, stopAll } from './chats'
 import { controls } from './controls'
 import { review } from './review'
-import { skills } from './skills'
+import { skills, seedSkills } from './skills'
 import { hosts } from './hosts'
+import { files } from './files'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
 app.setName('Panthr')
 registerScheme()
 
-const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, hosts }
+const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts }
 
 function registerApi(): void {
   for (const [ns, methods] of Object.entries(METHODS)) {
@@ -188,6 +189,8 @@ app.whenReady().then(() => {
   buildMenu()
   win = createWindow()
   if (HEADLESS) headlessCapture(win)
+  // The default skills, put in once (not in a test run).
+  else seedSkills()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) win = createWindow()
   })
