@@ -200,6 +200,8 @@ export interface Tween {
 
 export interface TimingLayer {
   id: string
+  /** The composition file it lives in (edit requests name it). */
+  file: string
   label: string
   start: number | null
   end: number | null
