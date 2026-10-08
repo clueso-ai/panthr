@@ -170,7 +170,20 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   }, [sel]) // eslint-disable-line react-hooks/exhaustive-deps
   const duration = preview.state.duration
 
-  useEffect(() => preview.post({ type: 'pick', on: tool === 'select' }), [tool]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Select mode (and the outline of what is picked) belong to the page
+  // shown: set again whenever the tool or the shown page changes, so a
+  // page swapped in after a reload answers clicks too.
+  useEffect(() => {
+    const again = (): void => {
+      preview.post({ type: 'pick', on: tool === 'select' })
+      const ref = pickedRef.current?.layer || pickedRef.current?.id
+      if (ref) preview.post({ type: 'highlight', id: ref })
+    }
+    again()
+    // A page still starting may not be listening yet: once more shortly.
+    const id = window.setTimeout(again, 600)
+    return () => window.clearTimeout(id)
+  }, [tool, preview.front, url]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshTiming = useCallback(() => {
     api.controls.timing(dir).then(setTiming).catch((e) => say(`Couldn't read the timeline's timing: ${String(e.message ?? e).split('\n')[0]}`))

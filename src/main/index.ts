@@ -121,6 +121,25 @@ function headlessCapture(w0: BrowserWindow): void {
         console.log('eval failed:', e)
       }
     }
+    // A script in the preview page itself (PANTHR_FRAME_EVAL), then one more
+    // in the window (PANTHR_EVAL_AFTER): to click inside the video and see
+    // what the app made of it.
+    if (process.env.PANTHR_FRAME_EVAL) {
+      const f = w0.webContents.mainFrame.framesInSubtree.find((x) => x.url.startsWith('panthr://p-') && x !== w0.webContents.mainFrame)
+      try {
+        console.log('frame:', JSON.stringify(f ? await f.executeJavaScript(process.env.PANTHR_FRAME_EVAL) : 'no preview frame'))
+      } catch (e) {
+        console.log('frame eval failed:', e)
+      }
+      await new Promise((r) => setTimeout(r, 1200))
+    }
+    if (process.env.PANTHR_EVAL_AFTER) {
+      try {
+        console.log('after:', JSON.stringify(await w0.webContents.executeJavaScript(process.env.PANTHR_EVAL_AFTER)))
+      } catch (e) {
+        console.log('after eval failed:', e)
+      }
+    }
     await new Promise((r) => setTimeout(r, Math.max(0, delay - 1500)))
     const img = await w0.webContents.capturePage()
     writeFileSync(process.env.PANTHR_SHOT!, img.toPNG())
