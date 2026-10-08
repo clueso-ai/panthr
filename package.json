@@ -36,5 +36,39 @@
     "esbuild@0.25.12": true,
     "esbuild@0.28.2": true,
     "electron-winstaller": false
+  },
+  "build": {
+    "appId": "io.clueso.panthr",
+    "productName": "Panthr",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.video",
+      "target": [
+        "dir"
+      ],
+      "identity": null,
+      "darkModeSupport": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Panthr does not record audio."
+      }
+    },
+    "asar": true
   }
 }

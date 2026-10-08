@@ -14,7 +14,7 @@ import type { Comment, Layer, Scene, TimingLayer } from '@shared/types'
 import { tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
-import { IconButton } from '@/ui/Controls'
+
 import { MenuItem, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
 
@@ -414,7 +414,6 @@ export function Timeline(p: TimelineProps) {
         </div>
         <div className="tl-foot-mid">{p.footer}</div>
         <div className="tl-zoom">
-          <IconButton icon="close" size={0} className="hidden" />
           <button className="tl-zoom-btn" onClick={() => zoomAt(1 / 1.6, width / 2)} disabled={zoom <= 1}>−</button>
           <button className="tl-zoom-fit mono" onClick={() => setView([1, 0])}>{zoom > 1.01 ? `${zoom.toFixed(zoom < 10 ? 1 : 0)}×` : 'Fit'}</button>
           <button className="tl-zoom-btn" onClick={() => zoomAt(1.6, x(p.time))} disabled={zoom >= MAX_ZOOM}>+</button>

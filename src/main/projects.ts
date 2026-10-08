@@ -288,7 +288,28 @@ const META_FILES = new Set(['.studio/controls.json', '.studio/comments.json', '.
 
 const watchers = new Map<string, { w: FSWatcher; timer: NodeJS.Timeout | null; files: Set<string> }>()
 
+/** Projects on hosts: their page's stamp there, checked every second
+ *  (the files change there, so there is nothing here to watch). */
+const polls = new Map<string, { timer: NodeJS.Timeout; stamp: string | null }>()
+
+function pollRemote(dir: string): void {
+  const p = { stamp: null as string | null, timer: setInterval(async () => {
+    const st = await remote.liveStamp(dir).catch(() => null)
+    if (st === null) return
+    if (p.stamp !== null && st !== p.stamp) emit('project:changed', { dir, files: ['index.html'] })
+    p.stamp = st
+  }, 1000) }
+  polls.set(dir, p)
+}
+
 function unwatch(dir: string): void {
+  const p = polls.get(dir)
+  if (p) {
+    clearInterval(p.timer)
+    polls.delete(dir)
+    // Its page server there is not needed while it is closed.
+    remote.stopLive(dir)
+  }
   const e = watchers.get(dir)
   if (!e) return
   e.w.close()
@@ -298,8 +319,8 @@ function unwatch(dir: string): void {
 
 function watchDir(dir: string): void {
   unwatch(dir)
-  // A project on a host: nothing here changes but its notes.
-  if (remote.hostOf(dir)) return
+  // A project on a host: its page there is checked instead.
+  if (remote.hostOf(dir)) return pollRemote(dir)
   let w: FSWatcher
   try {
     w = watch(dir, { recursive: true })
