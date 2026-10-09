@@ -7,7 +7,7 @@ import type { Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsStat
 import { api, useEvent, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
-import { IconButton, Segmented, Switch } from '@/ui/Controls'
+import { frostAlpha, IconButton, Segmented, Slider, Switch } from '@/ui/Controls'
 import { MenuItem, Popover } from '@/ui/Popover'
 import { EyeMark } from '@/ui/Eye'
 import { ByClueso } from '@/ui/CluesoMark'
@@ -100,7 +100,23 @@ function General() {
           <Segmented id="theme" value={s.appearance} onChange={(v) => set({ appearance: v })} options={[{ value: 'system', label: 'System' }, { value: 'night', label: 'Night' }, { value: 'day', label: 'Day' }]} />
         </Row>
         <Row title="Frost" body="How much of the desktop shows through.">
-          <Segmented id="frost" value={s.frost} onChange={(v) => set({ frost: v })} options={[{ value: 'solid', label: 'Solid' }, { value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' }, { value: 'strong', label: 'Strong' }]} />
+          <Slider
+            label="Frost"
+            value={s.frost}
+            left="Solid"
+            right="Clear"
+            width={240}
+            onInput={(v) => {
+              // Follow the finger at once; the eased change is for the saved value.
+              const root = document.documentElement
+              root.dataset.dragging = 'frost'
+              root.style.setProperty('--frost', String(frostAlpha(v)))
+            }}
+            onChange={(v) => {
+              delete document.documentElement.dataset.dragging
+              set({ frost: v })
+            }}
+          />
         </Row>
       </Card>
       <Card title="Motion">

@@ -44,6 +44,78 @@ export function Segmented<T extends string>({ value, options, onChange, id }: { 
   )
 }
 
+/** The window tint's opacity for a Frost amount (0 solid … 100 clearest). */
+export const frostAlpha = (frost: number): number => 1 - (Math.min(100, Math.max(0, frost)) / 100) * 0.55
+
+/** A horizontal slider: drag, click the track, or use the arrow keys.
+ *  `onInput` follows the drag; `onChange` is the value let go of. */
+export function Slider({ value, onInput, onChange, min = 0, max = 100, step = 1, label, left, right, width = 200 }: {
+  value: number; onInput?: (v: number) => void; onChange: (v: number) => void
+  min?: number; max?: number; step?: number; label: string; left?: ReactNode; right?: ReactNode; width?: number
+}) {
+  const track = useRef<HTMLDivElement>(null)
+  const [live, setLive] = useState<number | null>(null)
+  const v = live ?? value
+  const at = (x: number): number => {
+    const r = track.current!.getBoundingClientRect()
+    const f = Math.min(1, Math.max(0, (x - r.left) / r.width))
+    return Math.round((min + f * (max - min)) / step) * step
+  }
+  const pct = ((v - min) / (max - min)) * 100
+  const nudge = (d: number): void => {
+    const n = Math.min(max, Math.max(min, value + d))
+    onInput?.(n)
+    onChange(n)
+  }
+  return (
+    <div className={`slider${live !== null ? ' dragging' : ''}`} style={{ width }}>
+      {left && <span className="slider-end">{left}</span>}
+      <div
+        ref={track}
+        className="slider-track"
+        role="slider"
+        tabIndex={0}
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={v}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          const n = at(e.clientX)
+          setLive(n)
+          onInput?.(n)
+        }}
+        onPointerMove={(e) => {
+          if (live === null) return
+          const n = at(e.clientX)
+          if (n !== live) {
+            setLive(n)
+            onInput?.(n)
+          }
+        }}
+        onPointerUp={() => {
+          if (live !== null) onChange(live)
+          setLive(null)
+        }}
+        onPointerCancel={() => setLive(null)}
+        onKeyDown={(e) => {
+          const big = e.shiftKey ? 10 : step * 5
+          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') nudge(big)
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') nudge(-big)
+          else if (e.key === 'Home') nudge(min - value)
+          else if (e.key === 'End') nudge(max - value)
+          else return
+          e.preventDefault()
+        }}
+      >
+        <div className="slider-rail"><i style={{ width: `${pct}%` }} /></div>
+        <span className="slider-knob" style={{ left: `${pct}%` }} />
+      </div>
+      {right && <span className="slider-end">{right}</span>}
+    </div>
+  )
+}
+
 export interface ComposerHandle {
   focus(): void
   set(text: string): void

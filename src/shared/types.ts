@@ -45,7 +45,8 @@ export interface Settings {
   filmstrip: boolean
   reduce_motion: boolean
   appearance: 'system' | 'night' | 'day'
-  frost: 'solid' | 'light' | 'medium' | 'strong'
+  /** How much of the desktop shows through the window, 0 (solid) to 100. */
+  frost: number
   agent: Engine
   codex_model: string
   skimming: boolean
@@ -59,7 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   filmstrip: true,
   reduce_motion: false,
   appearance: 'system',
-  frost: 'medium',
+  frost: 40,
   agent: 'claude',
   codex_model: 'default',
   skimming: true

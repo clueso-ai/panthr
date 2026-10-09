@@ -103,3 +103,14 @@
 .ref-thumb.lg { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; }
 .ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mention { color: var(--acc-text); background: var(--acc-soft); border-radius: 4px; padding: 0 3px; font-weight: 500; }
+
+/* Slider: a thin rail, the filled part in the accent, a round knob. */
+.slider { display: flex; align-items: center; gap: 10px; }
+.slider-end { font-size: 12px; color: var(--t3); flex: none; }
+.slider-track { position: relative; flex: 1; height: 22px; display: flex; align-items: center; touch-action: none; outline: 0; }
+.slider-rail { position: relative; width: 100%; height: 4px; border-radius: 2px; background: var(--field); box-shadow: inset 0 0 0 1px var(--hair); overflow: hidden; }
+.slider-rail i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acc); border-radius: 2px; transition: width var(--quick) var(--ease); }
+.slider-knob { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.2); transition: left var(--quick) var(--ease), transform var(--quick) var(--ease); }
+.slider.dragging .slider-rail i, .slider.dragging .slider-knob { transition: none; }
+.slider.dragging .slider-knob, .slider-track:hover .slider-knob { transform: scale(1.1); }
+.slider-track:focus-visible .slider-knob { box-shadow: 0 0 0 3px var(--acc-sel), 0 1px 3px rgba(0, 0, 0, 0.35); }

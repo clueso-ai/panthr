@@ -10,6 +10,7 @@ import { Home } from './home/Home'
 import { Editor } from './editor/Editor'
 import { Settings, type Pane } from './settings/Settings'
 import { isDark, toggleTheme } from './ui/ThemeToggle'
+import { frostAlpha } from './ui/Controls'
 import { DropVideos } from './editor/References'
 
 type View = { kind: 'home' } | { kind: 'project'; dir: string; first: string | null }
@@ -25,8 +26,7 @@ export function App() {
     const dark = isDark(s.appearance)
     document.documentElement.dataset.theme = dark ? 'night' : 'day'
     document.documentElement.dataset.motion = s.reduce_motion ? 'reduced' : 'full'
-    const alpha = { solid: 1, light: 0.9, medium: 0.78, strong: 0.6 }[s.frost] ?? 0.78
-    document.documentElement.style.setProperty('--frost', String(alpha))
+    document.documentElement.style.setProperty('--frost', String(frostAlpha(s.frost)))
   }, [s.appearance, s.reduce_motion, s.frost])
   useEffect(() => {
     const m = matchMedia('(prefers-color-scheme: dark)')

@@ -10,8 +10,14 @@ import { emit } from './bus'
 
 const file = (): string => join(dataDir(), 'settings.json')
 
+/** Frost was four steps before it was a slider. */
+const OLD_FROST: Record<string, number> = { solid: 0, light: 18, medium: 40, strong: 73 }
+
 export function getSettings(): Settings {
-  return { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(file(), {}) }
+  const s = { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(file(), {}) }
+  const f = s.frost as unknown
+  s.frost = typeof f === 'number' && Number.isFinite(f) ? Math.min(100, Math.max(0, f)) : OLD_FROST[String(f)] ?? DEFAULT_SETTINGS.frost
+  return s
 }
 
 export const settings: Api['settings'] = {

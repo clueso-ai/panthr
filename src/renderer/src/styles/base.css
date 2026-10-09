@@ -1,6 +1,7 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 html { transition: --frost var(--settle) var(--ease); }
+html[data-dragging] { transition: none; }
 body {
   font-family: var(--ui);
   font-size: 13px;
