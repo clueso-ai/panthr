@@ -123,7 +123,6 @@
 .activity-btn.busy { color: var(--t1); }
 .activity-summary { min-width: 0; }
 .activity-status { overflow: hidden; }
-.left-activity { padding: 0 8px 6px; margin-top: -6px; }
 .home-activity { position: absolute; left: 10px; bottom: 10px; z-index: 3; }
 @keyframes activity-spin { to { transform: rotate(360deg); } }
 :root[data-motion='reduced'] .activity-btn.busy .activity-ring { animation: none; border-color: var(--acc); }

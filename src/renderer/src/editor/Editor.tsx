@@ -12,7 +12,6 @@ import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
 import { ThemeToggle } from '@/ui/ThemeToggle'
-import { ActivityStatus } from '@/ui/Activity'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
@@ -678,7 +677,6 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
             )}
           </div>
         </div>
-        <ActivityStatus className="left-activity" except={dir} />
       </aside>
       <div className="handle" onPointerDown={(e) => resize('chat', e)} onDoubleClick={() => setChatW(380)} />
 
