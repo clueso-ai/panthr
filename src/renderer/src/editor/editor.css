@@ -36,13 +36,14 @@
 .chat-empty-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
 .chat-empty-body { color: var(--t2); font-size: 13px; max-width: 32ch; }
 .turn { margin-bottom: 16px; }
-.um { margin-left: auto; width: fit-content; max-width: 88%; background: var(--raised); border: 1px solid var(--hair); padding: 8px 12px; border-radius: 14px 14px 4px 14px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; }
+.um { margin-left: auto; width: fit-content; max-width: 88%; background: var(--raised); border: 1px solid var(--hair); padding: 8px 12px; border-radius: 14px 14px 4px 14px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 10px; }
 .um-more { display: block; margin-top: 4px; color: var(--t3); font-size: 12px; }
 .worked { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--hair); font-size: 12.5px; color: var(--t3); width: 100%; text-align: left; }
 .worked.fold { transition: color var(--quick) var(--ease); }
 .worked.fold:hover { color: var(--t1); }
 .fold-mark { display: inline-block; font-size: 13px; line-height: 1; }
-.am { color: var(--t1); font-size: 13.5px; line-height: 1.6; }
+.am { color: var(--t1); font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+.am pre, .am pre code { overflow-wrap: normal; }
 .am p { margin: 0 0 10px; }
 .am h3, .am h4 { margin: 14px 0 6px; font-size: 13.5px; font-weight: 600; }
 .am ul, .am ol { margin: 0 0 10px; padding-left: 20px; }
@@ -72,7 +73,7 @@
 .thinking { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; }
 .note-line { font-size: 12px; color: var(--t3); padding: 4px 0 8px; }
 .meta-line.err { font-size: 12px; color: var(--danger); padding: 4px 0; }
-.queued { font-size: 12.5px; color: var(--t2); border: 1px dashed var(--hair-2); border-radius: 10px; padding: 6px 10px; margin: 0 0 8px auto; width: fit-content; max-width: 88%; }
+.queued { overflow-wrap: anywhere; font-size: 12.5px; color: var(--t2); border: 1px dashed var(--hair-2); border-radius: 10px; padding: 6px 10px; margin: 0 0 8px auto; width: fit-content; max-width: 88%; }
 .to-bottom { position: absolute; bottom: 10px; left: 50%; translate: -50% 0; padding: 4px 10px; border-radius: 999px; background: var(--raised); box-shadow: var(--shadow-pop); font-size: 12px; color: var(--t2); }
 
 /* ── The composer card ────────────────────────────────────────── */
@@ -108,7 +109,7 @@
 .note-who { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
 .note-who.agent b { color: var(--acc); }
 .note-time { margin-left: auto; color: var(--warn); font-size: 11px; }
-.note-body { font-size: 13px; line-height: 1.5; white-space: pre-wrap; user-select: text; }
+.note-body { overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; white-space: pre-wrap; user-select: text; }
 .note-actions { display: flex; gap: 10px; opacity: 0; transition: opacity var(--quick) var(--ease); }
 .note:hover .note-actions, .note.on .note-actions { opacity: 1; }
 .fold-line { display: flex; align-items: center; gap: 6px; padding: 10px; font-size: 12px; color: var(--t3); }
