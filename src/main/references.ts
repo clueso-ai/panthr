@@ -29,6 +29,7 @@ import { now, studioRoot, toolEnv } from './paths'
 import { getSettings } from './settings'
 import { claudeBin, parse as parseClaude } from './agents/claude'
 import { codexBin, newRun, parse as parseCodex } from './agents/codex'
+import { readVideo } from './reading'
 
 const run = promisify(execFile)
 
@@ -243,6 +244,7 @@ What is here to work from:
 - analysis.json: its length, size, frame rate, whether it has sound, and the scene cuts ffmpeg found
 - frames/: stills named by their time (t-0012.40.jpg is at 12.40 s), and one just after each cut (cut-...jpg). Open and look at them.
 - contact.jpg: the evenly spaced stills on one sheet
+- reading/: what Panthr measured before you (start with reading/README.md): the shots, a word-by-word transcript, the text on screen with where it sits, tempo and beats, the colours of each shot, and how much the picture moves over time. Trust it, but check it against the frames.
 
 Decompose it however you judge best captures it: there is no required format. Write as many files and folders as help (notes, a scene-by-scene breakdown, timing maps, palettes, type specimens, motion studies, code sketches, assets you crop out of frames...). Be concrete: times, sizes, hex values, eases.
 
@@ -312,7 +314,17 @@ async function work(r: Reference, input: string | null): Promise<void> {
     if (!fresh.video) throw new Error('The video is missing from its folder.')
     update(r.dir, { status: 'analyzing', step: 'Pulling stills and cuts', error: null })
     const p = await prepare(r.dir, fresh.video)
-    update(r.dir, { duration: p.duration, width: p.width, height: p.height, step: 'Your agent is watching it' })
+    update(r.dir, { duration: p.duration, width: p.width, height: p.height })
+    // What stills can't tell an agent: shots, words, text, rhythm, colour, motion.
+    const frames = join(r.dir, 'frames')
+    const reading = await readVideo(r.dir, fresh.video, { duration: p.duration, hasAudio: p.hasAudio, stills: readdirSafe(frames).filter((n) => n.endsWith('.jpg')).map((n) => join(frames, n)) }, (step) => update(r.dir, { step }))
+    // A still at each shot the reading found that ffmpeg's filter missed.
+    const have = readdirSafe(frames).filter((n) => n.startsWith('cut-')).map((n) => Number(n.slice(4, -4)))
+    for (const sh of reading.shots.list.slice(1, 25)) {
+      if (have.some((t) => Math.abs(t - sh.start) < 0.3)) continue
+      await ff(['-ss', String(Math.min(p.duration - 0.05, sh.start + 0.15)), '-i', fresh.video, '-frames:v', '1', '-vf', 'scale=768:-2', '-q:v', '4', join(frames, `cut-${stamp(sh.start)}.jpg`)]).catch(() => '')
+    }
+    update(r.dir, { step: 'Your agent is watching it' })
     rmSync(join(r.dir, 'README.md'), { force: true })
     await deconstruct(load(r.dir)!)
     let summary: string | null = null
