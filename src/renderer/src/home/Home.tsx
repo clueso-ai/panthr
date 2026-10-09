@@ -9,6 +9,7 @@ import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
 import { LiveEye, EyeMark } from '@/ui/Eye'
+import { ByClueso } from '@/ui/CluesoMark'
 import { Icon } from '@/ui/Icon'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
@@ -63,6 +64,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
       <div className="home-top drag">
         <EyeMark width={22} />
         <span className="wordmark">Panthr</span>
+        <ByClueso />
         <span className="spacer" />
         <div className="no-drag">
           <IconButton icon="settings" tip="Settings" keys="⌘," onClick={onSettings} />

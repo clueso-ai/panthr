@@ -21,3 +21,6 @@ Agent marks (src/renderer/src/ui/AgentMark.tsx): the Claude and OpenAI logos,
 
 Electron, React, motion and the other packages in package.json are used
 under their own licences (MIT unless noted in each package).
+
+The Clueso mark (src/renderer/src/ui/CluesoMark.tsx) belongs to Clueso. It is
+not covered by the MIT licence and is shown only to say who makes Panthr.

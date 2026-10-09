@@ -1,6 +1,6 @@
 # Panthr
 
-Make videos by talking to an agent, on your Mac.
+**Panthr by [Clueso](https://www.clueso.io).** Make videos by talking to an agent, on your Mac.
 
 Panthr is a video editor where the editing is done by the coding agent you already use: Claude Code or Codex. You describe the video; the agent writes it as a web page (HTML, CSS and GSAP, played by the [HyperFrames](https://github.com/heygen-com/hyperframes) runtime); you watch it, point at things, nudge them on a timeline, leave notes at moments, and export an MP4.
 
@@ -85,10 +85,10 @@ It renders hidden, runs `PANTHR_EVAL` in the window (and `PANTHR_FRAME_EVAL` ins
 
 ### The App Store build
 
-`npm run dist:mas` builds the sandboxed variant (`build/entitlements.mas*.plist`). The sandbox allows the folders the agents and tools need, and `paths.ts` resolves your real home folder inside it. Signing and upload go through Xcode (`xcodebuild -exportArchive`).
+`npm run dist:mas` builds the sandboxed variant (`build/entitlements.mas*.plist`). The sandbox allows the folders the agents and tools need, and `paths.ts` resolves your real home folder inside it. Signing and upload go through Xcode (`xcodebuild -exportArchive`). If you sign by hand, sign `Contents/Resources/resources/bin/panthr-ocr` (the on-screen text reader, rebuilt with `npm run build:ocr`) with the inherit entitlements before the app itself.
 
 ## License
 
 [MIT](LICENSE). Panthr bundles third-party work under its own licences; see [NOTICE](NOTICE).
 
-Claude is a trademark of Anthropic, and OpenAI and Codex are trademarks of OpenAI. Their marks are shown only to name the agent you have chosen; Panthr is not affiliated with either.
+Panthr is made by [Clueso](https://www.clueso.io); the Clueso name and mark belong to Clueso and are not covered by the MIT licence. Claude is a trademark of Anthropic, and OpenAI and Codex are trademarks of OpenAI. Their marks are shown only to name the agent you have chosen; Panthr is not affiliated with either.

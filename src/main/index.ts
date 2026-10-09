@@ -29,6 +29,7 @@ import { references, stopAllReferences } from './references'
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
 app.setName('Panthr')
+app.setAboutPanelOptions({ applicationName: 'Panthr', credits: 'by Clueso', copyright: 'Panthr by Clueso' })
 registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))

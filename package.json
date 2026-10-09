@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "dist": "electron-vite build && electron-builder --mac --dir",
+    "build:ocr": "swiftc -O -target arm64-apple-macos13 build/ocr.swift -o resources/bin/panthr-ocr",
     "dist:mas": "electron-vite build && electron-builder --mac mas --arm64 -c.appId=io.clueso.lightbox"
   },
   "dependencies": {
@@ -41,6 +42,7 @@
   "build": {
     "appId": "io.clueso.panthr",
     "productName": "Panthr",
+    "copyright": "Panthr by Clueso",
     "directories": {
       "output": "dist",
       "buildResources": "build"

@@ -56,3 +56,5 @@
 .skill-sheet-top b { font-size: 14px; }
 .skill-edit { flex: 1; resize: none; outline: 0; }
 .skill-read { flex: 1; overflow: auto; }
+.about-mark .by-clueso { margin-top: 2px; font-size: 12px; }
+.about-line { margin-top: 6px; }
