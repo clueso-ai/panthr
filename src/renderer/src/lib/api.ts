@@ -36,3 +36,29 @@ export function useSettings(): Settings {
 }
 
 export const settingsNow = (): Settings => current
+
+// ── References, kept current for every component that shows them ─────
+
+import type { Reference } from '@shared/types'
+let refs: Reference[] = []
+const refSubs = new Set<(r: Reference[]) => void>()
+api.references.list().then((r) => {
+  refs = r
+  refSubs.forEach((f) => f(r))
+})
+api.on('references', (r) => {
+  refs = r
+  refSubs.forEach((f) => f(r))
+})
+
+export function useReferences(): Reference[] {
+  const [r, set] = useState(refs)
+  useEffect(() => {
+    refSubs.add(set)
+    set(refs)
+    return () => {
+      refSubs.delete(set)
+    }
+  }, [])
+  return r
+}

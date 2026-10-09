@@ -41,3 +41,18 @@
 .seg-mark { display: inline-flex; align-items: center; gap: 6px; }
 .row-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--field); display: grid; place-items: center; flex: none; }
 .cli-example { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--hair); font-family: var(--mono); font-size: 11.5px; color: var(--t2); line-height: 1.7; user-select: text; white-space: pre-wrap; }
+
+.skills-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.skills-search { flex: 1; min-width: 200px; }
+.new-skill { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.skill-body { height: 140px; padding: 8px 10px; resize: vertical; line-height: 1.5; }
+.new-skill-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.skill-row { min-height: 48px; }
+.skill-open { text-align: left; cursor: default; }
+.skill-open:hover b { color: var(--acc-text); }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.skill-sheet { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--pane); border-left: 1px solid var(--hair-2); box-shadow: -20px 0 40px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 10px; padding: 14px; z-index: 5; }
+.skill-sheet-top { display: flex; align-items: center; gap: 6px; }
+.skill-sheet-top b { font-size: 14px; }
+.skill-edit { flex: 1; resize: none; outline: 0; }
+.skill-read { flex: 1; overflow: auto; }

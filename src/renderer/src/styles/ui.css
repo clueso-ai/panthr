@@ -88,3 +88,18 @@
   color: var(--t1); font-size: 14px; line-height: 21px; min-height: 21px; user-select: text; cursor: text; overflow-y: auto;
 }
 .composer-input::placeholder { color: var(--t3); }
+
+/* ── The @ menu ───────────────────────────────────────────────── */
+.mention-menu { max-height: 360px; overflow-y: auto; }
+.mention-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: 8px; text-align: left; transition: background var(--quick) var(--ease); }
+.mention-row.on { background: var(--hover); }
+.mention-row.busy { opacity: .55; }
+.mention-words { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.mention-words b { font-size: 13px; font-weight: 500; }
+.mention-words span { font-size: 11.5px; color: var(--t3); }
+.mention-empty { padding: 8px 10px 10px; font-size: 12px; color: var(--t3); max-width: 290px; }
+.ref-thumb { flex: none; display: block; border-radius: 5px; overflow: hidden; background: var(--stage); border: 1px solid var(--hair); }
+.ref-thumb.sm { width: 46px; height: 28px; }
+.ref-thumb.lg { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; }
+.ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mention { color: var(--acc-text); background: var(--acc-soft); border-radius: 4px; padding: 0 3px; font-weight: 500; }

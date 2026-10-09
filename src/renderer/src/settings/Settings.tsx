@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Host, HostCheck, Model, Settings as S, SkillsState } from '@shared/types'
+import type { Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
@@ -157,52 +157,196 @@ function Agents() {
 
 function Skills() {
   const [st, setSt] = useState<SkillsState | null>(null)
-  const [src, setSrc] = useState('')
+  const [q, setQ] = useState('')
+  const [hits, setHits] = useState<SkillHit[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [asked, setAsked] = useState<Set<string>>(new Set())
+  const [making, setMaking] = useState(false)
+  const [open, setOpen] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
     api.skills.state().then(setSt)
   }, [])
   useEvent('skills:state', setSt)
+  // skills.sh, a moment after typing stops.
+  useEffect(() => {
+    const query = q.trim()
+    if (query.length < 2) {
+      setHits(null)
+      return
+    }
+    setSearching(true)
+    const id = setTimeout(() => {
+      api.skills.search(query).then(setHits).catch((e) => setErr(String(e.message ?? e))).finally(() => setSearching(false))
+    }, 300)
+    return () => clearTimeout(id)
+  }, [q])
   if (!st) return null
-  const byPack = new Map<string, typeof st.skills>()
-  for (const k of st.skills) byPack.set(k.pack ?? 'Other', [...(byPack.get(k.pack ?? 'Other') ?? []), k])
+  const query = q.trim().toLowerCase()
+  const mine = st.skills.filter((k) => !query || k.name.includes(query) || k.description.toLowerCase().includes(query))
+  const groups: [string, string, Skill[]][] = []
+  const yours = mine.filter((k) => k.origin === 'yours')
+  if (yours.length) groups.push(['yours', 'Yours', yours])
+  for (const origin of ['builtin', 'added'] as const) {
+    const byPack = new Map<string, Skill[]>()
+    for (const k of mine.filter((x) => x.origin === origin)) byPack.set(k.pack ?? '', [...(byPack.get(k.pack ?? '') ?? []), k])
+    for (const [pack, ks] of byPack) groups.push([`${origin}:${pack}`, `${origin === 'builtin' ? 'Built in' : 'Added'} \u00b7 ${st.packs.find((p) => p.source === pack)?.title || pack}`, ks])
+  }
   return (
     <>
-      <p className="pane-lede">Skills teach the agents a craft. Panthr starts with a set for video and motion; add any from skills.sh or GitHub. Every project gets them, for Claude Code and Codex alike.</p>
-      <Card>
-        <div className="add-row">
-          <input className="text-input" placeholder="owner/repo, a GitHub URL, or a skills.sh name" value={src} onChange={(e) => setSrc(e.target.value)} onKeyDown={(e) => {
-            if (e.key === 'Enter' && src.trim()) {
-              api.skills.add(src.trim())
-              setSrc('')
-            }
-          }} />
-          <button className="btn" disabled={!src.trim()} onClick={() => {
-            api.skills.add(src.trim())
-            setSrc('')
-          }}>Add</button>
-        </div>
-        <AnimatePresence>
-          {(st.running || st.waiting.length > 0) && (
-            <motion.div className="job-line" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)}>
-              <span className="shine" data-text={`Installing ${st.running ?? ''}`}>Installing {st.running}</span>
-              {st.waiting.length > 0 && <span className="faint"> · {st.waiting.length} waiting</span>}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {st.error && <div className="error-line">{st.error}</div>}
-      </Card>
-      {[...byPack.entries()].map(([pack, skills]) => {
-        const p = st.packs.find((x) => x.source === pack)
+      <p className="pane-lede">Skills teach the agents a craft. Every project gets the ones switched on, for Claude Code and Codex alike. Find more on skills.sh, write your own, or bring a folder of them.</p>
+      <div className="skills-bar">
+        <input className="text-input skills-search" placeholder="Search your skills and skills.sh" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn" onClick={() => setMaking((m) => !m)}><Icon name="plus" size={13} /> New skill</button>
+        <button className="btn" onClick={async () => {
+          const d = await api.app.chooseFolder()
+          if (!d) return
+          try {
+            await api.skills.importFolder(d)
+            setErr(null)
+          } catch (e) {
+            setErr((e as Error).message)
+          }
+        }}><Icon name="folder" size={13} /> Import a folder</button>
+      </div>
+      <AnimatePresence initial={false}>
+        {making && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)} style={{ overflow: 'hidden' }}>
+            <NewSkill onDone={(name) => {
+              setMaking(false)
+              if (name) setOpen(name)
+            }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {(st.running || st.waiting.length > 0) && (
+          <motion.div className="job-line" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)}>
+            <span className="shine" data-text={`Installing ${st.running ?? ''}`}>Installing {st.running}</span>
+            {st.waiting.length > 0 && <span className="faint"> \u00b7 {st.waiting.length} waiting</span>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {(err || st.error) && <div className="error-line">{err ?? st.error}</div>}
+      {hits !== null && (
+        <Card title={searching ? 'On skills.sh \u2026' : `On skills.sh \u00b7 ${hits.length}`}>
+          {hits.length === 0 && !searching && <div className="row faint">Nothing there for \u201c{q.trim()}\u201d.</div>}
+          {hits.slice(0, 12).map((h) => {
+            const busy = asked.has(h.id)
+            return (
+              <Row key={h.id} title={h.name} body={`${h.source} \u00b7 ${h.installs.toLocaleString()} installs`}>
+                {h.installed ? <span className="faint">Added</span> : (
+                  <button className="btn small" disabled={busy} onClick={() => {
+                    setAsked((a) => new Set(a).add(h.id))
+                    api.skills.addOne(h.source, h.name)
+                  }}>{busy ? 'Installing\u2026' : 'Add'}</button>
+                )}
+              </Row>
+            )
+          })}
+        </Card>
+      )}
+      {groups.map(([key, title, ks]) => {
+        const pack = key.includes(':') ? key.split(':').slice(1).join(':') : null
         return (
-          <Card key={pack} title={p?.title || pack}>
-            {skills.map((k) => (
-              <Row key={k.name} title={k.name} body={k.description}><Switch on={k.on} onChange={(v) => api.skills.setOn(k.name, v)} small /></Row>
+          <Card key={key} title={title}>
+            {ks.map((k) => (
+              <div key={k.name} className="row skill-row">
+                <button className="row-words skill-open" onClick={() => setOpen(k.name)}>
+                  <b>{k.name}</b>
+                  {k.description && <span className="clamp2">{k.description}</span>}
+                </button>
+                <div className="row-control"><Switch on={k.on} onChange={(v) => api.skills.setOn(k.name, v)} small /></div>
+              </div>
             ))}
-            {p && <div className="card-foot"><span className="faint mono">{p.source}</span><button className="link danger" onClick={() => api.skills.remove(p.source)}>Remove</button></div>}
+            {pack && <div className="card-foot"><span className="faint mono">{pack}</span><button className="link danger" onClick={() => api.skills.remove(pack)}>Remove pack</button></div>}
           </Card>
         )
       })}
+      {query && !groups.length && hits === null && <p className="pane-note">No skill here matches \u201c{q.trim()}\u201d.</p>}
+      <SkillSheet name={open} onClose={() => setOpen(null)} />
     </>
+  )
+}
+
+function NewSkill({ onDone }: { onDone(name: string | null): void }) {
+  const [name, setName] = useState('')
+  const [when, setWhen] = useState('')
+  const [body, setBody] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  return (
+    <div className="card-group">
+      <div className="card new-skill">
+        <input className="text-input" placeholder="Name (Brand voice)" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <input className="text-input" placeholder="When the agent should use it (Use for any captions or on-screen copy)" value={when} onChange={(e) => setWhen(e.target.value)} />
+        <textarea className="text-input skill-body" placeholder={'What it says. Markdown: rules, examples, colours, fonts, anything the agent should follow.'} value={body} onChange={(e) => setBody(e.target.value)} />
+        {err && <div className="error-line">{err}</div>}
+        <div className="new-skill-row">
+          <button className="btn ghost" onClick={() => onDone(null)}>Cancel</button>
+          <button className="btn primary" disabled={!name.trim() || !when.trim()} onClick={async () => {
+            try {
+              onDone(await api.skills.create(name, when, body))
+            } catch (e) {
+              setErr((e as Error).message)
+            }
+          }}>Add skill</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** A skill opened: its SKILL.md (editable when it is yours). */
+function SkillSheet({ name, onClose }: { name: string | null; onClose(): void }) {
+  const [doc, setDoc] = useState<{ text: string; dir: string; editable: boolean } | null>(null)
+  const [draft, setDraft] = useState('')
+  const [saved, setSaved] = useState(true)
+  const [confirm, setConfirm] = useState(false)
+  useEffect(() => {
+    setDoc(null)
+    setConfirm(false)
+    if (name) api.skills.read(name).then((d) => {
+      setDoc(d)
+      setDraft(d.text)
+      setSaved(true)
+    })
+  }, [name])
+  return (
+    <AnimatePresence>
+      {name && doc && (
+        <motion.div className="skill-sheet" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }} transition={tr(MOVE)}>
+          <div className="skill-sheet-top">
+            <b className="ellipsis">{name}</b>
+            <span className="spacer" />
+            <IconButton icon="folder" tip="Show in Finder" onClick={() => api.app.reveal(doc.dir)} />
+            {doc.editable && (confirm ? (
+              <span className="ref-confirm">Delete it? <button className="btn small danger" onClick={async () => {
+                await api.skills.removeOwn(name)
+                onClose()
+              }}>Delete</button><button className="btn small ghost" onClick={() => setConfirm(false)}>Keep</button></span>
+            ) : <IconButton icon="trash" tip="Delete this skill" onClick={() => setConfirm(true)} />)}
+            <IconButton icon="close" tip="Close" onClick={onClose} />
+          </div>
+          {doc.editable ? (
+            <>
+              <textarea className="viewer-pre skill-edit" value={draft} onChange={(e) => {
+                setDraft(e.target.value)
+                setSaved(false)
+              }} />
+              <div className="new-skill-row">
+                <span className="faint">{saved ? 'Saved' : 'Not saved'}</span>
+                <button className="btn primary small" disabled={saved} onClick={async () => {
+                  await api.skills.write(name, draft)
+                  setSaved(true)
+                }}>Save</button>
+              </div>
+            </>
+          ) : (
+            <pre className="viewer-pre skill-read">{doc.text}</pre>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

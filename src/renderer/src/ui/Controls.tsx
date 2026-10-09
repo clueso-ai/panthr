@@ -2,7 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
-import type { Engine, Model } from '@shared/types'
+import type { Engine, Model, Reference } from '@shared/types'
 import { api, useSettings } from '@/lib/api'
 import { tr, QUICK, MOVE } from '@/lib/motion'
 import { Icon, type IconName } from './Icon'
@@ -51,12 +51,17 @@ export interface ComposerHandle {
 }
 
 /** The message box: words wrap and it grows with them (up to a limit,
- *  then scrolls). Enter sends, Shift-Enter makes a new line. */
+ *  then scrolls). Enter sends, Shift-Enter makes a new line. Typing @
+ *  offers the reference videos (`mentions`); Enter or Tab puts one in. */
 export const Composer = forwardRef<ComposerHandle, {
   placeholder: string; onSubmit: (text: string) => void; maxRows?: number; className?: string; autoFocus?: boolean; onChange?: (t: string) => void
-}>(function Composer({ placeholder, onSubmit, maxRows = 10, className, autoFocus, onChange }, ref) {
+  mentions?: Reference[]
+}>(function Composer({ placeholder, onSubmit, maxRows = 10, className, autoFocus, onChange, mentions }, ref) {
   const el = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  /** The @-query before the caret (null: no menu), and the row chosen. */
+  const [q, setQ] = useState<{ at: number; query: string } | null>(null)
+  const [sel, setSel] = useState(0)
   const fit = (): void => {
     const t = el.current
     if (!t) return
@@ -65,44 +70,114 @@ export const Composer = forwardRef<ComposerHandle, {
     t.style.height = `${Math.min(t.scrollHeight, line * maxRows)}px`
   }
   useLayoutEffect(fit, [text])
+  const put = (s: string, caret = s.length): void => {
+    setText(s)
+    onChange?.(s)
+    requestAnimationFrame(() => {
+      el.current?.focus()
+      el.current?.setSelectionRange(caret, caret)
+    })
+  }
   useImperativeHandle(ref, () => ({
     focus: () => el.current?.focus(),
-    set: (s: string) => {
-      setText(s)
-      onChange?.(s)
-      requestAnimationFrame(() => {
-        el.current?.focus()
-        el.current?.setSelectionRange(s.length, s.length)
-      })
-    },
+    set: (s: string) => put(s),
     value: () => text
   }))
+  /** Is the caret right after an @word? */
+  const look = (value: string, caret: number): void => {
+    if (!mentions) return
+    const m = /(^|[^\w@])@([a-z0-9_-]*)$/i.exec(value.slice(0, caret))
+    if (m) {
+      setQ({ at: caret - m[2].length - 1, query: m[2].toLowerCase() })
+      setSel(0)
+    } else setQ(null)
+  }
+  const options = (mentions ?? [])
+    .filter((r) => !q || r.handle.includes(q.query) || r.name.toLowerCase().includes(q.query))
+    .sort((a, b) => Number(b.status === 'ready') - Number(a.status === 'ready'))
+    .slice(0, 8)
+  const choose = (r: Reference): void => {
+    if (!q || r.status !== 'ready') return
+    const caret = el.current?.selectionStart ?? text.length
+    const next = `${text.slice(0, q.at)}@${r.handle} ${text.slice(caret)}`
+    setQ(null)
+    put(next, q.at + r.handle.length + 2)
+  }
+  const open = !!q && !!mentions
   return (
-    <textarea
-      ref={el}
-      className={`composer-input ${className ?? ''}`}
-      rows={1}
-      value={text}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      spellCheck
-      onChange={(e) => {
-        setText(e.target.value)
-        onChange?.(e.target.value)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-          e.preventDefault()
-          const v = text.trim()
-          if (!v) return
-          setText('')
-          onChange?.('')
-          onSubmit(v)
-        }
-      }}
-    />
+    <>
+      <textarea
+        ref={el}
+        className={`composer-input ${className ?? ''}`}
+        rows={1}
+        value={text}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        spellCheck
+        onChange={(e) => {
+          setText(e.target.value)
+          onChange?.(e.target.value)
+          look(e.target.value, e.target.selectionStart)
+        }}
+        onClick={(e) => look(text, (e.target as HTMLTextAreaElement).selectionStart)}
+        onBlur={() => setTimeout(() => setQ(null), 120)}
+        onKeyDown={(e) => {
+          if (open) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              const n = options.length || 1
+              setSel((s) => (s + (e.key === 'ArrowDown' ? 1 : -1) + n) % n)
+              return
+            }
+            if ((e.key === 'Enter' || e.key === 'Tab') && options[sel]) {
+              e.preventDefault()
+              choose(options[sel])
+              return
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              e.stopPropagation()
+              setQ(null)
+              return
+            }
+          }
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            const v = text.trim()
+            if (!v) return
+            setText('')
+            onChange?.('')
+            onSubmit(v)
+          }
+        }}
+      />
+      <Popover anchor={el} open={open} onClose={() => setQ(null)} side="top" align="start" width={320} gap={10}>
+        <div className="menu mention-menu">
+          <MenuTitle>Reference videos</MenuTitle>
+          {options.length === 0 && <div className="mention-empty">{mentions?.length ? 'No reference by that name' : 'No references yet. Add one in Library \u203a References, or drop a video on the window.'}</div>}
+          {options.map((r, i) => (
+            <button key={r.id} className={`mention-row${i === sel ? ' on' : ''}${r.status !== 'ready' ? ' busy' : ''}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setSel(i)} onClick={() => choose(r)}>
+              <RefThumb r={r} />
+              <span className="mention-words">
+                <b className="ellipsis">{r.name}</b>
+                <span className="ellipsis">{r.status === 'ready' ? `@${r.handle}${r.summary ? ` \u00b7 ${r.summary}` : ''}` : r.status === 'failed' ? 'Could not deconstruct it' : r.step ?? 'Deconstructing\u2026'}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </Popover>
+    </>
   )
 })
+
+/** A reference's poster, small. */
+export function RefThumb({ r, size = 'sm' }: { r: Reference; size?: 'sm' | 'lg' }) {
+  const [src, setSrc] = useState<string | null>(null)
+  useLayoutEffect(() => {
+    if (r.poster) api.app.fileUrl(r.poster).then(setSrc)
+  }, [r.poster])
+  return <span className={`ref-thumb ${size}`}>{src ? <img src={src} alt="" draggable={false} /> : null}</span>
+}
 
 const CLAUDE_FALLBACK: Model[] = [
   { id: 'default', name: 'Default' },

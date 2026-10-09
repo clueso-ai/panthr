@@ -13,7 +13,7 @@
 import { connect } from 'node:net'
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 
@@ -54,7 +54,7 @@ function parse(argv) {
   return { pos, opt }
 }
 const SHORT = { p: 'project', w: 'wait', j: 'json', h: 'help', c: 'chat', m: 'model', a: 'agent' }
-const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at'])
+const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill'])
 
 // ── The connection to the app ───────────────────────────────────
 
@@ -407,17 +407,79 @@ const commands = {
   },
 
   async skills(a, { pos, opt }) {
-    const [verb, arg] = pos
-    if (verb === 'add' && arg) await a.call('skills.add', arg)
-    else if (verb === 'remove' && arg) await a.call('skills.remove', arg)
+    const [verb, ...rest] = pos
+    const arg = rest.join(' ')
+    if (verb === 'search') {
+      const hits = await a.call('skills.search', arg)
+      return out(opt, hits, () => hits.length ? hits.forEach((h) => console.log(`${h.installed ? green('\u2713') : ' '} ${bold(h.name)}  ${dim(`${h.source} \u00b7 ${h.installs} installs`)}\n    ${dim(`panthr skills add ${h.source} --skill ${h.name}`)}`)) : console.log(dim('Nothing on skills.sh for that.')))
+    }
+    if (verb === 'new') {
+      if (!arg || !opt.when) throw new Error('panthr skills new "<name>" --when "when the agent should use it" [--file body.md]')
+      const body = typeof opt.file === 'string' ? readFileSync(resolve(opt.file), 'utf8') : ''
+      const n = await a.call('skills.create', arg, opt.when, body)
+      return out(opt, { name: n }, () => console.log(`${green('\u2713')} ${n}  ${dim('(edit it in Settings \u203a Skills)')}`))
+    }
+    if (verb === 'import' && arg) {
+      const n = await a.call('skills.importFolder', resolve(arg))
+      return out(opt, { names: n }, () => console.log(`${green('\u2713')} ${n.join(', ')}`))
+    }
+    if (verb === 'add' && rest[0]) {
+      if (typeof opt.skill === 'string') await a.call('skills.addOne', rest[0], opt.skill)
+      else await a.call('skills.add', rest[0])
+    } else if (verb === 'remove' && arg) await a.call('skills.remove', arg)
     else if ((verb === 'on' || verb === 'off') && arg) await a.call('skills.setOn', arg, verb === 'on')
-    else if (verb) throw new Error('panthr skills [add <source> | remove <source> | on <name> | off <name>]')
+    else if (verb) throw new Error('panthr skills [search <words> | add <source> [--skill name] | new "<name>" --when "\u2026" | import <folder> | remove <source> | on|off <name>]')
     const s = await a.call('skills.state')
     out(opt, s, () => {
-      for (const k of s.skills) console.log(`${k.on ? green('●') : dim('○')} ${k.name}  ${dim(k.pack ?? '')}`)
-      if (s.running) console.log(rose(`Installing ${s.running}…`) + (s.waiting.length ? dim(` (${s.waiting.length} waiting)`) : ''))
+      for (const k of s.skills) console.log(`${k.on ? green('\u25cf') : dim('\u25cb')} ${k.name}  ${dim(k.origin === 'yours' ? 'yours' : k.pack ?? '')}`)
+      if (s.running) console.log(rose(`Installing ${s.running}\u2026`) + (s.waiting.length ? dim(` (${s.waiting.length} waiting)`) : ''))
       if (s.error) console.log(red(s.error))
     })
+  },
+
+  async refs(a, { opt }) {
+    const rs = await a.call('references.list')
+    out(opt, rs, () => {
+      if (!rs.length) return console.log(dim('No reference videos. Add one: panthr ref add <file or link>'))
+      for (const r of rs) console.log(`${r.status === 'ready' ? green('\u25cf') : r.status === 'failed' ? red('\u25cf') : rose('\u25cf')} ${bold('@' + r.handle)}  ${r.name}  ${dim(r.status === 'ready' ? r.summary ?? '' : r.status === 'failed' ? r.error ?? '' : r.step ?? r.status)}`)
+    })
+  },
+
+  async ref(a, { pos, opt }) {
+    const [verb, ...rest] = pos
+    const arg = rest.join(' ')
+    const byHandle = async (h) => {
+      const r = (await a.call('references.list')).find((x) => x.handle === h.replace(/^@/, '') || x.id === h)
+      if (!r) throw new Error(`No reference @${h.replace(/^@/, '')}. See: panthr refs`)
+      return r
+    }
+    if (verb === 'add' && arg) {
+      const input = /^https?:/i.test(arg) ? arg : resolve(arg)
+      let r = await a.call('references.add', input, typeof opt.name === 'string' ? opt.name : undefined)
+      if (!opt.wait) return out(opt, r, () => console.log(`${rose('\u25cf')} @${r.handle}  ${dim('Your agent is taking it apart. Follow it: panthr refs')}`))
+      const done = new Promise((ok) => a.on(['references'], (ev, list) => {
+        const x = list.find((y) => y.id === r.id)
+        if (!x) return
+        if (TTY && !opt.json && x.step) process.stdout.write(`\r\x1b[K${dim(x.step)}`)
+        if (x.status === 'ready' || x.status === 'failed') ok(x)
+      }))
+      r = await done
+      if (TTY && !opt.json) process.stdout.write('\r\x1b[K')
+      out(opt, r, () => console.log(r.status === 'ready' ? `${green('\u2713')} @${r.handle}  ${r.summary ?? ''}\n  ${dim(r.dir)}` : red(`Could not take it apart: ${r.error}`)))
+      if (r.status !== 'ready') process.exitCode = 1
+      return
+    }
+    if (verb === 'show' && arg) {
+      const r = await byHandle(arg)
+      const text = await a.call('references.readFile', r.id, 'README.md')
+      return out(opt, { ...r, readme: text }, () => console.log(text ?? dim(`Not taken apart yet (${r.status}).`)))
+    }
+    if ((verb === 'rm' || verb === 'remove') && arg) {
+      const r = await byHandle(arg)
+      await a.call('references.remove', r.id)
+      return out(opt, { removed: r.handle }, () => console.log(`Removed @${r.handle}.`))
+    }
+    throw new Error('panthr ref add <file or link> [--name "\u2026"] [--wait] | show <handle> | rm <handle>')
   },
 
   async hosts(a, { opt }) {
@@ -454,7 +516,10 @@ ${bold('The app')}
   open                   Show a project in the window [--show to bring it forward]
   shot [file.png]        A picture of the window
   settings [key [value]] Read or change a setting
-  skills [add|remove <source> | on|off <name>]
+  skills [search <words> | add <source> [--skill name] | new "<name>" --when "\u2026" | import <folder> | on|off <name>]
+  refs                   Reference videos (mention one in chat as @handle)
+  ref add <file|link> [--wait]   Have your agent take a video apart
+  ref show <handle>      What it wrote about it
   hosts                  Remote hosts
 
 ${bold('Options')}

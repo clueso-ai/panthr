@@ -15,7 +15,7 @@ export const sandboxed = (): boolean => !!process.env.APP_SANDBOX_CONTAINER_ID
 export const home = (): string => (sandboxed() ? userInfo().homedir : homedir())
 
 /** ~/Panthr: the projects, the Library, the shared Skills. */
-export const studioRoot = (): string => join(home(), 'Panthr')
+export const studioRoot = (): string => process.env.PANTHR_ROOT || join(home(), 'Panthr')
 export const libraryDir = (): string => join(studioRoot(), 'Library')
 
 /** ~/Library/Application Support/Panthr. */

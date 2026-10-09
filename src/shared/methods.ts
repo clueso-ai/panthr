@@ -14,7 +14,8 @@ export const METHODS: All = {
   chats: { open: true, create: true, send: true, stop: true, setEngine: true, note: true, remove: true, anyWorking: true, models: true },
   controls: { all: true, save: true, run: true, timing: true },
   review: { comments: true, saveComments: true, versions: true, render: true, cancelRender: true, frames: true, annotate: true, library: true, addToLibrary: true, importFiles: true },
-  skills: { state: true, add: true, remove: true, setOn: true, link: true },
+  skills: { state: true, add: true, remove: true, setOn: true, link: true, search: true, addOne: true, create: true, importFolder: true, read: true, write: true, removeOwn: true },
+  references: { list: true, add: true, remove: true, rename: true, retry: true, files: true, readFile: true },
   files: { read: true, replace: true },
   hosts: { list: true, save: true, check: true, refresh: true }
 }

@@ -10,6 +10,7 @@ import { rise, tr, MOVE, QUICK } from '@/lib/motion'
 import { ago, bytes, clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
 import { Composer, type ComposerHandle } from '@/ui/Controls'
+import { ReferencesSection } from './References'
 
 // ── Notes ─────────────────────────────────────────────────────
 
@@ -158,7 +159,7 @@ export function VersionsPanel({ dir, versions, exporting, stage, onExport, onCan
 
 const KIND: [RegExp, string][] = [[/\.(png|jpe?g|webp|gif|svg)$/i, '▣'], [/\.(mp4|mov|webm)$/i, '▶'], [/\.(mp3|wav|m4a|aac)$/i, '♪'], [/\.(ttf|otf|woff2?)$/i, 'Aa']]
 
-export function LibraryPanel({ onUse }: { onUse(item: LibraryItem): void }) {
+export function LibraryPanel({ onUse, onMention }: { onUse(item: LibraryItem): void; onMention(handle: string): void }) {
   const [items, setItems] = useState<LibraryItem[]>([])
   const load = (): void => {
     api.review.library().then(setItems)
@@ -166,18 +167,19 @@ export function LibraryPanel({ onUse }: { onUse(item: LibraryItem): void }) {
   useEffect(load, [])
   return (
     <div className="panel">
-      <div className="panel-head">
-        <span className="mono faint">{items.length} item{items.length === 1 ? '' : 's'}</span>
-        <span className="spacer" />
-        <button className="btn small" onClick={async () => {
-          const f = await api.app.chooseFiles()
-          if (f.length) {
-            await api.review.addToLibrary(f)
-            load()
-          }
-        }}><Icon name="plus" size={13} /> Add</button>
-      </div>
       <div className="panel-scroll">
+        <ReferencesSection onMention={onMention} />
+        <div className="lib-files-head">
+          Files <span className="mono faint" style={{ fontWeight: 400, fontSize: 11.5 }}>{items.length}</span>
+          <span className="spacer" />
+          <button className="btn small" onClick={async () => {
+            const f = await api.app.chooseFiles()
+            if (f.length) {
+              await api.review.addToLibrary(f)
+              load()
+            }
+          }}><Icon name="plus" size={13} /> Add</button>
+        </div>
         {items.length === 0 && <Empty icon="library" title="Your library is empty" body="Logos, fonts, music and footage every project can use. Add files, or drop them on the window." />}
         {items.map((it, i) => (
           <motion.button key={it.path} className="lib-item" {...rise(6, MOVE, i * 0.02)} onClick={() => onUse(it)}>

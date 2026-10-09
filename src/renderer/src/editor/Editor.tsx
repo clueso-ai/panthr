@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ChatState, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
 import { setRequest } from '@shared/controls'
-import { api, useEvent, useSettings } from '@/lib/api'
+import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
@@ -19,6 +19,7 @@ import { Inspector, describe, whereLine, type ControlChange } from './Inspector'
 import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, type Edit } from './Timeline'
 import { PreviewFrames, usePreview } from './usePreview'
+import { addVideos } from './References'
 import './editor.css'
 
 type Side = 'chat' | 'notes' | 'versions' | 'library'
@@ -402,6 +403,20 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
     composer.current?.focus()
   }
 
+  const refs = useReferences()
+  /** Put a reference's @handle into the message being written. */
+  const mention = (handle: string): void => {
+    const v = composer.current?.value() ?? ''
+    composer.current?.set(`${v}${v && !v.endsWith(' ') ? ' ' : ''}@${handle} `)
+    showSide('chat')
+  }
+  // A video dropped on the window: it shows in the Library while it is taken apart.
+  useEffect(() => {
+    const f = (): void => showSide('library')
+    addEventListener('panthr:reference-added', f)
+    return () => removeEventListener('panthr:reference-added', f)
+  })
+
   const engine: Engine = chat?.engine ?? settings.agent
   const model = project?.meta.models[engine] ?? (engine === 'codex' ? settings.codex_model : settings.model)
   const pickModel = async (e: Engine, m: string): Promise<void> => {
@@ -599,10 +614,13 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
               {side === 'versions' && (
                 <VersionsPanel dir={dir} versions={versions} exporting={exporting} stage={stage} onExport={exportNow} onCancel={() => api.review.cancelRender(dir)} />
               )}
-              {side === 'library' && <LibraryPanel onUse={(it: LibraryItem) => {
-                composer.current?.set(`${composer.current.value()}${composer.current.value() ? ' ' : ''}Use ${it.path} `)
-                showSide('chat')
-              }} />}
+              {side === 'library' && <LibraryPanel
+                onUse={(it: LibraryItem) => {
+                  composer.current?.set(`${composer.current.value()}${composer.current.value() ? ' ' : ''}Use ${it.path} `)
+                  showSide('chat')
+                }}
+                onMention={mention}
+              />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -619,10 +637,12 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
           {tool === 'draw' && (
             <div className="scope-row"><span className="scope draw"><Icon name="pen" size={12} /> Drawing on {clock(preview.state.time)} · {strokes.length} stroke{strokes.length === 1 ? '' : 's'}</span></div>
           )}
-          <Composer ref={composer} placeholder={tool === 'draw' ? 'Say what to change where you drew…' : scope && picked ? 'Ask for a change to it…' : 'Ask for a change…'}
+          <Composer ref={composer} mentions={refs} placeholder={tool === 'draw' ? 'Say what to change where you drew…' : scope && picked ? 'Ask for a change to it…' : 'Ask for a change…'}
             onSubmit={(t) => (tool === 'draw' && strokes.length ? (composer.current?.set(t), sendDrawing()) : send(t))} maxRows={10} />
           <div className="composer-row">
-            <PlusMenu onDraw={toggleDraw} onNote={() => showSide('notes')} onLibrary={() => showSide('library')} />
+            <PlusMenu onDraw={toggleDraw} onNote={() => showSide('notes')} onLibrary={() => showSide('library')} onReference={async () => {
+              if (await addVideos(await api.app.chooseFiles())) showSide('library')
+            }} />
             <span className="spacer" />
             <ModelChip engine={engine} model={model} locked={!!chat?.items.length} onPick={pickModel} agents={project?.meta.agents_enabled} onAgents={setAgents} />
             {chat?.working ? (
@@ -826,7 +846,7 @@ function ChatPills({ chats, active, onPick }: { chats: { id: string; title: stri
   )
 }
 
-function PlusMenu({ onDraw, onNote, onLibrary }: { onDraw(): void; onNote(): void; onLibrary(): void }) {
+function PlusMenu({ onDraw, onNote, onLibrary, onReference }: { onDraw(): void; onNote(): void; onLibrary(): void; onReference(): void }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const pick = (f: () => void) => () => {
@@ -845,6 +865,7 @@ function PlusMenu({ onDraw, onNote, onLibrary }: { onDraw(): void; onNote(): voi
           <MenuItem icon={<Icon name="pen" size={15} />} label="Draw on the frame" hint="⇧⌘D" onSelect={pick(onDraw)} />
           <MenuItem icon={<Icon name="pin" size={15} />} label="Note at this moment" hint="⇧⌘K" onSelect={pick(onNote)} />
           <MenuSep />
+          <MenuItem icon={<Icon name="play" size={15} />} label="Reference a video…" hint="@" onSelect={pick(onReference)} />
           <MenuItem icon={<Icon name="library" size={15} />} label="From the library" onSelect={pick(onLibrary)} />
         </div>
       </Popover>

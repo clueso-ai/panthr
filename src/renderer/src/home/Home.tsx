@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Engine, Host, Project } from '@shared/types'
-import { api, useEvent, useSettings } from '@/lib/api'
+import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
 import { LiveEye, EyeMark } from '@/ui/Eye'
@@ -39,6 +39,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   const [host, setHost] = useState<string | null>(null)
   const [text, setText] = useState('')
   const box = useRef<ComposerHandle>(null)
+  const refs = useReferences()
 
   const load = (): void => {
     api.projects.list().then(setProjects)
@@ -89,7 +90,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
             </span>
           </motion.h1>
           <motion.div className="home-box" {...rise(14, SETTLE, 0.2)} onClick={() => box.current?.focus()}>
-            <Composer ref={box} placeholder="Describe a video, then press Return" onSubmit={start} onChange={setText} className="home-input" maxRows={8} />
+            <Composer ref={box} mentions={refs} placeholder="Describe a video, then press Return" onSubmit={start} onChange={setText} className="home-input" maxRows={8} />
             <div className="home-box-row" onClick={(e) => e.stopPropagation()}>
               <WhereChip host={host} onHost={setHost} />
               <span className="spacer" />

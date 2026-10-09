@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { AgentEvent, Host } from '@shared/types'
-import { dataDir, libraryDir, resource, toolEnv, home } from '../paths'
+import { dataDir, libraryDir, resource, studioRoot, toolEnv, home } from '../paths'
 import * as remote from '../remote'
 
 let prompt: string | null = null
@@ -152,7 +152,8 @@ export function claudeArgs(o: ClaudeOptions, host: Host | null): string[] {
     args.push('--permission-mode', 'acceptEdits', '--add-dir', `${host.root.replace(/\/+$/, '')}/Library`)
   } else {
     args.push('--append-system-prompt-file', promptFile())
-    args.push('--permission-mode', 'acceptEdits', '--add-dir', libraryDir())
+    // The shared library, and the reference videos (@-mentioned in chat).
+    args.push('--permission-mode', 'acceptEdits', '--add-dir', libraryDir(), '--add-dir', join(studioRoot(), 'References'))
   }
   const allowed = ['Bash', 'Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'TodoWrite', 'Skill']
   if (o.agents) allowed.push('Task')

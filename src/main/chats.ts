@@ -15,6 +15,7 @@ import { getSettings } from './settings'
 import { chatPath, loadMeta, newChat, updateMeta } from './projects'
 import * as remote from './remote'
 import { ClaudeChat, promptText } from './agents/claude'
+import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
 
 /** A chat's title until its first message names it. */
@@ -256,7 +257,7 @@ class Chat {
     if (this.t.engine === 'codex') {
       try {
         this.gen++
-        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text, model: modelFor(this.dir, 'codex'), instructions: promptText() }, this.listener())
+        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText() }, this.listener())
       } catch (e) {
         this.note(`Could not start Codex: ${(e as Error).message}`)
         return this.sendQueued()
@@ -277,7 +278,9 @@ class Chat {
         }
       }
       try {
-        this.claude.send(text)
+        // The agent gets the @-mentioned references spelled out; the chat
+        // keeps what was typed.
+        this.claude.send(expandMentions(text))
       } catch (e) {
         this.note(`Could not reach Claude Code: ${(e as Error).message}`)
         return this.sendQueued()

@@ -11,6 +11,7 @@ type Block =
   | { k: 'ul' | 'ol'; items: string[] }
   | { k: 'code'; text: string }
   | { k: 'quote'; text: string }
+  | { k: 'table'; head: string[]; rows: string[][] }
 
 export function blocks(src: string): Block[] {
   const out: Block[] = []
@@ -41,6 +42,16 @@ export function blocks(src: string): Block[] {
         while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*•]|\d+[.)])\s+/.test(lines[i])) items[items.length - 1] += ' ' + lines[i++].trim()
       }
       out.push({ k: ordered ? 'ol' : 'ul', items })
+      continue
+    }
+    // A table: a | row, a |---| rule, then rows.
+    if (/^\s*\|.*\|\s*$/.test(l) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] ?? '')) {
+      const cells = (row: string): string[] => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+      const head = cells(l)
+      const rows: string[][] = []
+      i += 2
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]))
+      out.push({ k: 'table', head, rows })
       continue
     }
     if (/^>\s?/.test(l)) {
@@ -96,5 +107,14 @@ export function Block({ b }: { b: Block }) {
     case 'ol': return <ol>{b.items.map((t, i) => <li key={i}>{inline(t)}</li>)}</ol>
     case 'code': return <pre><code>{b.text}</code></pre>
     case 'quote': return <blockquote>{inline(b.text)}</blockquote>
+    case 'table':
+      return (
+        <div className="md-table">
+          <table>
+            <thead><tr>{b.head.map((h, i) => <th key={i}>{inline(h)}</th>)}</tr></thead>
+            <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{inline(c)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      )
   }
 }

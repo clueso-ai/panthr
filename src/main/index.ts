@@ -24,6 +24,7 @@ import { review } from './review'
 import { skills, seedSkills } from './skills'
 import { hosts } from './hosts'
 import { files } from './files'
+import { references, stopAllReferences } from './references'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -32,7 +33,7 @@ registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
 
-const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts }
+const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references }
 
 function registerApi(): void {
   for (const [ns, methods] of Object.entries(METHODS)) {
@@ -260,6 +261,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopAll()
+  stopAllReferences()
   app.quit()
 })
 

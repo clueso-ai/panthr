@@ -203,11 +203,16 @@ export function Chat({ chat }: { chat: ChatState }) {
   )
 }
 
+/** @handles shown as chips in what you wrote. */
+function withMentions(text: string): React.ReactNode[] {
+  return text.split(/((?:^|(?<=[^\w@]))@[a-z0-9][a-z0-9_-]*)/gi).map((part, i) => (/^@[a-z0-9]/i.test(part) ? <span key={i} className="mention">{part}</span> : part))
+}
+
 function UserMessage({ text, long, onMore, fresh }: { text: string; long: boolean; onMore: () => void; fresh: boolean }) {
   const clip = long && text.length > 420
   return (
     <motion.div className="um" {...(fresh ? rise(8, MOVE) : {})}>
-      {clip ? text.slice(0, 400) + '…' : text}
+      {withMentions(clip ? text.slice(0, 400) + '…' : text)}
       {clip && <button className="um-more" onClick={onMore}>Show all</button>}
     </motion.div>
   )

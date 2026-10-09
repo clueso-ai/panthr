@@ -256,6 +256,19 @@ export interface Skill {
   description: string
   pack: string | null
   on: boolean
+  /** Where it came from: one of Panthr's defaults, a package added later,
+   *  or the user's own (written or imported here; editable). */
+  origin: 'builtin' | 'added' | 'yours'
+  dir: string
+}
+
+/** A skill found on skills.sh. */
+export interface SkillHit {
+  id: string
+  name: string
+  source: string
+  installs: number
+  installed: boolean
 }
 
 export interface SkillsState {
@@ -284,4 +297,41 @@ export interface HostCheck {
 export interface Model {
   id: string
   name: string
+}
+
+// ── Reference videos (~/Panthr/References/<handle>/) ──────────────
+
+/** A video the agent has taken apart, to be referenced in chat as @handle. */
+export interface Reference {
+  id: string
+  name: string
+  /** What follows @ in a chat (letters, digits, - and _). */
+  handle: string
+  /** The file or link it came from. */
+  source: string
+  status: 'importing' | 'analyzing' | 'ready' | 'failed'
+  /** What the agent is doing now, while analysing. */
+  step: string | null
+  error: string | null
+  created_at: number
+  duration: number
+  width: number
+  height: number
+  /** One sentence on what it is (from the deconstruction). */
+  summary: string | null
+  dir: string
+  /** Absolute paths, when they exist. */
+  poster: string | null
+  video: string | null
+}
+
+/** One file (or folder) in a reference's folder. */
+export interface RefFile {
+  /** Relative to the reference's folder, with / between parts. */
+  path: string
+  name: string
+  depth: number
+  dir: boolean
+  size: number
+  kind: 'folder' | 'markdown' | 'image' | 'video' | 'audio' | 'text' | 'other'
 }

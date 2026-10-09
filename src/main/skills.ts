@@ -8,10 +8,10 @@
 // Port of studio-mac/src/skills.rs.
 
 import { spawn } from 'node:child_process'
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 import type { Api } from '@shared/api'
-import type { Pack, Skill, SkillsState } from '@shared/types'
+import type { Pack, Skill, SkillHit, SkillsState } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { pathEnv, studioRoot } from './paths'
@@ -51,6 +51,8 @@ export interface Config {
   off: string[]
   /** The defaults were put in once (removing one keeps it removed). */
   seeded: boolean
+  /** The user's own skills (written or imported here), by name. */
+  own: string[]
 }
 
 const configPath = (): string => join(hub(), 'panthr.json')
@@ -60,7 +62,8 @@ export function config(): Config {
   return {
     packs: (c.packs ?? []).map((p) => ({ source: p.source, skills: p.skills ?? [], title: p.title ?? '' })),
     off: c.off ?? [],
-    seeded: !!c.seeded
+    seeded: !!c.seeded,
+    own: c.own ?? []
   }
 }
 
@@ -257,9 +260,15 @@ let wake: (() => void) | null = null
 
 const title = (j: Job): string => (j.kind === 'add' ? j.pack.title || j.pack.source : `Removing ${j.source}`)
 
+/** Where a skill came from: a default pack, one added later, or the user's own. */
+export function originOf(s: Installed, cfg: Config): Skill['origin'] {
+  if (cfg.own.includes(s.name) || !s.source) return 'yours'
+  return defaults().some((p) => p.source === s.source) ? 'builtin' : 'added'
+}
+
 export function state(): SkillsState {
   const cfg = config()
-  const skills: Skill[] = installed().map((s) => ({ name: s.name, description: s.description, pack: s.source, on: !cfg.off.includes(s.name) }))
+  const skills: Skill[] = installed().map((s) => ({ name: s.name, description: s.description, pack: s.source, on: !cfg.off.includes(s.name), origin: originOf(s, cfg), dir: s.dir }))
   return { packs: cfg.packs, skills, running: jobs.running, waiting: jobs.queue.map(title), error: jobs.error }
 }
 
@@ -282,7 +291,11 @@ async function runJob(j: Job): Promise<void> {
   if (j.kind === 'add') {
     await npx(addArgs(j.pack))
     const c = config()
-    if (!c.packs.some((x) => x.source === j.pack.source)) c.packs.push(j.pack)
+    const had = c.packs.find((x) => x.source === j.pack.source)
+    if (!had) c.packs.push(j.pack)
+    // One more skill from a pack already here (a whole pack stays whole).
+    else if (had.skills.length && j.pack.skills.length) had.skills = [...new Set([...had.skills, ...j.pack.skills])]
+    else if (!j.pack.skills.length) had.skills = []
     save(c)
     return
   }
@@ -327,6 +340,98 @@ export function seedSkills(): void {
   enqueue(defaults().map((pack) => ({ kind: 'add', pack })))
 }
 
+// ── The user's own skills ─────────────────────────────────────────────
+
+/** A skill's folder name: lower case, letters, digits and dashes. */
+export function slug(name: string): string {
+  return name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'skill'
+}
+
+/** Where the user's own skills are kept (beside the packs' copies). */
+const ownDir = (): string => join(hub(), '.agents/skills')
+
+/** A SKILL.md the agents can read: YAML front matter (the description
+ *  folded, so a colon in it cannot turn it into a map), then the body. */
+export function skillText(name: string, description: string, body: string): string {
+  const desc = description.trim().replace(/\s+/g, ' ')
+  return `---\nname: ${name}\ndescription: >-\n  ${desc}\n---\n\n${body.trim()}\n`
+}
+
+function freeName(base: string): string {
+  let n = base
+  for (let i = 2; existsSync(join(ownDir(), n)) || existsSync(join(hub(), '.claude/skills', n)); i++) n = `${base}-${i}`
+  return n
+}
+
+function addOwn(names: string[]): void {
+  const c = config()
+  c.own = [...new Set([...c.own, ...names])]
+  save(c)
+  linkAll()
+  changed()
+}
+
+export function createOwn(name: string, description: string, body: string): string {
+  if (!name.trim()) throw new Error('A skill needs a name')
+  if (!description.trim()) throw new Error('Say when the agent should use it (the description)')
+  const n = freeName(slug(name))
+  mkdirSync(join(ownDir(), n), { recursive: true })
+  writeFileSync(join(ownDir(), n, 'SKILL.md'), skillText(n, description, body))
+  addOwn([n])
+  return n
+}
+
+/** Folders holding a SKILL.md: the folder itself, or its subfolders. */
+function skillFolders(path: string): string[] {
+  if (existsSync(join(path, 'SKILL.md'))) return [path]
+  let names: string[] = []
+  try {
+    names = readdirSync(path)
+  } catch {}
+  return names.map((n) => join(path, n)).filter((d) => {
+    try {
+      return statSync(d).isDirectory() && existsSync(join(d, 'SKILL.md'))
+    } catch {
+      return false
+    }
+  })
+}
+
+export function importOwn(path: string): string[] {
+  const found = skillFolders(path)
+  if (!found.length) throw new Error('No SKILL.md in that folder (or in the folders inside it)')
+  const names: string[] = []
+  for (const d of found) {
+    const fm = frontMatter(readFileSync(join(d, 'SKILL.md'), 'utf8'))
+    const n = freeName(slug(fm.name || basename(d)))
+    cpSync(d, join(ownDir(), n), { recursive: true })
+    names.push(n)
+  }
+  addOwn(names)
+  return names
+}
+
+function own(name: string): Installed {
+  const s = installed().find((x) => x.name === name)
+  // Yours: written or imported here, or put in the folder by hand (no package).
+  if (!s || !(config().own.includes(name) || !s.source)) throw new Error(`${name} is not one of your skills`)
+  return s
+}
+
+/** skills.sh's search, with what is here already marked. */
+export async function search(query: string): Promise<SkillHit[]> {
+  const q = query.trim()
+  if (q.length < 2) return []
+  const r = await fetch(`https://skills.sh/api/search?q=${encodeURIComponent(q)}`)
+  if (!r.ok) throw new Error(`skills.sh answered ${r.status}`)
+  const v = (await r.json()) as { skills?: { id: string; source: string; skillId: string; name: string; installs?: number; isDuplicate?: boolean }[] }
+  const here = installed()
+  return (v.skills ?? [])
+    .filter((x) => !x.isDuplicate)
+    .slice(0, 40)
+    .map((x) => ({ id: x.id, name: x.skillId || x.name, source: x.source, installs: x.installs ?? 0, installed: here.some((s) => s.name === (x.skillId || x.name)) }))
+}
+
 export const skills: Api['skills'] = {
   async state() {
     return state()
@@ -345,6 +450,36 @@ export const skills: Api['skills'] = {
   },
   async link(dir) {
     link(dir)
+  },
+  search,
+  async addOne(source, skill) {
+    const s = source.trim()
+    if (s && skill.trim()) enqueue([{ kind: 'add', pack: { source: s, skills: [skill.trim()], title: '' } }])
+  },
+  async create(name, description, body) {
+    return createOwn(name, description, body)
+  },
+  async importFolder(path) {
+    return importOwn(path)
+  },
+  async read(name) {
+    const s = installed().find((x) => x.name === name)
+    if (!s) throw new Error(`No skill called ${name}`)
+    return { text: readFileSync(join(s.dir, 'SKILL.md'), 'utf8'), dir: s.dir, editable: config().own.includes(name) || !s.source }
+  },
+  async write(name, text) {
+    writeFileSync(join(own(name).dir, 'SKILL.md'), text)
+    changed()
+  },
+  async removeOwn(name) {
+    const s = own(name)
+    rmSync(s.dir, { recursive: true, force: true })
+    const c = config()
+    c.own = c.own.filter((n) => n !== name)
+    c.off = c.off.filter((n) => n !== name)
+    save(c)
+    linkAll()
+    changed()
   }
 }
 

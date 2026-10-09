@@ -4,7 +4,7 @@
 // Calls are `ipcRenderer.invoke('<ns>:<fn>', ...args)`.
 
 import type {
-  AppState, ChatState, Comment, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
+  AppState, ChatState, Comment, Reference, RefFile, SkillHit, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
   Model, Project, ProjectMeta, Settings, SkillsState, TimingLayer, Version
 } from './types'
 
@@ -97,6 +97,33 @@ export interface Api {
     setOn(name: string, on: boolean): Promise<void>
     /** Link the shared skills into a project. */
     link(dir: string): Promise<void>
+    /** Search skills.sh. */
+    search(query: string): Promise<SkillHit[]>
+    /** Install one skill from a package (adds it to that pack's set). */
+    addOne(source: string, skill: string): Promise<void>
+    /** The user's own skill, written here: its name, when to use it, what it says. */
+    create(name: string, description: string, body: string): Promise<string>
+    /** Copy in a folder that holds a SKILL.md (or folders of them). */
+    importFolder(path: string): Promise<string[]>
+    /** A skill's SKILL.md; `editable` for the user's own. */
+    read(name: string): Promise<{ text: string; dir: string; editable: boolean }>
+    /** Save a user's own skill. */
+    write(name: string, text: string): Promise<void>
+    /** Delete a user's own skill (packs are removed with `remove`). */
+    removeOwn(name: string): Promise<void>
+  }
+  references: {
+    list(): Promise<Reference[]>
+    /** A video file or a link; the deconstruction starts at once. */
+    add(input: string, name?: string): Promise<Reference>
+    remove(id: string): Promise<void>
+    rename(id: string, name: string): Promise<Reference>
+    /** Deconstruct again (after a failure, or with a newer agent). */
+    retry(id: string): Promise<void>
+    /** Everything in its folder: what the agent wrote, the frames, the video. */
+    files(id: string): Promise<RefFile[]>
+    /** A text file from its folder (null: missing, or too big to show). */
+    readFile(id: string, path: string): Promise<string | null>
   }
   files: {
     /** A project file's text (null: missing). */
@@ -125,6 +152,8 @@ export interface Events {
   'project:changed': { dir: string; files: string[] }
   job: import('./types').JobEvent
   'skills:state': SkillsState
+  /** The references, whenever one changes (added, a step, done). */
+  references: Reference[]
   /** Open a project in the window (from the command line), with a first message. */
   open: { dir: string; first: string | null }
   /** A menu command (from the app menu or a shortcut). */

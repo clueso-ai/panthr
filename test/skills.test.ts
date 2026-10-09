@@ -102,7 +102,7 @@ describe('the hub', () => {
     await _test.idle()
     const st = await skills.state()
     expect(st.running).toBeNull()
-    expect(st.skills.find((s) => s.name === 'alpha')).toEqual({ name: 'alpha', description: 'Does alpha.', pack: 'me/pack', on: true })
+    expect(st.skills.find((s) => s.name === 'alpha')).toMatchObject({ name: 'alpha', description: 'Does alpha.', pack: 'me/pack', on: true, origin: 'added' })
     // Linked into the project (by the queue's link-all), both agents.
     for (const d of ['.agents/skills', '.claude/skills']) {
       const l = join(project, d, 'alpha')
@@ -142,5 +142,33 @@ describe('the hub', () => {
     expect(st.error).toBe('fail/me: no such package')
     expect(config().packs.some((p) => p.source === 'fail/me')).toBe(false)
     expect(st.skills.some((s) => s.name === 'next' && s.pack === 'ok/next')).toBe(true)
+  })
+})
+
+describe("the user's own skills", () => {
+  it('writes one with a description YAML cannot misread', async () => {
+    const n = S.createOwn('Brand Voice', 'Use for captions: short, warm, no jargon.', '# Brand voice\n\nWrite like this.')
+    expect(n).toBe('brand-voice')
+    const text = readFileSync(join(process.env.PANTHR_SKILLS_HUB!, '.agents/skills/brand-voice/SKILL.md'), 'utf8')
+    expect(S.frontMatter(text)).toEqual({ name: 'brand-voice', description: 'Use for captions: short, warm, no jargon.' })
+    const st = await skills.state()
+    expect(st.skills.find((s) => s.name === 'brand-voice')).toMatchObject({ origin: 'yours', on: true })
+    // A second one with the same name gets its own folder.
+    expect(S.createOwn('Brand Voice', 'Again.', 'x')).toBe('brand-voice-2')
+  })
+  it('imports a folder of skills, and edits and removes only its own', async () => {
+    const src = join(tmp, 'mine')
+    for (const n of ['one', 'two']) {
+      mkdirSync(join(src, n), { recursive: true })
+      writeFileSync(join(src, n, 'SKILL.md'), `---\nname: ${n}-skill\ndescription: The ${n}.\n---\nBody`)
+    }
+    expect(S.importOwn(src).sort()).toEqual(['one-skill', 'two-skill'])
+    await skills.write('one-skill', 'changed')
+    expect((await skills.read('one-skill')).text).toBe('changed')
+    expect((await skills.read('one-skill')).editable).toBe(true)
+    await skills.removeOwn('two-skill')
+    expect((await skills.state()).skills.some((s) => s.name === 'two-skill')).toBe(false)
+    await expect(skills.write('alpha', 'x')).rejects.toThrow(/not one of your skills/)
+    expect(() => S.importOwn(join(tmp, 'nothing-here'))).toThrow(/No SKILL.md/)
   })
 })
