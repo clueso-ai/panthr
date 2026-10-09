@@ -121,6 +121,9 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   useEvent('chat:state', (c) => {
     if (c.dir === dir && c.chatId === chatId) setChat(c)
   }, [dir, chatId])
+  useEvent('project:renamed', (e) => {
+    if (e.dir === dir) setProject((p) => (p ? { ...p, meta: { ...p.meta, name: e.name } } : p))
+  }, [dir])
   useEvent('chat:titled', (e) => {
     if (e.dir === dir) api.projects.load(dir).then((p) => p && setProject(p))
   }, [dir])

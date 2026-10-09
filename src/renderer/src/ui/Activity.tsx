@@ -35,6 +35,7 @@ const nameOf = (dir: string): void => {
   api.projects.load(dir).then((p) => p && publish({ names: new Map(now.names).set(dir, p.meta.name) }))
 }
 
+api.on('project:renamed', ({ dir, name }) => publish({ names: new Map(now.names).set(dir, name) }))
 api.on('chat:state', (c) => {
   const running = now.turns.get(c.dir)
   if (c.working) {

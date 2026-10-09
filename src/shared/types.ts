@@ -22,6 +22,8 @@ export interface ProjectMeta {
   agents_enabled: boolean
   /** The model per agent; absent: the default from Settings. */
   models: Partial<Record<Engine, string>>
+  /** Named from the first words for now: the first message's name may replace it. */
+  auto_name?: boolean
 }
 
 export interface Project {

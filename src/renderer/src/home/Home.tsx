@@ -76,6 +76,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   }
   useEffect(load, [])
   useEvent('chat:turn', load)
+  useEvent('project:renamed', load)
   useEffect(() => setEngine(s.agent), [s.agent])
   useEffect(() => {
     const id = setInterval(() => setWord((w) => w + 1), WORD_MS)

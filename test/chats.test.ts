@@ -18,7 +18,16 @@ const fake = vi.hoisted(() => ({
   codex: [] as any[],
   out: null as null | ((e: any) => void),
   alive: false,
-  failStart: false
+  failStart: false,
+  /** What the cheap model names a chat (null: no answer). */
+  name: null as string | null,
+  named: [] as [string, string][]
+}))
+vi.mock('../src/main/namer', () => ({
+  suggestName: async (text: string, engine: string) => {
+    fake.named.push([text, engine])
+    return fake.name
+  }
 }))
 vi.mock('../src/main/agents/claude', async (orig) => {
   const real: any = await orig()
@@ -77,7 +86,7 @@ afterAll(() => {
 })
 beforeEach(() => {
   emitted.length = 0
-  Object.assign(fake, { starts: [], sent: [], codex: [], out: null, alive: false, failStart: false })
+  Object.assign(fake, { starts: [], sent: [], codex: [], out: null, alive: false, failStart: false, name: null, named: [] })
 })
 
 // ── The transcript from recorded streams ───────────────────────────
@@ -228,6 +237,30 @@ describe('chats', () => {
     expect(fake.starts).toHaveLength(1)
     expect(fake.sent.at(-1)).toBe('Now make it red')
     expect(loadMeta(dir)!.chats[0].title).toBe('Make a launch teaser for our new feature')
+    fake.out!({ type: 'result', cost_usd: 0, duration_ms: 1, turns: 1, error: false })
+  })
+
+  it('the cheap model names the chat, and the project while it has its stand-in name', async () => {
+    fake.name = 'Feature Launch Teaser'
+    const dir = project({ name: 'Make a launch teaser', auto_name: true })
+    const id = await chats.create(dir)
+    await chats.send(dir, id, 'Make a launch teaser for our new feature please')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(fake.named).toEqual([['Make a launch teaser for our new feature please', 'claude']])
+    const m = loadMeta(dir)!
+    expect(m.chats[0].title).toBe('Feature Launch Teaser')
+    expect(m.name).toBe('Feature Launch Teaser')
+    expect(m.auto_name).toBeUndefined()
+    expect(emitted.some(([n, p]) => n === 'project:renamed' && p.name === 'Feature Launch Teaser')).toBe(true)
+    fake.out!({ type: 'result', cost_usd: 0, duration_ms: 1, turns: 1, error: false })
+
+    // A project the person named keeps its name; the chat still gets one.
+    const mine = project({ name: 'My Film' })
+    const c2 = await chats.create(mine)
+    await chats.send(mine, c2, 'Make a launch teaser for our new feature please')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(loadMeta(mine)!.name).toBe('My Film')
+    expect(loadMeta(mine)!.chats[0].title).toBe('Feature Launch Teaser')
     fake.out!({ type: 'result', cost_usd: 0, duration_ms: 1, turns: 1, error: false })
   })
 

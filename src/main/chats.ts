@@ -17,6 +17,7 @@ import * as remote from './remote'
 import { ClaudeChat, promptText } from './agents/claude'
 import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
+import { suggestName } from './namer'
 
 /** A chat's title until its first message names it. */
 export const NEW_CHAT = 'New chat'
@@ -286,7 +287,10 @@ class Chat {
         return this.sendQueued()
       }
     }
-    if (first) this.title(titleFrom(text))
+    if (first) {
+      this.title(titleFrom(text))
+      void this.nameFrom(text)
+    }
     this.t.begin(text)
     this.save(true)
     this.show(true)
@@ -336,6 +340,30 @@ class Chat {
       const next = this.t.queued.shift()!
       void this.send(next)
     }
+  }
+
+  /** Ask the agent's cheap model for a name; it replaces the chat's stand-in
+   *  title, and the project's while that is still its stand-in too. */
+  private async nameFrom(text: string): Promise<void> {
+    const name = await suggestName(text, this.t.engine)
+    if (!name) return
+    const stand = titleFrom(text)
+    let chat = false
+    let project = false
+    updateMeta(this.dir, (m) => {
+      const c = m.chats.find((c) => c.id === this.chatId)
+      if (c && c.title === stand) {
+        c.title = name
+        chat = true
+      }
+      if (m.auto_name) {
+        m.name = name
+        delete m.auto_name
+        project = true
+      }
+    })
+    if (chat) emit('chat:titled', { dir: this.dir, chatId: this.chatId, title: name })
+    if (project) emit('project:renamed', { dir: this.dir, name })
   }
 
   /** Name the chat after its first message (only while it has no name). */

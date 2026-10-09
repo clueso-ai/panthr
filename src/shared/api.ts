@@ -148,6 +148,8 @@ export interface Events {
   /** A turn ended in a project (its files may have changed). */
   'chat:turn': { dir: string; chatId: string }
   'chat:titled': { dir: string; chatId: string; title: string }
+  /** A project got a new name (by the person, or from its first message). */
+  'project:renamed': { dir: string; name: string }
   'chat:session': { dir: string; chatId: string; sessionId: string }
   'project:changed': { dir: string; files: string[] }
   job: import('./types').JobEvent

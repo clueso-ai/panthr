@@ -43,7 +43,7 @@ export function parseMeta(raw: unknown): ProjectMeta | null {
   if (m.models && typeof m.models === 'object') {
     for (const [k, v] of Object.entries(m.models)) if (typeof v === 'string') models[k as Engine] = v
   }
-  return { name: m.name, created_at: m.created_at, chats, agents_enabled: m.agents_enabled ?? true, models }
+  return { name: m.name, created_at: m.created_at, chats, agents_enabled: m.agents_enabled ?? true, models, ...(m.auto_name === true ? { auto_name: true } : {}) }
 }
 
 /** The meta in Rust's field order (so both apps write the same bytes):
@@ -56,7 +56,8 @@ export function normalMeta(m: ProjectMeta): ProjectMeta {
     created_at: m.created_at,
     chats: (m.chats ?? []).map((c) => ({ id: c.id, title: c.title, session_id: c.session_id ?? null, created_at: c.created_at, engine: c.engine ?? null })),
     agents_enabled: m.agents_enabled ?? true,
-    models
+    models,
+    ...(m.auto_name ? { auto_name: true } : {})
   }
 }
 
@@ -367,6 +368,8 @@ export const projects: Api['projects'] = {
     const p = h ? createIn(join(remote.mirrors(), remote.slug(h.name)), name) : createIn(studioRoot(), name)
     // Settings ▸ Agents for new projects.
     p.meta.agents_enabled = getSettings().agents_default
+    // A stand-in until the first message names it.
+    p.meta.auto_name = true
     saveMetaFile(p.dir, p.meta)
     if (h) {
       try {
@@ -385,7 +388,13 @@ export const projects: Api['projects'] = {
   },
   async rename(dir, name) {
     const n = name.trim()
-    if (n) updateMeta(dir, (m) => (m.name = n))
+    if (n) {
+      updateMeta(dir, (m) => {
+        m.name = n
+        delete m.auto_name
+      })
+      emit('project:renamed', { dir, name: n })
+    }
     const p = load(dir)
     if (!p) throw new Error(`Not a project: ${dir}`)
     return p
