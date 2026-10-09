@@ -49,3 +49,9 @@ input, textarea { font: inherit; color: inherit; }
 .bad { color: var(--danger); }
 .hidden { display: none !important; }
 kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: var(--hover); color: var(--t2); margin-left: 6px; }
+
+/* Theme change: the new look grows in a circle over the old (ThemeToggle).
+   No cross-fade, and nothing inside eases on its own meanwhile. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { z-index: 2; }
+html[data-switching] *, html[data-switching] *::before, html[data-switching] *::after { transition: none !important; }

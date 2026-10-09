@@ -11,6 +11,7 @@ import { frostAlpha, IconButton, Segmented, Slider, Switch } from '@/ui/Controls
 import { MenuItem, Popover } from '@/ui/Popover'
 import { EyeMark } from '@/ui/Eye'
 import { ByClueso } from '@/ui/CluesoMark'
+import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
@@ -97,7 +98,7 @@ function General() {
     <>
       <Card title="Look">
         <Row title="Theme" body="System follows macOS.">
-          <Segmented id="theme" value={s.appearance} onChange={(v) => set({ appearance: v })} options={[{ value: 'system', label: 'System' }, { value: 'night', label: 'Night' }, { value: 'day', label: 'Day' }]} />
+          <Segmented id="theme" value={s.appearance} onChange={(v) => setAppearance(v)} options={[{ value: 'system', label: 'System' }, { value: 'night', label: 'Night' }, { value: 'day', label: 'Day' }]} />
         </Row>
         <Row title="Frost" body="How much of the desktop shows through.">
           <Slider
