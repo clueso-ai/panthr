@@ -12,6 +12,7 @@ import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
 import { ThemeToggle } from '@/ui/ThemeToggle'
+import { ActivityButton } from '@/ui/Activity'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
@@ -588,6 +589,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
           <span className="pmeta faint">{versions.length ? `${versions.length} version${versions.length === 1 ? '' : 's'}` : ''}</span>
           <span className="spacer" />
           <div className="no-drag titlebar-btns">
+            <ActivityButton />
             <ThemeToggle />
             <IconButton icon="new-chat" tip="New chat" keys="⌘T" onClick={newChat} />
           </div>

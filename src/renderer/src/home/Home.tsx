@@ -15,6 +15,7 @@ import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Contr
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
 import { ThemeToggle } from '@/ui/ThemeToggle'
+import { ActivityButton } from '@/ui/Activity'
 import { addVideos, ReferencesSection } from '@/editor/References'
 import './home.css'
 
@@ -95,6 +96,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
         <ByClueso height={12} />
         <span className="spacer" />
         <div className="no-drag home-top-btns">
+          <ActivityButton />
           <ThemeToggle />
           <IconButton icon="settings" tip="Settings" keys="⌘," onClick={onSettings} />
         </div>

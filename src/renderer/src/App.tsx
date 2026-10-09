@@ -11,6 +11,7 @@ import { Editor } from './editor/Editor'
 import { Settings, type Pane } from './settings/Settings'
 import { isDark, toggleTheme } from './ui/ThemeToggle'
 import { frostAlpha } from './ui/Controls'
+import './ui/Activity' // starts listening for background work at once
 import { DropVideos } from './editor/References'
 
 type View = { kind: 'home' } | { kind: 'project'; dir: string; first: string | null }
@@ -88,6 +89,14 @@ export function App() {
         if (p) open(p)
       })
     }
+  })
+  useEffect(() => {
+    const f = async (e: Event): Promise<void> => {
+      const p = await api.projects.load((e as CustomEvent).detail as string)
+      if (p) open(p)
+    }
+    addEventListener('panthr:open-project', f)
+    return () => removeEventListener('panthr:open-project', f)
   })
   useEffect(() => {
     const f = (e: Event): void => setSettings({ open: true, pane: ((e as CustomEvent).detail as Pane) || 'general' })
