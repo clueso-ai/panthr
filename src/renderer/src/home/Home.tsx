@@ -88,9 +88,9 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   return (
     <div className="home">
       <div className="home-top drag">
-        <EyeMark width={22} />
+        <EyeMark width={30} />
         <span className="wordmark">Panthr</span>
-        <ByClueso />
+        <ByClueso height={12} />
         <span className="spacer" />
         <div className="no-drag home-top-btns">
           <ThemeToggle />
