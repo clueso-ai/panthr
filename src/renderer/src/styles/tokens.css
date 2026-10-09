@@ -1,3 +1,35 @@
+/* The theme's colours are registered so a theme change eases them all at
+   once (base.css), instead of the window snapping from one look to the other. */
+@property --acc { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --acc-sel { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --acc-soft { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --acc-text { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --danger { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --danger-soft { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --field { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --hair { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --hair-2 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --hover { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --ok { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --ok-soft { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --on-primary { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --page { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --pane { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --pane-glass { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --press { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --primary { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --raised { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --scrim { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --stage { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --t1 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --t2 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --t3 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --track { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --warn { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --warn-soft { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --warn-text { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --window { syntax: '<color>'; inherits: true; initial-value: transparent; }
+
 /* Registered so a Frost change eases instead of snapping. */
 @property --frost { syntax: '<number>'; inherits: true; initial-value: 0.78; }
 
@@ -172,3 +204,4 @@
 }
 
 :root[data-motion='reduced'] { --quick: 0ms; --move: 0ms; --settle: 0ms; }
+html[data-motion='reduced'] { --theme-ease: 0ms; }

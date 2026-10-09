@@ -1,6 +1,6 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-html { transition: --frost var(--settle) var(--ease); }
+html { --theme-ease: 480ms cubic-bezier(0.4, 0, 0.2, 1); transition: --frost var(--settle) var(--ease), --acc var(--theme-ease), --acc-sel var(--theme-ease), --acc-soft var(--theme-ease), --acc-text var(--theme-ease), --danger var(--theme-ease), --danger-soft var(--theme-ease), --field var(--theme-ease), --hair var(--theme-ease), --hair-2 var(--theme-ease), --hover var(--theme-ease), --ok var(--theme-ease), --ok-soft var(--theme-ease), --on-primary var(--theme-ease), --page var(--theme-ease), --pane var(--theme-ease), --pane-glass var(--theme-ease), --press var(--theme-ease), --primary var(--theme-ease), --raised var(--theme-ease), --scrim var(--theme-ease), --stage var(--theme-ease), --t1 var(--theme-ease), --t2 var(--theme-ease), --t3 var(--theme-ease), --track var(--theme-ease), --warn var(--theme-ease), --warn-soft var(--theme-ease), --warn-text var(--theme-ease), --window var(--theme-ease); }
 html[data-dragging] { transition: none; }
 body {
   font-family: var(--ui);
@@ -50,8 +50,6 @@ input, textarea { font: inherit; color: inherit; }
 .hidden { display: none !important; }
 kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: var(--hover); color: var(--t2); margin-left: 6px; }
 
-/* Theme change: the new look grows in a circle over the old (ThemeToggle).
-   No cross-fade, and nothing inside eases on its own meanwhile. */
-::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-::view-transition-new(root) { z-index: 2; }
+/* While the theme changes, only the colours above move: nothing inside
+   runs its own transition on top of them. */
 html[data-switching] *, html[data-switching] *::before, html[data-switching] *::after { transition: none !important; }
