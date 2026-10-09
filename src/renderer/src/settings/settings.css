@@ -59,3 +59,22 @@
 .about-mark .by-clueso { margin: 4px 0 0; transform: none; }
 .about-mark .by-clueso > span { font-size: 11.5px; }
 .about-line { margin-top: 6px; }
+
+/* Skills: filter, then groups of cards. */
+.skills-filter { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.skills-filter-note { font-size: 12px; }
+.seg-count { font-family: var(--mono); font-size: 10.5px; color: var(--t3); margin-left: 4px; }
+.skill-group { display: flex; flex-direction: column; gap: 8px; }
+.skill-group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px; font-size: 12px; }
+.skill-group-head b { font-size: 12px; font-weight: 600; color: var(--t2); }
+.skill-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.skill-card { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; border: 1px solid var(--hair); background: color-mix(in srgb, var(--raised) 60%, transparent); min-height: 84px; transition: border-color var(--quick) var(--ease), background var(--quick) var(--ease), opacity var(--move) var(--ease); }
+.skill-card:hover { border-color: var(--hair-2); background: var(--raised); }
+.skill-card.off { opacity: 0.55; }
+.skill-card.off:hover { opacity: 0.85; }
+.skill-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; min-width: 0; }
+.skill-name { font-size: 13px; font-weight: 600; }
+.skill-desc { font-size: 12px; line-height: 1.45; }
+.skill-added { font-size: 12px; }
+.monogram { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; color: hsl(var(--h) 70% 72%); background: hsl(var(--h) 55% 50% / 0.16); }
+:root[data-theme='day'] .monogram { color: hsl(var(--h) 55% 38%); background: hsl(var(--h) 60% 50% / 0.13); }

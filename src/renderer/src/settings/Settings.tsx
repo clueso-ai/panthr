@@ -181,6 +181,7 @@ function Skills() {
   const [making, setMaking] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [show, setShow] = useState<'on' | 'off' | 'all'>('on')
   useEffect(() => {
     api.skills.state().then(setSt)
   }, [])
@@ -202,6 +203,7 @@ function Skills() {
   const query = q.trim().toLowerCase()
   const mine = st.skills.filter((k) => !query || k.name.includes(query) || k.description.toLowerCase().includes(query))
   const groups: [string, string, Skill[]][] = []
+  const onCount = st.skills.filter((k) => k.on).length
   const yours = mine.filter((k) => k.origin === 'yours')
   if (yours.length) groups.push(['yours', 'Yours', yours])
   for (const origin of ['builtin', 'added'] as const) {
@@ -246,43 +248,114 @@ function Skills() {
       </AnimatePresence>
       {(err || st.error) && <div className="error-line">{err ?? st.error}</div>}
       {hits !== null && (
-        <Card title={searching ? 'On skills.sh \u2026' : `On skills.sh \u00b7 ${hits.length}`}>
-          {hits.length === 0 && !searching && <div className="row faint">Nothing there for \u201c{q.trim()}\u201d.</div>}
-          {hits.slice(0, 12).map((h) => {
-            const busy = asked.has(h.id)
-            return (
-              <Row key={h.id} title={h.name} body={`${h.source} \u00b7 ${h.installs.toLocaleString()} installs`}>
-                {h.installed ? <span className="faint">Added</span> : (
-                  <button className="btn small" disabled={busy} onClick={() => {
-                    setAsked((a) => new Set(a).add(h.id))
-                    api.skills.addOne(h.source, h.name)
-                  }}>{busy ? 'Installing\u2026' : 'Add'}</button>
-                )}
-              </Row>
-            )
-          })}
-        </Card>
+        <section className="skill-group">
+          <div className="skill-group-head"><b>{searching ? 'On skills.sh …' : `On skills.sh · ${hits.length}`}</b></div>
+          {hits.length === 0 && !searching && <p className="pane-note">Nothing there for “{q.trim()}”.</p>}
+          <div className="skill-grid">
+            {hits.slice(0, 12).map((h) => {
+              const busy = asked.has(h.id)
+              return (
+                <div key={h.id} className="skill-card hit">
+                  <div className="skill-card-top">
+                    <Monogram name={h.name} />
+                    <b className="skill-name ellipsis">{nice(h.name)}</b>
+                    <span className="spacer" />
+                    {h.installed ? <span className="faint skill-added">Added</span> : (
+                      <button className="btn small" disabled={busy} onClick={() => {
+                        setAsked((a) => new Set(a).add(h.id))
+                        api.skills.addOne(h.source, h.name)
+                      }}>{busy ? 'Adding…' : 'Add'}</button>
+                    )}
+                  </div>
+                  <span className="skill-desc faint ellipsis">{h.source} · {h.installs.toLocaleString()} installs</span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
-      {groups.map(([key, title, ks]) => {
+      {groups.length > 0 && (
+        <div className="skills-filter">
+          <Segmented id="skills-filter" value={query ? 'all' : show} onChange={setShow} options={[
+            { value: 'on', label: <>On <span className="seg-count">{onCount}</span></> },
+            { value: 'off', label: <>Off <span className="seg-count">{st.skills.length - onCount}</span></> },
+            { value: 'all', label: <>All <span className="seg-count">{st.skills.length}</span></> }
+          ]} />
+          <span className="faint skills-filter-note">{onCount} of {st.skills.length} on, in every project</span>
+        </div>
+      )}
+      {groups.map(([key, title, all]) => {
         const pack = key.includes(':') ? key.split(':').slice(1).join(':') : null
+        const ks = query ? all : all.filter((k) => show === 'all' || (show === 'on') === k.on)
+        if (!ks.length) return null
+        const on = all.filter((k) => k.on).length
         return (
-          <Card key={key} title={title}>
-            {ks.map((k) => (
-              <div key={k.name} className="row skill-row">
-                <button className="row-words skill-open" onClick={() => setOpen(k.name)}>
-                  <b>{k.name}</b>
-                  {k.description && <span className="clamp2">{k.description}</span>}
-                </button>
-                <div className="row-control"><Switch on={k.on} onChange={(v) => api.skills.setOn(k.name, v)} small /></div>
-              </div>
-            ))}
-            {pack && <div className="card-foot"><span className="faint mono">{pack}</span><button className="link danger" onClick={() => api.skills.remove(pack)}>Remove pack</button></div>}
-          </Card>
+          <motion.section key={key} className="skill-group" layout="position" transition={tr(MOVE)}>
+            <div className="skill-group-head">
+              <b>{title}</b>
+              <span className="faint mono">{on}/{all.length}</span>
+              <span className="spacer" />
+              <button className="link" onClick={() => all.forEach((k) => k.on !== (on < all.length) && api.skills.setOn(k.name, on < all.length))}>{on < all.length ? 'All on' : 'All off'}</button>
+              {pack && key.startsWith('added:') && <button className="link danger" onClick={() => api.skills.remove(pack)}>Remove</button>}
+            </div>
+            <div className="skill-grid">
+              <AnimatePresence initial={false} mode="popLayout">
+                {ks.map((k) => <SkillCard key={k.name} k={k} onOpen={() => setOpen(k.name)} />)}
+              </AnimatePresence>
+            </div>
+          </motion.section>
         )
       })}
+      {!query && groups.length > 0 && show !== 'all' && groups.every(([, , all]) => all.every((k) => (show === 'on') !== k.on)) && (
+        <p className="pane-note">{show === 'on' ? 'No skills are on. Switch some on under All.' : 'Every skill is on.'}</p>
+      )}
       {query && !groups.length && hits === null && <p className="pane-note">No skill here matches \u201c{q.trim()}\u201d.</p>}
       <SkillSheet name={open} onClose={() => setOpen(null)} />
     </>
+  )
+}
+
+/** "gsap-timeline" → "Gsap timeline". */
+const nice = (name: string): string => {
+  const t = name.replace(/[-_]+/g, ' ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** A description without the "This skill should be used when…" lead-in
+ *  most skills share, so the part that differs is what shows. */
+const gist = (d: string): string => {
+  const t = d.replace(/^\s*(this skill (should|must|can) be used|use this skill|use (it|this)|use)\s+(when(ever)?|for|if|to)\s+/i, '').replace(/^the user (asks|wants|needs) (to|for)\s+/i, 'Asked to ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** Two letters on a tint picked from the name, so a skill is findable by eye. */
+function Monogram({ name }: { name: string }) {
+  const words = name.split(/[-_\s]+/).filter(Boolean)
+  const letters = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
+  let h = 0
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360
+  return <span className="monogram" style={{ '--h': h } as React.CSSProperties}>{letters}</span>
+}
+
+function SkillCard({ k, onOpen }: { k: Skill; onOpen(): void }) {
+  return (
+    <motion.div
+      layout="position"
+      className={`skill-card${k.on ? '' : ' off'}`}
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={tr(MOVE)}
+      onClick={onOpen}
+    >
+      <div className="skill-card-top">
+        <Monogram name={k.name} />
+        <b className="skill-name ellipsis">{nice(k.name)}</b>
+        <span className="spacer" />
+        <div onClick={(e) => e.stopPropagation()}><Switch on={k.on} onChange={(v) => api.skills.setOn(k.name, v)} small /></div>
+      </div>
+      {k.description && <span className="skill-desc faint clamp2">{gist(k.description)}</span>}
+    </motion.div>
   )
 }
 
