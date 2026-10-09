@@ -867,6 +867,8 @@ function PlusMenu({ onDraw, onNote, onLibrary, onReference }: { onDraw(): void; 
           <MenuSep />
           <MenuItem icon={<Icon name="play" size={15} />} label="Reference a video…" hint="@" onSelect={pick(onReference)} />
           <MenuItem icon={<Icon name="library" size={15} />} label="From the library" onSelect={pick(onLibrary)} />
+          <MenuSep />
+          <MenuItem icon={<Icon name="spark" size={15} />} label="Skills…" onSelect={pick(() => window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'skills' })))} />
         </div>
       </Popover>
     </>

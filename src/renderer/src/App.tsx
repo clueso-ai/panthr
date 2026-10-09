@@ -24,7 +24,7 @@ export function App() {
     const dark = s.appearance === 'night' || (s.appearance === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
     document.documentElement.dataset.theme = dark ? 'night' : 'day'
     document.documentElement.dataset.motion = s.reduce_motion ? 'reduced' : 'full'
-    const alpha = { solid: 1, light: 0.92, medium: 0.82, strong: 0.66 }[s.frost] ?? 0.82
+    const alpha = { solid: 1, light: 0.9, medium: 0.78, strong: 0.6 }[s.frost] ?? 0.78
     document.documentElement.style.setProperty('--frost', String(alpha))
   }, [s.appearance, s.reduce_motion, s.frost])
   useEffect(() => {

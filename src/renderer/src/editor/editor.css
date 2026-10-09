@@ -5,7 +5,7 @@
 .handle:hover, .handle:active { background: var(--acc-sel); }
 
 /* ── Left ─────────────────────────────────────────────────────── */
-.left { display: grid; grid-template-rows: 52px 38px minmax(0, 1fr) auto; min-width: 0; background: color-mix(in srgb, var(--pane) 70%, transparent); }
+.left { display: grid; grid-template-rows: 52px 38px minmax(0, 1fr) auto; min-width: 0; background: var(--pane-glass); }
 .titlebar { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 80px; min-width: 0; }
 .titlebar-btns { display: flex; gap: 2px; }
 .pname { font-weight: 600; font-size: 13px; min-width: 0; cursor: text; }
@@ -137,7 +137,7 @@
 /* A narrow stage: the size goes first, then the Versions label (its icon stays). */
 @container (max-width: 680px) { .fit { display: none; } }
 @container (max-width: 560px) { .stagebar-right .btn:not(.export) .btn-label { display: none; } .stage-hint { display: none; } }
-.stagebar { overflow: hidden; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--hair); background: color-mix(in srgb, var(--pane) 70%, transparent); min-width: 0; }
+.stagebar { overflow: hidden; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--hair); background: var(--pane-glass); min-width: 0; }
 .tools { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--hover); }
 .tools .tool { width: 30px; height: 26px; }
 .draw-tools { display: flex; gap: 4px; }
@@ -163,7 +163,7 @@
 .stage-error .link { margin-left: auto; color: var(--danger); white-space: nowrap; }
 
 /* ── The timeline ─────────────────────────────────────────────── */
-.tl-panel { position: relative; background: color-mix(in srgb, var(--pane) 80%, transparent); border-top: 1px solid var(--hair); padding: 8px 12px 6px; }
+.tl-panel { position: relative; background: var(--pane-glass); border-top: 1px solid var(--hair); padding: 8px 12px 6px; }
 .drawer-handle { position: absolute; top: -4px; left: 0; right: 0; height: 9px; cursor: ns-resize; display: grid; place-items: center; z-index: 4; }
 .drawer-handle i { width: 44px; height: 3px; border-radius: 2px; background: transparent; transition: background var(--quick) var(--ease); }
 .drawer-handle:hover i { background: var(--hair-2); }
@@ -240,7 +240,7 @@
 .tl-zoom-fit:hover { background: var(--hover); color: var(--t1); }
 
 /* ── Right: the inspector ─────────────────────────────────────── */
-.right { position: relative; overflow: hidden; min-width: 0; background: color-mix(in srgb, var(--pane) 80%, transparent); display: flex; }
+.right { position: relative; overflow: hidden; min-width: 0; background: var(--pane-glass); display: flex; }
 .insp-handle { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; }
 .right-inner { flex: none; height: 100%; margin-left: 1px; }
 .insp { height: 100%; display: flex; flex-direction: column; }

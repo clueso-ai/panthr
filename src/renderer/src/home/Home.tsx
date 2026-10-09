@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Engine, Host, Project } from '@shared/types'
+import type { Engine, Host, Project, Skill } from '@shared/types'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
@@ -14,6 +14,7 @@ import { Icon } from '@/ui/Icon'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
+import { addVideos, ReferencesSection } from '@/editor/References'
 import './home.css'
 
 const IDEAS: [string, string][] = [
@@ -41,6 +42,30 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   const [text, setText] = useState('')
   const box = useRef<ComposerHandle>(null)
   const refs = useReferences()
+  const [refsOpen, setRefsOpen] = useState(false)
+  const [skills, setSkills] = useState<Skill[]>([])
+  useEffect(() => {
+    api.skills.state().then((st) => setSkills(st.skills))
+  }, [])
+  useEvent('skills:state', (st) => setSkills(st.skills))
+  const openSkills = (): void => {
+    window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'skills' }))
+  }
+  useEffect(() => {
+    if (!refsOpen) return
+    const k = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !document.querySelector('.ref-sheet')) setRefsOpen(false)
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [refsOpen])
+  /** Put "@handle " at the end of the idea, for the agent to look at. */
+  const mention = (handle: string): void => {
+    const v = box.current?.value() ?? ''
+    box.current?.set(`${v}${v && !/\s$/.test(v) ? ' ' : ''}@${handle} `)
+    setRefsOpen(false)
+    box.current?.focus()
+  }
 
   const load = (): void => {
     api.projects.list().then(setProjects)
@@ -94,6 +119,9 @@ export function Home({ onOpen, onStart, onSettings, working }: {
           <motion.div className="home-box" {...rise(14, SETTLE, 0.2)} onClick={() => box.current?.focus()}>
             <Composer ref={box} mentions={refs} placeholder="Describe a video, then press Return" onSubmit={start} onChange={setText} className="home-input" maxRows={8} />
             <div className="home-box-row" onClick={(e) => e.stopPropagation()}>
+              <AddChip onVideo={async () => {
+                if (await addVideos(await api.app.chooseFiles())) setRefsOpen(true)
+              }} onReferences={() => setRefsOpen(true)} onSkills={openSkills} />
               <WhereChip host={host} onHost={setHost} />
               <span className="spacer" />
               <ModelChip engine={engine} model={chosen} onPick={(e, m) => {
@@ -112,6 +140,24 @@ export function Home({ onOpen, onStart, onSettings, working }: {
               <button key={label} className="idea" onClick={() => box.current?.set(idea)}>{label}</button>
             ))}
           </motion.div>
+          <motion.div className="kit" {...rise(10, SETTLE, 0.35)}>
+            <button className="kit-tile" onClick={() => setRefsOpen(true)}>
+              <span className="kit-icon"><Icon name="film" size={16} /></span>
+              <span className="kit-words">
+                <b>References</b>
+                <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to learn from'}</span>
+              </span>
+              <Icon name="chevron-right" size={14} className="faint" />
+            </button>
+            <button className="kit-tile" onClick={openSkills}>
+              <span className="kit-icon"><Icon name="spark" size={16} /></span>
+              <span className="kit-words">
+                <b>Skills</b>
+                <span className="faint">{skills.length ? `${skills.filter((k) => k.on).length} on · find more or write your own` : 'Find skills or write your own'}</span>
+              </span>
+              <Icon name="chevron-right" size={14} className="faint" />
+            </button>
+          </motion.div>
           {projects.length > 0 && (
             <motion.section className="recent" {...rise(10, SETTLE, 0.4)}>
               <div className="recent-head">
@@ -128,7 +174,44 @@ export function Home({ onOpen, onStart, onSettings, working }: {
           )}
         </div>
       </div>
+      <AnimatePresence>
+        {refsOpen && (
+          <motion.div className="sheet-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)} onClick={() => setRefsOpen(false)}>
+            <motion.div className="refs-sheet" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={tr(SETTLE)} onClick={(e) => e.stopPropagation()}>
+              <div className="refs-sheet-close"><IconButton icon="close" tip="Close" keys="esc" onClick={() => setRefsOpen(false)} /></div>
+              <ReferencesSection onMention={mention} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+/** The + in the idea box: bring in a video to learn from, or skills. */
+function AddChip({ onVideo, onReferences, onSkills }: { onVideo(): void; onReferences(): void; onSkills(): void }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const pick = (f: () => void) => () => {
+    setOpen(false)
+    f()
+  }
+  return (
+    <>
+      <Tip title="Add" body="A reference video for the agent to learn from, or skills it can use.">
+        <button ref={anchor} className={`chip icon-only${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
+          <Icon name="plus" size={15} />
+        </button>
+      </Tip>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="start" width={240}>
+        <div className="menu">
+          <MenuItem icon={<Icon name="film" size={15} />} label="Reference a video…" onSelect={pick(onVideo)} />
+          <MenuItem icon={<Icon name="library" size={15} />} label="Your references" hint="@" onSelect={pick(onReferences)} />
+          <MenuSep />
+          <MenuItem icon={<Icon name="spark" size={15} />} label="Skills…" onSelect={pick(onSkills)} />
+        </div>
+      </Popover>
+    </>
   )
 }
 
