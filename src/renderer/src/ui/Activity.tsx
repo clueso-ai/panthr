@@ -90,6 +90,32 @@ const openProject = (dir: string): void => {
   window.dispatchEvent(new CustomEvent('panthr:open-project', { detail: dir }))
 }
 
+/** One line for what is running: the job itself when there is one. */
+function summary(a: Activity): string {
+  const n = count(a)
+  if (n !== 1) return `${n} running`
+  const [turn] = a.turns
+  if (turn) return `Agent working in ${a.names.get(turn[0]) ?? 'a project'}`
+  const [ex] = a.exports
+  if (ex) return `Exporting ${a.names.get(ex[0]) ?? ''} · ${Math.round(ex[1].percent)}%`
+  if (a.references[0]) return `Taking apart ${a.references[0].name}`
+  return `Installing ${a.skills.running}`
+}
+
+/** The bottom-left status line: there while anything runs, gone when not. */
+export function ActivityStatus({ className }: { className?: string }) {
+  const n = count(useActivity())
+  return (
+    <AnimatePresence initial={false}>
+      {n > 0 && (
+        <motion.div className={`activity-status ${className ?? ''}`} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)}>
+          <ActivityButton />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export function ActivityButton() {
   const a = useActivity()
   const n = count(a)
@@ -106,16 +132,10 @@ export function ActivityButton() {
       <Tip title="Activity" body="Agents working, exports, references and skills, wherever they are.">
         <button ref={anchor} className={`activity-btn${n ? ' busy' : ''}${open ? ' open' : ''}`} aria-label={`Activity: ${n} running`} onClick={() => setOpen((o) => !o)}>
           <span className="activity-ring" />
-          <AnimatePresence initial={false}>
-            {n > 0 && (
-              <motion.span className="activity-count mono" key="n" initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} transition={tr(MOVE)}>
-                {n}
-              </motion.span>
-            )}
-          </AnimatePresence>
+          <span className="activity-summary ellipsis">{n ? summary(a) : 'Nothing running'}</span>
         </button>
       </Tip>
-      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="end" width={320}>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="start" width={320}>
         <div className="activity">
           <div className="activity-head">{n ? `${n} running` : 'Nothing running'}</div>
           {n === 0 && <div className="activity-empty faint">Agent turns, exports, references being taken apart and skills installing show here while they run.</div>}

@@ -116,12 +116,15 @@
 .slider-track:focus-visible .slider-knob { box-shadow: 0 0 0 3px var(--acc-sel), 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 /* Activity: a ring that turns while anything runs, a count, and the list. */
-.activity-btn { height: 28px; min-width: 28px; padding: 0 7px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--t2); transition: background var(--quick) var(--ease), color var(--quick) var(--ease); }
+.activity-btn { height: 24px; max-width: 100%; padding: 0 8px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--t2); transition: background var(--quick) var(--ease), color var(--quick) var(--ease); }
 .activity-btn:hover, .activity-btn.open { background: var(--hover); color: var(--t1); }
 .activity-ring { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--hair-2); flex: none; transition: border-color var(--move) var(--ease); }
 .activity-btn.busy .activity-ring { border-color: var(--acc-soft); border-top-color: var(--acc); animation: activity-spin 1.1s linear infinite; }
 .activity-btn.busy { color: var(--t1); }
-.activity-count { font-size: 11.5px; overflow: hidden; }
+.activity-summary { min-width: 0; }
+.activity-status { overflow: hidden; }
+.left-activity { padding: 0 8px 6px; margin-top: -6px; }
+.home-activity { position: absolute; left: 10px; bottom: 10px; z-index: 3; }
 @keyframes activity-spin { to { transform: rotate(360deg); } }
 :root[data-motion='reduced'] .activity-btn.busy .activity-ring { animation: none; border-color: var(--acc); }
 .activity { padding: 6px; display: flex; flex-direction: column; border-radius: var(--r-lg); background: var(--raised); box-shadow: var(--shadow-pop); backdrop-filter: blur(24px) saturate(1.4); }
