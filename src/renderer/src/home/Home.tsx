@@ -14,6 +14,7 @@ import { Icon } from '@/ui/Icon'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
+import { ThemeToggle } from '@/ui/ThemeToggle'
 import { addVideos, ReferencesSection } from '@/editor/References'
 import './home.css'
 
@@ -91,7 +92,8 @@ export function Home({ onOpen, onStart, onSettings, working }: {
         <span className="wordmark">Panthr</span>
         <ByClueso />
         <span className="spacer" />
-        <div className="no-drag">
+        <div className="no-drag home-top-btns">
+          <ThemeToggle />
           <IconButton icon="settings" tip="Settings" keys="⌘," onClick={onSettings} />
         </div>
       </div>

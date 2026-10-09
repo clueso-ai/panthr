@@ -196,6 +196,8 @@ function buildMenu(): void {
         { label: 'Versions', accelerator: 'Cmd+3', click: command('side-versions') },
         { label: 'Library', accelerator: 'Cmd+4', click: command('side-library') },
         { type: 'separator' },
+        { label: 'Light or Dark', accelerator: 'Cmd+Shift+L', click: command('theme') },
+        { type: 'separator' },
         { label: 'Layers', accelerator: 'Cmd+L', click: command('toggle-layers') },
         { label: 'Draw on the Frame', accelerator: 'Cmd+Shift+D', click: command('draw') },
         { label: 'Note at This Moment', accelerator: 'Cmd+Shift+K', click: command('note') },

@@ -37,7 +37,7 @@
 .check-line { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 12px; font-size: 12px; }
 .check-line .tool { font-family: var(--mono); font-size: 11.5px; }
 .about-mark { display: flex; align-items: center; gap: 16px; }
-.about-mark .wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 22px; }
+.about-mark .wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 24px; letter-spacing: -0.02em; font-variation-settings: 'opsz' 96; }
 .seg-mark { display: inline-flex; align-items: center; gap: 6px; }
 .row-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--field); display: grid; place-items: center; flex: none; }
 .cli-example { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--hair); font-family: var(--mono); font-size: 11.5px; color: var(--t2); line-height: 1.7; user-select: text; white-space: pre-wrap; }
@@ -57,5 +57,5 @@
 .skill-edit { flex: 1; resize: none; outline: 0; }
 .skill-read { flex: 1; overflow: auto; }
 .about-mark .by-clueso { margin: 4px 0 0; transform: none; }
-.about-mark .by-clueso > span { font-size: 12px; }
+.about-mark .by-clueso > span { font-size: 11.5px; }
 .about-line { margin-top: 6px; }

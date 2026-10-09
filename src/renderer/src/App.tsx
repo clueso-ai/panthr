@@ -9,6 +9,7 @@ import { tr, SETTLE } from '@/lib/motion'
 import { Home } from './home/Home'
 import { Editor } from './editor/Editor'
 import { Settings, type Pane } from './settings/Settings'
+import { isDark, toggleTheme } from './ui/ThemeToggle'
 import { DropVideos } from './editor/References'
 
 type View = { kind: 'home' } | { kind: 'project'; dir: string; first: string | null }
@@ -21,7 +22,7 @@ export function App() {
 
   // Theme, frost and motion follow Settings.
   useEffect(() => {
-    const dark = s.appearance === 'night' || (s.appearance === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+    const dark = isDark(s.appearance)
     document.documentElement.dataset.theme = dark ? 'night' : 'day'
     document.documentElement.dataset.motion = s.reduce_motion ? 'reduced' : 'full'
     const alpha = { solid: 1, light: 0.9, medium: 0.78, strong: 0.6 }[s.frost] ?? 0.78
@@ -79,6 +80,7 @@ export function App() {
   })
   useEvent('command', ({ name }) => {
     if (name === 'settings') setSettings((x) => ({ ...x, open: !x.open }))
+    else if (name === 'theme') toggleTheme(s.appearance)
     else if (name === 'home' || name === 'new-project') home()
     else if (name === 'open-folder') {
       api.app.chooseFolder().then(async (d) => {

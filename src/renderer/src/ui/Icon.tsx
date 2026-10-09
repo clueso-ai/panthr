@@ -5,20 +5,20 @@
 import {
   ArrowLeft, ArrowUp, Check, ChevronDown, ChevronRight, Cloud, Ellipsis, Folder, History, Laptop, Layers, LibraryBig,
   MapPin, MessageSquarePlus, MousePointer2, Network, Pause, PenLine, Play, Plus, Search, Settings, SlidersHorizontal,
-  Sparkle, Square, Image, Film, SquareTerminal, StickyNote, Trash2, Undo2, Upload, X, type LucideIcon
+  Sparkle, Square, Sun, Moon, Image, Film, SquareTerminal, StickyNote, Trash2, Undo2, Upload, X, type LucideIcon
 } from 'lucide-react'
 
 export type IconName =
   | 'plus' | 'pen' | 'pin' | 'library' | 'up' | 'chevron' | 'chevron-right' | 'check' | 'spark' | 'prompt'
   | 'laptop' | 'cloud' | 'sliders' | 'layers' | 'back' | 'new-chat' | 'cursor' | 'history' | 'close'
-  | 'agents' | 'play' | 'pause' | 'stop' | 'export' | 'settings' | 'search' | 'trash' | 'folder' | 'note' | 'undo' | 'dots' | 'image' | 'film'
+  | 'agents' | 'play' | 'pause' | 'stop' | 'export' | 'settings' | 'search' | 'trash' | 'folder' | 'note' | 'undo' | 'dots' | 'image' | 'film' | 'sun' | 'moon'
 
 const ICONS: Record<IconName, LucideIcon> = {
   plus: Plus, pen: PenLine, pin: MapPin, library: LibraryBig, up: ArrowUp, chevron: ChevronDown, 'chevron-right': ChevronRight,
   check: Check, spark: Sparkle, prompt: SquareTerminal, laptop: Laptop, cloud: Cloud, sliders: SlidersHorizontal, layers: Layers,
   back: ArrowLeft, 'new-chat': MessageSquarePlus, cursor: MousePointer2, history: History, close: X, agents: Network,
   play: Play, pause: Pause, stop: Square, export: Upload, settings: Settings, search: Search, trash: Trash2, folder: Folder,
-  note: StickyNote, undo: Undo2, dots: Ellipsis, image: Image, film: Film
+  note: StickyNote, undo: Undo2, dots: Ellipsis, image: Image, film: Film, sun: Sun, moon: Moon
 }
 
 /** Transport glyphs read better solid. */

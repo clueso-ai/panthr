@@ -1,6 +1,7 @@
 .home { position: relative; height: 100%; display: flex; flex-direction: column; }
 .home-top { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 84px; z-index: 2; }
-.wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 17px; letter-spacing: 0.01em; }
+.wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; font-variation-settings: 'opsz' 96; }
+.home-top-btns { display: flex; gap: 2px; }
 .home-scroll { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: clamp(70px, 16vh, 170px) 24px 64px; }
 .home-col { width: min(720px, 100%); display: flex; flex-direction: column; gap: 22px; }
 .home-eye { display: flex; justify-content: center; }
@@ -42,7 +43,7 @@
 .card-meta { font-size: 12px; color: var(--t3); margin-top: -3px; }
 @media (max-width: 760px) { .recent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .by-clueso { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; color: var(--t2); opacity: 0.85; white-space: nowrap; transform: translateY(2px); }
-.by-clueso > span { font-family: var(--wordmark); font-weight: 700; font-size: 9.5px; color: var(--t3); letter-spacing: 0.03em; }
+.by-clueso > span { font-family: var(--ui); font-weight: 500; font-size: 10.5px; color: var(--t3); }
 .kit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
 .kit-tile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hair); background: var(--hover); text-align: left; transition: background var(--quick) var(--ease), border-color var(--quick) var(--ease); }
 .kit-tile:hover { background: var(--press); border-color: var(--hair-2); }
