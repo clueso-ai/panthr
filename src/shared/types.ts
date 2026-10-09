@@ -49,6 +49,9 @@ export interface Settings {
   frost: number
   agent: Engine
   codex_model: string
+  /** The model that takes reference videos apart (quicker than chats need). */
+  reference_model: string
+  reference_codex_model: string
   skimming: boolean
 }
 
@@ -63,6 +66,8 @@ export const DEFAULT_SETTINGS: Settings = {
   frost: 40,
   agent: 'claude',
   codex_model: 'default',
+  reference_model: 'sonnet',
+  reference_codex_model: 'default',
   skimming: true
 }
 

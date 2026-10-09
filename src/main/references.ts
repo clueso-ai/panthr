@@ -246,6 +246,8 @@ What is here to work from:
 - contact.jpg: the evenly spaced stills on one sheet
 - reading/: what Panthr measured before you (start with reading/README.md): the shots, a word-by-word transcript, the text on screen with where it sits, tempo and beats, the colours of each shot, and how much the picture moves over time. Trust it, but check it against the frames.
 
+Work quickly: aim to be done in about five minutes. Start from reading/ and contact.jpg, then open the stills that matter (the cut- ones first, about 25 at most); look closer only where it changes what someone would build. Use Bash to batch work (several crops or measurements in one command) rather than one call per frame.
+
 Decompose it however you judge best captures it: there is no required format. Write as many files and folders as help (notes, a scene-by-scene breakdown, timing maps, palettes, type specimens, motion studies, code sketches, assets you crop out of frames...). Be concrete: times, sizes, hex values, eases.
 
 When you are done:
@@ -273,7 +275,7 @@ function argsFor(engine: 'claude' | 'codex', model: string, prompt: string, dir:
 function deconstruct(r: Reference): Promise<void> {
   const s = getSettings()
   const engine = s.agent
-  const model = engine === 'codex' ? s.codex_model : s.model
+  const model = engine === 'codex' ? s.reference_codex_model : s.reference_model
   const { cmd, args } = argsFor(engine, model, deconstructPrompt(r.name), r.dir)
   return new Promise((ok, fail) => {
     const child = spawn(cmd, args, { cwd: r.dir, env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
