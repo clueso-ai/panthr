@@ -44,6 +44,8 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   const box = useRef<ComposerHandle>(null)
   const refs = useReferences()
   const [refsOpen, setRefsOpen] = useState(false)
+  /** A reference still being taken apart (it goes on in the background). */
+  const busyRef = refs.find((r) => r.status !== 'ready' && r.status !== 'failed')
   const [skills, setSkills] = useState<Skill[]>([])
   useEffect(() => {
     api.skills.state().then((st) => setSkills(st.skills))
@@ -122,7 +124,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
             <Composer ref={box} mentions={refs} placeholder="Describe a video, then press Return" onSubmit={start} onChange={setText} className="home-input" maxRows={8} />
             <div className="home-box-row" onClick={(e) => e.stopPropagation()}>
               <AddChip onVideo={async () => {
-                if (await addVideos(await api.app.chooseFiles())) setRefsOpen(true)
+                await addVideos(await api.app.chooseFiles())
               }} onReferences={() => setRefsOpen(true)} onSkills={openSkills} />
               <WhereChip host={host} onHost={setHost} />
               <span className="spacer" />
@@ -147,7 +149,11 @@ export function Home({ onOpen, onStart, onSettings, working }: {
               <span className="kit-icon"><Icon name="film" size={16} /></span>
               <span className="kit-words">
                 <b>References</b>
-                <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to learn from'}</span>
+                {busyRef ? (
+                  <span className="shine ellipsis" data-text={`Taking apart ${busyRef.name}…`}>Taking apart {busyRef.name}…</span>
+                ) : (
+                  <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to learn from'}</span>
+                )}
               </span>
               <Icon name="chevron-right" size={14} className="faint" />
             </button>
@@ -169,7 +175,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
               </div>
               <div className="recent-grid">
                 {projects.slice(0, 8).map((p, i) => (
-                  <Card key={p.dir} p={p} i={i} working={working.has(p.dir)} onOpen={() => onOpen(p)} />
+                  <Card key={p.dir} p={p} i={i} working={working.has(p.dir)} onOpen={() => onOpen(p)} onRenamed={load} />
                 ))}
               </div>
             </motion.section>
@@ -181,7 +187,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
           <motion.div className="sheet-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)} onClick={() => setRefsOpen(false)}>
             <motion.div className="refs-sheet" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={tr(SETTLE)} onClick={(e) => e.stopPropagation()}>
               <div className="refs-sheet-close"><IconButton icon="close" tip="Close" keys="esc" onClick={() => setRefsOpen(false)} /></div>
-              <ReferencesSection onMention={mention} />
+              <ReferencesSection onMention={mention} onAdded={() => setRefsOpen(false)} />
             </motion.div>
           </motion.div>
         )}
@@ -217,14 +223,30 @@ function AddChip({ onVideo, onReferences, onSkills }: { onVideo(): void; onRefer
   )
 }
 
-function Card({ p, i, working, onOpen }: { p: Project; i: number; working: boolean; onOpen: () => void }) {
+function Card({ p, i, working, onOpen, onRenamed }: { p: Project; i: number; working: boolean; onOpen: () => void; onRenamed: () => void }) {
   const [thumb, setThumb] = useState<string | null>(null)
+  const [menu, setMenu] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const anchor = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (p.thumb) api.app.fileUrl(p.thumb).then(setThumb)
   }, [p.thumb])
+  const commit = async (v: string): Promise<void> => {
+    if (!renaming) return
+    setRenaming(false)
+    const n = v.trim()
+    if (n && n !== p.meta.name) {
+      await api.projects.rename(p.dir, n)
+      onRenamed()
+    }
+  }
   return (
-    <motion.button className="card" onClick={onOpen} {...rise(12, SETTLE, 0.45 + i * 0.05)}>
-      <div className="card-shot">
+    <motion.div className="card" role="button" tabIndex={0} onClick={() => !renaming && onOpen()} onKeyDown={(e) => e.key === 'Enter' && !renaming && onOpen()}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        setMenu(true)
+      }} {...rise(12, SETTLE, 0.45 + i * 0.05)}>
+      <div className="card-shot" ref={anchor}>
         {thumb && <img src={thumb} alt="" draggable={false} />}
         <AnimatePresence>
           {working && (
@@ -234,9 +256,33 @@ function Card({ p, i, working, onOpen }: { p: Project; i: number; working: boole
           )}
         </AnimatePresence>
       </div>
-      <div className="card-name ellipsis">{p.meta.name}</div>
+      {renaming ? (
+        <input className="card-rename" autoFocus defaultValue={p.meta.name} onClick={(e) => e.stopPropagation()} onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => commit(e.currentTarget.value)} onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') commit(e.currentTarget.value)
+            else if (e.key === 'Escape') setRenaming(false)
+          }} />
+      ) : (
+        <div className="card-name ellipsis" onDoubleClick={(e) => {
+          e.stopPropagation()
+          setRenaming(true)
+        }}>{p.meta.name}</div>
+      )}
       <div className="card-meta">{p.host ? `On ${p.host}` : `Edited ${ago(p.edited_at || p.meta.created_at)}`}</div>
-    </motion.button>
+      <Popover anchor={anchor} open={menu} onClose={() => setMenu(false)} side="bottom" align="start" width={200}>
+        <div className="menu" onClick={(e) => e.stopPropagation()}>
+          <MenuItem icon={<Icon name="pen" size={14} />} label="Rename" onSelect={() => {
+            setMenu(false)
+            setRenaming(true)
+          }} />
+          {!p.host && <MenuItem icon={<Icon name="folder" size={14} />} label="Show in Finder" onSelect={() => {
+            setMenu(false)
+            api.app.reveal(p.dir)
+          }} />}
+        </div>
+      </Popover>
+    </motion.div>
   )
 }
 

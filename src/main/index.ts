@@ -173,6 +173,7 @@ function buildMenu(): void {
         { label: 'New Chat', accelerator: 'Cmd+T', click: command('new-chat') },
         { label: 'Open Folder…', accelerator: 'Cmd+O', click: command('open-folder') },
         { type: 'separator' },
+        { label: 'Rename Project…', click: command('rename') },
         { label: 'Export', accelerator: 'Cmd+E', click: command('export') },
         { type: 'separator' },
         { label: 'Home', accelerator: 'Cmd+Shift+H', click: command('home') },

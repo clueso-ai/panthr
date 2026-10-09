@@ -63,6 +63,12 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   const [scope, setScope] = useState(false)
   const [strokes, setStrokes] = useState<[number, number][][]>([])
   const [renaming, setRenaming] = useState(false)
+  /** Save the typed name (blank or unchanged: keep the old one). */
+  const commitRename = async (v: string): Promise<void> => {
+    setRenaming(false)
+    const n = v.trim()
+    if (n && project && n !== project.meta.name) setProject(await api.projects.rename(dir, n))
+  }
   const undo = useRef<Op[]>([])
   const redo = useRef<Op[]>([])
   const composer = useRef<ComposerHandle>(null)
@@ -512,6 +518,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   useEvent('command', ({ name }) => {
     switch (name) {
       case 'export': exportNow(); break
+      case 'rename': setRenaming(true); break
       case 'undo': if (!typing()) doUndo(); else document.execCommand('undo'); break
       case 'redo': if (!typing()) doRedo(); else document.execCommand('redo'); break
       case 'side-chat': showSide('chat'); break
@@ -565,15 +572,17 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
             <IconButton icon="back" tip="Home" keys="⇧⌘H" onClick={onHome} />
           </div>
           {renaming ? (
-            <input className="rename no-drag" autoFocus defaultValue={project?.meta.name} onBlur={() => setRenaming(false)} onKeyDown={async (e) => {
-              if (e.key === 'Enter') {
-                const v = (e.target as HTMLInputElement).value.trim()
-                if (v && project) setProject(await api.projects.rename(dir, v))
-                setRenaming(false)
-              } else if (e.key === 'Escape') setRenaming(false)
+            <input className="rename no-drag" autoFocus defaultValue={project?.meta.name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => commitRename(e.currentTarget.value)} onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename(e.currentTarget.value)
+              else if (e.key === 'Escape') setRenaming(false)
             }} />
           ) : (
-            <span className="pname no-drag ellipsis" onDoubleClick={() => setRenaming(true)}>{project?.meta.name ?? ''}</span>
+            <Tip title="Rename" body="Click to rename this project.">
+              <button className="pname no-drag" onClick={() => setRenaming(true)}>
+                <span className="ellipsis">{project?.meta.name ?? ''}</span>
+                <Icon name="pen" size={12} className="pname-pen" />
+              </button>
+            </Tip>
           )}
           {project?.host && <span className="host-badge"><Icon name="cloud" size={12} /> {project.host}</span>}
           <span className="pmeta faint">{versions.length ? `${versions.length} version${versions.length === 1 ? '' : 's'}` : ''}</span>

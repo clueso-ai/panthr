@@ -26,7 +26,8 @@ export async function addVideos(paths: string[]): Promise<number> {
 const statusLine = (r: Reference): string =>
   r.status === 'ready' ? `@${r.handle}` : r.status === 'failed' ? r.error ?? 'It stopped' : r.step ?? 'Deconstructing…'
 
-export function ReferencesSection({ onMention }: { onMention(handle: string): void }) {
+/** `onAdded`: a video went in (Home closes its sheet; the work goes on behind). */
+export function ReferencesSection({ onMention, onAdded }: { onMention(handle: string): void; onAdded?(): void }) {
   const refs = useReferences()
   const [open, setOpen] = useState<string | null>(null)
   const [link, setLink] = useState('')
@@ -37,6 +38,7 @@ export function ReferencesSection({ onMention }: { onMention(handle: string): vo
       await api.references.add(link.trim())
       setLink('')
       setErr(null)
+      onAdded?.()
     } catch (e) {
       setErr((e as Error).message)
     }
@@ -48,7 +50,9 @@ export function ReferencesSection({ onMention }: { onMention(handle: string): vo
         <span className="faint">Videos your agent has taken apart. Mention one in chat with @.</span>
       </div>
       <div className="refs-add">
-        <button className="btn small" onClick={async () => addVideos(await api.app.chooseFiles())}><Icon name="plus" size={13} /> Add a video</button>
+        <button className="btn small" onClick={async () => {
+          if (await addVideos(await api.app.chooseFiles())) onAdded?.()
+        }}><Icon name="plus" size={13} /> Add a video</button>
         <input className="refs-link" placeholder="…or paste a link" value={link} onChange={(e) => setLink(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && link.trim() && addLink()} />
       </div>
       {err && <div className="refs-err">{err}</div>}

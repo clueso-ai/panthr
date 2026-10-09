@@ -8,7 +8,10 @@
 .left { display: grid; grid-template-rows: 52px 38px minmax(0, 1fr) auto; min-width: 0; background: var(--pane-glass); }
 .titlebar { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 80px; min-width: 0; }
 .titlebar-btns { display: flex; gap: 2px; }
-.pname { font-weight: 600; font-size: 13px; min-width: 0; cursor: text; }
+.pname { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; margin-left: -8px; border-radius: 6px; font-weight: 600; font-size: 13px; min-width: 0; max-width: 100%; cursor: text; transition: background var(--quick) var(--ease); }
+.pname:hover { background: var(--hover); }
+.pname-pen { color: var(--t3); opacity: 0; transition: opacity var(--quick) var(--ease); }
+.pname:hover .pname-pen, .pname:focus-visible .pname-pen { opacity: 1; }
 .pmeta { font-size: 12px; white-space: nowrap; }
 .rename { height: 26px; border-radius: 6px; border: 1px solid var(--acc); background: var(--field); padding: 0 8px; font-size: 13px; font-weight: 600; outline: 0; min-width: 0; flex: 1; }
 .host-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--t2); background: var(--hover); padding: 2px 6px; border-radius: 5px; }

@@ -31,7 +31,8 @@ export function defaults(): Pack[] {
     p('iart-ai/kinetic-typography-skills', 'Kinetic typography'),
     p('csthink/dashmotion', 'Dashboard motion'),
     p('anthropics/skills', 'Frontend design', ['frontend-design']),
-    p('dmtrKovalenko/fframes', 'fframes', ['fframes-video'])
+    // fframes publishes its skill from its site: the repo (1.2 GB of media) outlasts the CLI's clone timeout.
+    p('https://fframes.studio', 'fframes', ['fframes-video'])
   ]
 }
 
@@ -72,10 +73,12 @@ export function save(c: Config): void {
   writeJson(configPath(), c)
 }
 
-/** skill name -> source, from the CLI's skills-lock.json. */
+/** skill name -> source, from the CLI's skills-lock.json. A skill a site
+ *  publishes (`https://fframes.studio`) is locked as the bare host; its URL
+ *  is what it was added with, so that is the source. */
 function sources(): Map<string, string> {
-  const v = readJson<{ skills?: Record<string, { source?: string }> }>(join(hub(), 'skills-lock.json'), {})
-  return new Map(Object.entries(v.skills ?? {}).map(([k, x]) => [k, x?.source ?? '']))
+  const v = readJson<{ skills?: Record<string, { source?: string; sourceUrl?: string; sourceType?: string }> }>(join(hub(), 'skills-lock.json'), {})
+  return new Map(Object.entries(v.skills ?? {}).map(([k, x]) => [k, (x?.sourceType === 'well-known' && x.sourceUrl) || x?.source || '']))
 }
 
 const unquote = (s: string): string => s.replace(/^["']+|["']+$/g, '')

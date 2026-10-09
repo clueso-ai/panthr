@@ -55,3 +55,4 @@
 .refs-sheet { position: relative; width: min(520px, calc(100vw - 80px)); max-height: min(620px, calc(100vh - 80px)); overflow-y: auto; padding: 18px 14px 6px; border-radius: 16px; background: var(--pane); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--hair-2); }
 .refs-sheet .refs { border-bottom: 0; }
 .refs-sheet-close { position: absolute; top: 10px; right: 10px; }
+.card-rename { width: 100%; height: 24px; margin: 6px 0 0; padding: 0 6px; border-radius: 6px; border: 1px solid var(--acc); background: var(--field); font-size: 13px; font-weight: 600; outline: 0; user-select: text; }
