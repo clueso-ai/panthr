@@ -30,7 +30,8 @@ export function defaults(): Pack[] {
     p('iart-ai/data-animation-skills', 'Data animation'),
     p('iart-ai/kinetic-typography-skills', 'Kinetic typography'),
     p('csthink/dashmotion', 'Dashboard motion'),
-    p('anthropics/skills', 'Frontend design', ['frontend-design'])
+    p('anthropics/skills', 'Frontend design', ['frontend-design']),
+    p('dmtrKovalenko/fframes', 'fframes', ['fframes-video'])
   ]
 }
 
