@@ -678,7 +678,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
             )}
           </div>
         </div>
-        <ActivityStatus className="left-activity" />
+        <ActivityStatus className="left-activity" except={dir} />
       </aside>
       <div className="handle" onPointerDown={(e) => resize('chat', e)} onDoubleClick={() => setChatW(380)} />
 

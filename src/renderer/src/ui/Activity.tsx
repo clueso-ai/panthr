@@ -103,21 +103,32 @@ function summary(a: Activity): string {
 }
 
 /** The bottom-left status line: there while anything runs, gone when not. */
-export function ActivityStatus({ className }: { className?: string }) {
-  const n = count(useActivity())
+/** Activity without one project's own work (its chat and Versions show that). */
+const without = (a: Activity, dir?: string): Activity => {
+  if (!dir || (!a.turns.has(dir) && !a.exports.has(dir))) return a
+  const turns = new Map(a.turns)
+  const exports = new Map(a.exports)
+  turns.delete(dir)
+  exports.delete(dir)
+  return { ...a, turns, exports }
+}
+
+/** `except`: the project on screen, whose own work is shown where it happens. */
+export function ActivityStatus({ className, except }: { className?: string; except?: string }) {
+  const n = count(without(useActivity(), except))
   return (
     <AnimatePresence initial={false}>
       {n > 0 && (
         <motion.div className={`activity-status ${className ?? ''}`} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)}>
-          <ActivityButton />
+          <ActivityButton except={except} />
         </motion.div>
       )}
     </AnimatePresence>
   )
 }
 
-export function ActivityButton() {
-  const a = useActivity()
+export function ActivityButton({ except }: { except?: string } = {}) {
+  const a = without(useActivity(), except)
   const n = count(a)
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
