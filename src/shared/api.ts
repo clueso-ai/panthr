@@ -125,23 +125,31 @@ export interface Api {
     /** A text file from its folder (null: missing, or too big to show). */
     readFile(id: string, path: string): Promise<string | null>
   }
+  canvases: {
+    /** Every project (a canvas of videos), newest first. */
+    list(): Promise<import('./types').Canvas[]>
+    /** A new, empty project. */
+    create(name: string): Promise<import('./types').Canvas>
+    /** The project a video belongs to. */
+    of(dir: string): Promise<string>
+    /** A project by folder or name. */
+    find(what: string): Promise<string>
+  }
   board: {
-    /** Every tile (projects and references are placed the first time), arrows, the last view. */
-    get(): Promise<import('./types').Board>
-    move(key: string, x: number, y: number): Promise<void>
-    setView(view: import('./types').BoardView): Promise<void>
-    /** The folder whose chats are the Board's conversation (~/Panthr). */
-    chatDir(): Promise<string>
-    /** A new project, placed beside what it came from (or near `near`), and shown. */
-    create(name: string, from?: string | null, near?: { x: number; y: number } | null): Promise<Project>
-    /** Project folders (or folders of them), videos (as references) and other files (into the Library), placed from `at`. */
-    import(paths: string[], at?: { x: number; y: number } | null): Promise<import('./types').BoardImport>
-    link(from: string, to: string): Promise<void>
-    unlink(from: string, to: string): Promise<void>
-    /** Glide the window's board to a project or reference (returns its key). */
-    focus(what: string): Promise<string>
-    /** Open a project in the window. */
-    open(what: string): Promise<string>
+    /** A project's canvas: tiles, arrows, the last view. */
+    get(canvas: string): Promise<import('./types').Board>
+    move(canvas: string, key: string, x: number, y: number): Promise<void>
+    setView(canvas: string, view: import('./types').BoardView): Promise<void>
+    /** A new video in the project, placed beside what it came from (or near `near`), and shown. */
+    create(canvas: string, name: string, from?: string | null, near?: { x: number; y: number } | null): Promise<Project>
+    /** Video folders (or folders of them), video files (as references) and other files (into the Library), placed from `at`. */
+    import(canvas: string, paths: string[], at?: { x: number; y: number } | null): Promise<import('./types').BoardImport>
+    link(canvas: string, from: string, to: string): Promise<void>
+    unlink(canvas: string, from: string, to: string): Promise<void>
+    /** Take the window to a tile (returns its key). */
+    focus(canvas: string, what: string): Promise<string>
+    /** Open a video in the window. */
+    open(canvas: string, what: string): Promise<string>
   }
   files: {
     /** A project file's text (null: missing). */
@@ -171,7 +179,7 @@ export interface Events {
   /** The board's tiles or arrows changed. */
   'board:changed': import('./types').Board
   /** Show this tile (fresh: it was just made). */
-  'board:focus': { key: string; fresh: boolean }
+  'board:focus': { canvas: string; key: string; fresh: boolean }
   'chat:session': { dir: string; chatId: string; sessionId: string }
   'project:changed': { dir: string; files: string[] }
   job: import('./types').JobEvent

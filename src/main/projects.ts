@@ -236,7 +236,7 @@ export function createIn(root: string, name: string): Project {
 
 /** Folders opened from elsewhere on disk (File ▸ Open Folder…). */
 const openedPath = (): string => join(dataDir(), 'opened.json')
-const opened = (): string[] => readJson<string[]>(openedPath(), [])
+export const opened = (): string[] => readJson<string[]>(openedPath(), [])
 
 const inside = (p: string, root: string): boolean => {
   const a = resolve(p)

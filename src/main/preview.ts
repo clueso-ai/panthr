@@ -9,7 +9,7 @@
 // A project on a host is fetched from its server there, through the tunnel.
 
 import { createHash } from 'node:crypto'
-import { createReadStream, readFileSync, statSync } from 'node:fs'
+import { createReadStream, readFileSync, statSync, realpathSync } from 'node:fs'
 import { extname, isAbsolute, join, normalize, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { protocol } from 'electron'
@@ -119,10 +119,19 @@ function under(root: string, rel: string): string | null {
   return full === resolve(root) || full.startsWith(resolve(root) + sep) ? full : null
 }
 
+/** Inside ~/Panthr, the app's data, or an opened folder: compared by real
+ *  path, so a symlinked folder (/tmp is /private/tmp) is still inside, and a
+ *  link pointing out of one is not. */
 function mayRead(path: string): boolean {
-  const roots = [studioRoot(), dataDir(), ...allowed]
-  const p = resolve(path)
-  return roots.some((r) => p === resolve(r) || p.startsWith(resolve(r) + sep))
+  const realOf = (x: string): string => {
+    try {
+      return realpathSync.native(x)
+    } catch {
+      return resolve(x)
+    }
+  }
+  const p = realOf(path)
+  return [studioRoot(), dataDir(), ...allowed].map(realOf).some((r) => p === r || p.startsWith(r + sep))
 }
 
 async function serveProject(dir: string, path: string, req: Request): Promise<Response> {

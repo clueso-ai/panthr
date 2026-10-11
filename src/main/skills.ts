@@ -242,8 +242,14 @@ export function linkAll(): void {
     if (resolve(p) === resolve(hub())) continue
     if (existsSync(join(p, 'index.html')) || existsSync(join(p, '.studio'))) link(p)
   }
-  // ~/Panthr itself, where the Board's conversation works.
-  if (existsSync(join(projectsRoot(), '.studio'))) link(projectsRoot())
+  // Videos inside projects (their own subfolders).
+  for (const n of names) {
+    const p = join(projectsRoot(), n)
+    if (!existsSync(join(p, '.studio', 'canvas.json'))) continue
+    try {
+      for (const v of readdirSync(p)) if (existsSync(join(p, v, 'index.html'))) link(join(p, v))
+    } catch {}
+  }
 }
 
 /** Switch a skill on or off for every project. */

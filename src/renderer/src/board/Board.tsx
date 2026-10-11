@@ -12,7 +12,6 @@ import { EASE, rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
 import { EyeMark } from '@/ui/Eye'
-import { ByClueso } from '@/ui/CluesoMark'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
 import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
@@ -28,12 +27,17 @@ const ZOOM = { min: 0.15, max: 2.5 }
 const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v))
 const dur = (d: number): number => (settingsNow().reduce_motion ? 0 : d)
 
-export function Board({ returnTo, focus, onOpen, onSettings }: {
+export function Board({ canvas, first, returnTo, focus, onOpen, onHome, onSettings }: {
+  /** The project: its folder holds the canvas and the conversation. */
+  canvas: string
+  /** A project started from Home: its idea goes to the conversation. */
+  first: string | null
   /** The project just left: the board starts zoomed into it and pulls back. */
   returnTo: string | null
   /** A tile to glide to once the board is up (from the agent, while away). */
   focus: string | null
   onOpen(dir: string): void
+  onHome(): void
   onSettings(): void
 }) {
   const [board, setBoard] = useState<BoardData | null>(null)
@@ -45,19 +49,25 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   const [openRef, setOpenRef] = useState<string | null>(null)
   const [refsOpen, setRefsOpen] = useState(false)
 
-  const loadProjects = useCallback(() => {
-    api.projects.list().then((all) => setProjects(new Map(all.map((p) => [p.dir, p]))))
+  /** The videos on the canvas, as projects (name, poster, when edited). */
+  const loadProjects = useCallback((b: BoardData | null) => {
+    if (!b) return
+    const dirs = Object.keys(b.tiles).filter((k) => !k.startsWith('ref:'))
+    Promise.all(dirs.map((d) => api.projects.load(d))).then((all) => setProjects(new Map(all.filter((p): p is Project => !!p).map((p) => [p.dir, p]))))
   }, [])
   useEffect(() => {
-    api.board.get().then(setBoard)
-    loadProjects()
-  }, [loadProjects])
+    api.board.get(canvas).then((b) => {
+      setBoard(b)
+      loadProjects(b)
+    })
+  }, [canvas, loadProjects])
   useEvent('board:changed', (b) => {
+    if (b.dir !== canvas) return
     setBoard(b)
-    loadProjects()
-  })
-  useEvent('project:renamed', loadProjects)
-  useEvent('chat:turn', loadProjects)
+    loadProjects(b)
+  }, [canvas])
+  useEvent('project:renamed', () => loadProjects(board), [board])
+  useEvent('chat:turn', () => loadProjects(board), [board])
 
   // ── The view: canvas → screen is o + p·z ──────────────────────
   const stage = useRef<HTMLDivElement>(null)
@@ -96,7 +106,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   const remember = (): void => {
     if (leaving.current) return
     clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => api.board.setView(centre()), 400)
+    saveTimer.current = setTimeout(() => api.board.setView(canvas, centre()), 400)
   }
   useMotionValueEvent(ox, 'change', remember)
   useMotionValueEvent(z, 'change', remember)
@@ -142,9 +152,10 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   }
   const pendingFocus = useRef<{ key: string; fresh: boolean } | null>(null)
   useEvent('board:focus', (e) => {
+    if (e.canvas !== canvas) return
     if (board?.tiles[e.key]) show(e.key, e.fresh)
     else pendingFocus.current = e
-  }, [board])
+  }, [board, canvas])
   useEffect(() => {
     const p = pendingFocus.current
     if (p && board?.tiles[p.key]) {
@@ -158,7 +169,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
     // Where the board was is where coming back lands (not the zoomed-in view).
     clearTimeout(saveTimer.current)
     leaving.current = true
-    await api.board.setView(centre())
+    await api.board.setView(canvas, centre())
     const v = tileView(dir, fillZoom())
     if (v) await glide(v, 0.42)
     onOpen(dir)
@@ -200,7 +211,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   const [note, setNote] = useState<string | null>(null)
   const bringIn = async (paths: string[], at?: { x: number; y: number }): Promise<void> => {
     if (!paths.length) return
-    const r = await api.board.import(paths, at ?? null)
+    const r = await api.board.import(canvas, paths, at ?? null)
     const parts = [
       r.projects.length && `${r.projects.length} project${r.projects.length === 1 ? '' : 's'}`,
       r.references.length && `${r.references.length} video${r.references.length === 1 ? '' : 's'} to take apart`,
@@ -235,22 +246,32 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   const dragFrom = useRef<{ key: string; px: number; py: number; x: number; y: number; moved: boolean } | null>(null)
   const pos = (key: string): { x: number; y: number } | null => (drag?.key === key ? drag : at(key))
 
-  // ── The board's conversation (a chat of ~/Panthr) ─────────────
+  // ── The project's conversation (a chat of its folder) ─────────
   const settings = useSettings()
-  const [chatDir, setChatDir] = useState<string | null>(null)
+  const chatDir = canvas
   const [meta, setMeta] = useState<Project | null>(null)
   const [chatId, setChatId] = useState<string | null>(null)
   const [chat, setChat] = useState<ChatState | null>(null)
   const composer = useRef<ComposerHandle>(null)
   useEffect(() => {
-    api.board.chatDir().then(async (d) => {
-      setChatDir(d)
-      const p = await api.projects.load(d)
+    api.projects.load(canvas).then(async (p) => {
       setMeta(p)
       const last = p?.meta.chats[p.meta.chats.length - 1]
-      setChatId(last ? last.id : await api.chats.create(d))
+      setChatId(last ? last.id : await api.chats.create(canvas))
     })
-  }, [])
+    api.state.set({ canvas, home: false, project: null })
+  }, [canvas])
+  useEvent('project:renamed', (e) => {
+    if (e.dir === canvas) setMeta((m) => (m ? { ...m, meta: { ...m.meta, name: e.name } } : m))
+  }, [canvas])
+  // A project started from Home: its idea goes to the conversation once.
+  const sentFirst = useRef(false)
+  useEffect(() => {
+    if (first && chat && chatId && !sentFirst.current && chat.items.length === 0) {
+      sentFirst.current = true
+      api.chats.send(canvas, chatId, first)
+    }
+  }, [first, chat, chatId, canvas])
   useEffect(() => {
     if (chatDir && chatId) api.chats.open(chatDir, chatId).then(setChat)
   }, [chatDir, chatId])
@@ -279,7 +300,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
     if (!chatDir || !chatId || !text.trim()) return
     // What the person is looking at, so "this one" means something.
     const sel = selected ? (selected.startsWith('ref:') ? `@${refs.find((r) => `ref:${r.id}` === selected)?.handle}` : projects.get(selected)?.meta.name) : null
-    api.chats.send(chatDir, chatId, sel ? `${text}\n\n(On the board I have "${sel}" selected${selected && !selected.startsWith('ref:') ? `: ${selected}` : ''}.)` : text)
+    api.chats.send(chatDir, chatId, sel ? `${text}\n\n(On the canvas I have "${sel}" selected${selected && !selected.startsWith('ref:') ? `: ${selected}` : ''}.)` : text)
   }
   const newChat = async (): Promise<void> => {
     if (!chatDir) return
@@ -296,7 +317,8 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
 
   // ── What the tiles show ────────────────────────────────────────
   const keys = useMemo(() => Object.keys(board?.tiles ?? {}), [board])
-  const working = (dir: string): boolean => activity.turns.has(dir)
+  // The conversation is the project's: while it works, the videos it made this time show it.
+  const working = (dir: string): boolean => activity.turns.has(dir) || (!!chat?.working && fresh.has(dir))
   const refOf = (key: string): Reference | undefined => refs.find((r) => `ref:${r.id}` === key)
   const live = (key: string): boolean => key === selected || fresh.has(key) || working(key)
   const empty = board && keys.length === 0
@@ -306,9 +328,10 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
       {/* The conversation */}
       <aside className="board-chat">
         <div className="titlebar drag board-title">
-          <EyeMark width={24} />
-          <span className="wordmark board-wordmark">Panthr</span>
-          <ByClueso height={10} />
+          <div className="no-drag titlebar-btns">
+            <IconButton icon="back" tip="All projects" keys="⇧⌘H" onClick={onHome} />
+          </div>
+          <ProjectName dir={canvas} name={meta?.meta.name ?? ''} />
           <span className="spacer" />
           <div className="no-drag titlebar-btns">
             <IconButton icon="new-chat" tip="New conversation" keys="⌘T" onClick={newChat} />
@@ -446,7 +469,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
                       const { x, y } = drag
                       setBoard((b) => (b ? { ...b, tiles: { ...b.tiles, [key]: { x, y } } } : b))
                       setDrag(null)
-                      api.board.move(key, x, y)
+                      api.board.move(canvas, key, x, y)
                     } else setSelected(key)
                   }}
                   onDoubleClick={() => (ref ? setOpenRef(ref.id) : enter(key))}
@@ -461,7 +484,7 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
         {empty && (
           <motion.div className="board-empty board-ui" {...rise(10, SETTLE, 0.2)}>
             <LiveMark />
-            <b>Your board is empty</b>
+            <b>Nothing here yet</b>
             <span className="muted">Describe a video on the left. Each one your agent makes lands here as a tile; variants sit beside what they came from.</span>
           </motion.div>
         )}
@@ -526,7 +549,35 @@ function fitView(b: BoardData, stage: { w: number; h: number }, tile: { w: numbe
   return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, zoom }
 }
 
-/** A project: its poster, or the video itself playing while it is selected,
+/** Posters for videos that have none yet (new ones): a few stills made in
+ *  the background, one video at a time, the way the editor's filmstrip is
+ *  (not while an agent is working; asked again when a turn ends). */
+const posterAsked = new Set<string>()
+let posterChain: Promise<void> = Promise.resolve()
+function askPoster(dir: string): void {
+  if (posterAsked.has(dir)) return
+  posterAsked.add(dir)
+  posterChain = posterChain.then(async () => {
+    const html = await api.files.read(dir, 'index.html')
+    const d = Number(/data-duration="([\d.]+)"/.exec(html ?? '')?.[1] ?? 0)
+    if (!d) return
+    await api.review.frames(dir, d, 6)
+    await new Promise<void>((ok) => {
+      const off = api.on('job', (j) => {
+        if (j.dir === dir && j.type === 'frames') done()
+      })
+      const timer = setTimeout(done, 45000)
+      function done(): void {
+        clearTimeout(timer)
+        off()
+        ok()
+      }
+    })
+  })
+}
+api.on('chat:turn', () => posterAsked.clear())
+
+/** A video: its poster, or the video itself playing while it is selected,
  *  new, or being worked on. */
 function ProjectTile({ p, h, live, working }: { p: Project; h: number; live: boolean; working: boolean }) {
   const [poster, setPoster] = useState<string | null>(null)
@@ -538,6 +589,13 @@ function ProjectTile({ p, h, live, working }: { p: Project; h: number; live: boo
     if (p.thumb) api.app.fileUrl(p.thumb).then(setPoster)
   }, [p.thumb, p.edited_at])
   const playing = live || hover
+  // No picture yet: make one (and show it when it comes).
+  useEffect(() => {
+    if (!p.thumb && !p.host) askPoster(p.dir)
+  }, [p.thumb, p.dir, p.host, p.edited_at])
+  useEvent('job', (j) => {
+    if (j.dir === p.dir && j.type === 'frames' && j.files.length) api.app.fileUrl(j.files[Math.floor(j.files.length / 3)]).then(setPoster)
+  }, [p.dir])
   useEffect(() => {
     if (playing && !url) api.projects.previewUrl(p.dir).then(setUrl)
   }, [playing, url, p.dir])
@@ -605,11 +663,34 @@ function RefTile({ r, h }: { r: Reference; h: number }) {
   )
 }
 
+/** The project's name in the title row: click to rename. */
+function ProjectName({ dir, name }: { dir: string; name: string }) {
+  const [editing, setEditing] = useState(false)
+  const save = async (v: string): Promise<void> => {
+    setEditing(false)
+    const n = v.trim()
+    if (n && n !== name) await api.projects.rename(dir, n)
+  }
+  return editing ? (
+    <input className="rename no-drag" autoFocus defaultValue={name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => save(e.currentTarget.value)} onKeyDown={(e) => {
+      if (e.key === 'Enter') save(e.currentTarget.value)
+      else if (e.key === 'Escape') setEditing(false)
+    }} />
+  ) : (
+    <Tip title="Rename" body="Click to rename this project.">
+      <button className="pname no-drag" onClick={() => setEditing(true)}>
+        <span className="ellipsis">{name}</span>
+        <Icon name="pen" size={12} className="pname-pen" />
+      </button>
+    </Tip>
+  )
+}
+
 function BoardIntro() {
   return (
     <motion.div className="board-intro" {...rise(8, SETTLE, 0.1)}>
       <b>What are we making?</b>
-      <span className="muted">Describe a video and your agent makes it as a new project on the board. Ask for variants, cut-downs or other sizes and they land beside it. Select a tile to talk about that one; double-click it to go in.</span>
+      <span className="muted">Describe a video and your agent makes it here, on this project's canvas. Ask for variants, cut-downs or other sizes and they land beside it. Select a tile to talk about that one; double-click it to go in.</span>
     </motion.div>
   )
 }

@@ -35,12 +35,16 @@ const CHAT_MAX = 560
 const INSP_MIN = 260
 const INSP_MAX = 420
 
-export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string; firstMessage: string | null; onHome(): void; onSettings(): void }) {
+/** One video in the editor. Its chat is its project's conversation (the
+ *  canvas folder `canvas`), told which video you are in. */
+export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canvas: string; onHome(): void; onSettings(): void }) {
   const settings = useSettings()
   const [project, setProject] = useState<Project | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [side, setSide] = useState<Side>('chat')
   const [chatId, setChatId] = useState<string | null>(null)
+  /** The project: its conversation, models and agents switch. */
+  const [owner, setOwner] = useState<Project | null>(null)
   const [chat, setChat] = useState<ChatState | null>(null)
   const [tool, setTool] = useState<Tool>('select')
   const [picked, setPicked] = useState<Picked | null>(null)
@@ -72,7 +76,6 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   const undo = useRef<Op[]>([])
   const redo = useRef<Op[]>([])
   const composer = useRef<ComposerHandle>(null)
-  const sentFirst = useRef(false)
 
   const say = useCallback((text: string) => setStatus({ text, id: Date.now() }), [])
   useEffect(() => {
@@ -84,7 +87,6 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   // ── The project ────────────────────────────────────────────
   useEffect(() => {
     let alive = true
-    sentFirst.current = false
     // A project opens on its conversation.
     setSide('chat')
     api.state.get().then((s) => {
@@ -98,9 +100,11 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
       setUrl(await api.projects.previewUrl(dir))
       api.projects.watch(dir)
       api.skills.link(dir).catch(() => {})
-      // The newest chat, or a first one.
-      const last = p.meta.chats[p.meta.chats.length - 1]
-      setChatId(last ? last.id : await api.chats.create(dir))
+      // The project's newest conversation, or a first one.
+      const c = await api.projects.load(canvas)
+      setOwner(c)
+      const last = c?.meta.chats[c.meta.chats.length - 1]
+      setChatId(last ? last.id : await api.chats.create(canvas))
     })
     api.review.comments(dir).then(setComments)
     api.review.versions(dir).then(setVersions)
@@ -116,25 +120,17 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
 
   useEffect(() => {
     if (!chatId) return
-    api.chats.open(dir, chatId).then(setChat)
-  }, [dir, chatId])
+    api.chats.open(canvas, chatId).then(setChat)
+  }, [canvas, chatId])
   useEvent('chat:state', (c) => {
-    if (c.dir === dir && c.chatId === chatId) setChat(c)
-  }, [dir, chatId])
+    if (c.dir === canvas && c.chatId === chatId) setChat(c)
+  }, [canvas, chatId])
   useEvent('project:renamed', (e) => {
     if (e.dir === dir) setProject((p) => (p ? { ...p, meta: { ...p.meta, name: e.name } } : p))
   }, [dir])
   useEvent('chat:titled', (e) => {
-    if (e.dir === dir) api.projects.load(dir).then((p) => p && setProject(p))
-  }, [dir])
-
-  // A project started from Home: its idea goes to the first chat.
-  useEffect(() => {
-    if (firstMessage && chat && chatId && !sentFirst.current && chat.items.length === 0) {
-      sentFirst.current = true
-      api.chats.send(dir, chatId, firstMessage)
-    }
-  }, [firstMessage, chat, chatId, dir])
+    if (e.dir === canvas) api.projects.load(canvas).then((p) => p && setOwner(p))
+  }, [canvas])
 
   // ── The picture ────────────────────────────────────────────
   const preview = usePreview(url, {
@@ -223,7 +219,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
     }, 300)
   }, [dir, preview.reload, refreshTiming])
   useEvent('chat:turn', (e) => {
-    if (e.dir !== dir) return
+    if (e.dir !== canvas) return
     api.review.comments(dir).then(setComments)
     api.controls.timing(dir).then(setTiming).catch(() => {})
   }, [dir])
@@ -391,12 +387,12 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
     if (!chatId) return
     let msg = text
     if (scope && picked) msg = `${text}\n\n(About the element I clicked: ${describe(picked)} — ${whereLine(picked, preview.now())}.)`
-    api.chats.send(dir, chatId, msg)
+    api.chats.send(canvas, chatId, withVideo(msg))
     showSide('chat')
   }
   const ask = (text: string): void => {
     if (!chatId) return
-    api.chats.send(dir, chatId, text)
+    api.chats.send(canvas, chatId, withVideo(text))
     showSide('chat')
   }
   const askAdjustable = (): void => {
@@ -406,8 +402,8 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
     ask(`Make ${target} adjustable on the timeline: follow the Timing section (data-start / data-duration on the layer, tweens placed relative to them), without changing how it looks.`)
   }
   const newChat = async (): Promise<void> => {
-    const id = await api.chats.create(dir, chat?.engine)
-    setProject(await api.projects.load(dir))
+    const id = await api.chats.create(canvas, chat?.engine)
+    setOwner(await api.projects.load(canvas))
     setChatId(id)
     showSide('chat')
     composer.current?.focus()
@@ -428,19 +424,25 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   })
 
   const engine: Engine = chat?.engine ?? settings.agent
-  const model = project?.meta.models[engine] ?? (engine === 'codex' ? settings.codex_model : settings.model)
+  const model = owner?.meta.models[engine] ?? (engine === 'codex' ? settings.codex_model : settings.model)
   const pickModel = async (e: Engine, m: string): Promise<void> => {
-    if (!project) return
-    if (chatId && e !== engine) await api.chats.setEngine(dir, chatId, e)
-    const meta = { ...project.meta, models: { ...project.meta.models, [e]: m } }
-    await api.projects.saveMeta(dir, meta)
-    setProject({ ...project, meta })
+    if (!owner) return
+    if (chatId && e !== engine) await api.chats.setEngine(canvas, chatId, e)
+    const meta = { ...owner.meta, models: { ...owner.meta.models, [e]: m } }
+    await api.projects.saveMeta(canvas, meta)
+    setOwner({ ...owner, meta })
   }
   const setAgents = async (on: boolean): Promise<void> => {
-    if (!project) return
-    const meta = { ...project.meta, agents_enabled: on }
-    await api.projects.saveMeta(dir, meta)
-    setProject({ ...project, meta })
+    if (!owner) return
+    const meta = { ...owner.meta, agents_enabled: on }
+    await api.projects.saveMeta(canvas, meta)
+    setOwner({ ...owner, meta })
+  }
+  /** The project's conversation hears which video a message is about. */
+  const withVideo = (text: string): string => {
+    if (dir === canvas) return text
+    const rel = dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir
+    return `${text}\n\n(I'm in the editor on "${project?.meta.name ?? rel}", folder ${rel}.)`
   }
 
   // ── Notes ──────────────────────────────────────────────────
@@ -564,7 +566,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
   const size = preview.state.size
   const aspect = size ? size[0] / size[1] : 16 / 9
   const openNotes = comments.filter((c) => !c.resolved).length
-  const chats = project?.meta.chats ?? []
+  const chats = owner?.meta.chats ?? []
 
   return (
     <div className="editor" style={{ gridTemplateColumns: `${chatW}px 1px minmax(0, 1fr) auto` }}>
@@ -572,7 +574,7 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
       <aside className="left">
         <div className="titlebar drag">
           <div className="no-drag titlebar-btns">
-            <IconButton icon="back" tip="Home" keys="⇧⌘H" onClick={onHome} />
+            <IconButton icon="back" tip="Back to the project" keys="⇧⌘H" onClick={onHome} />
           </div>
           {renaming ? (
             <input className="rename no-drag" autoFocus defaultValue={project?.meta.name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => commitRename(e.currentTarget.value)} onKeyDown={(e) => {
@@ -658,10 +660,10 @@ export function Editor({ dir, firstMessage, onHome, onSettings }: { dir: string;
               if (await addVideos(await api.app.chooseFiles())) showSide('library')
             }} />
             <span className="spacer" />
-            <ModelChip engine={engine} model={model} locked={!!chat?.items.length} onPick={pickModel} agents={project?.meta.agents_enabled} onAgents={setAgents} />
+            <ModelChip engine={engine} model={model} locked={!!chat?.items.length} onPick={pickModel} agents={owner?.meta.agents_enabled} onAgents={setAgents} />
             {chat?.working ? (
               <Tip title="Stop" body="Ends this turn. The chat keeps everything so far.">
-                <button className="send stop" onClick={() => chatId && api.chats.stop(dir, chatId)}><Icon name="stop" size={12} /></button>
+                <button className="send stop" onClick={() => chatId && api.chats.stop(canvas, chatId)}><Icon name="stop" size={12} /></button>
               </Tip>
             ) : tool === 'draw' ? (
               <Tip title="Send the drawing" body="A frame with your marks goes to the agent.">

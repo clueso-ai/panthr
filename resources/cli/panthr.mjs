@@ -54,7 +54,7 @@ function parse(argv) {
   return { pos, opt }
 }
 const SHORT = { p: 'project', w: 'wait', j: 'json', h: 'help', c: 'chat', m: 'model', a: 'agent' }
-const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill', 'from'])
+const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill', 'from', 'canvas'])
 
 // ── The connection to the app ───────────────────────────────────
 
@@ -151,6 +151,20 @@ async function project(a, ref) {
   if (some.length === 1) return some[0].dir
   if (!some.length) throw new Error(`No project called "${ref}". See: panthr projects`)
   throw new Error(`"${ref}" could be:\n${some.map((p) => `  ${p.meta.name}`).join('\n')}`)
+}
+
+/** The project (canvas) a board command is about: --canvas, else the one
+ *  this folder is in (an agent runs in its project's folder), else the one
+ *  open in the window. */
+async function canvasFor(a, opt) {
+  if (typeof opt.canvas === 'string') return a.call('canvases.find', opt.canvas)
+  for (let d = process.cwd(); d !== '/'; d = resolve(d, '..')) {
+    if (existsSync(join(d, '.studio', 'canvas.json'))) return d
+  }
+  const st = await a.call('ui.status')
+  if (st.state?.canvas) return st.state.canvas
+  if (st.state?.project) return a.call('canvases.of', st.state.project)
+  throw new Error('Which project? Run this inside a project folder, or pass --canvas <project>. See: panthr projects')
 }
 
 /** The chat to talk to: the one named, a new one, or the newest. */
@@ -485,45 +499,48 @@ const commands = {
   async board(a, { pos, opt }) {
     const [sub, ...rest] = pos
     const what = rest.join(' ').trim()
+    const canvas = await canvasFor(a, opt)
     if (!sub) {
-      const b = await a.call('board.get')
-      const all = await a.call('projects.list')
+      const b = await a.call('board.get', canvas)
       const refs = await a.call('references.list')
-      const name = (k) => (k.startsWith('ref:') ? `@${refs.find((r) => `ref:${r.id}` === k)?.handle ?? k}` : all.find((p) => p.dir === k)?.meta.name ?? k)
-      const tiles = Object.entries(b.tiles).map(([key, at]) => ({ key, name: name(key), x: at.x, y: at.y }))
-      const links = b.links.map((l) => ({ from: name(l.from), to: name(l.to), fromKey: l.from, toKey: l.to }))
-      return out(opt, { tiles, links }, () => {
+      const name = async (k) => (k.startsWith('ref:') ? `@${refs.find((r) => `ref:${r.id}` === k)?.handle ?? k}` : (await a.call('projects.load', k))?.meta.name ?? k)
+      const tiles = []
+      for (const [key, at] of Object.entries(b.tiles)) tiles.push({ key, name: await name(key), x: at.x, y: at.y })
+      const byKey = Object.fromEntries(tiles.map((t) => [t.key, t.name]))
+      const links = b.links.map((l) => ({ from: byKey[l.from] ?? l.from, to: byKey[l.to] ?? l.to, fromKey: l.from, toKey: l.to }))
+      return out(opt, { project: canvas, tiles, links }, () => {
+        console.log(dim(canvas))
         for (const t of tiles) console.log(`${bold(t.name)}  ${dim(t.key.startsWith('ref:') ? 'reference' : t.key)}`)
         for (const l of links) console.log(dim(`  ${l.from} → ${l.to}`))
       })
     }
     if (sub === 'new') {
-      if (!what) throw new Error('Name it: panthr board new "Launch Teaser 9:16" [--from <project or @reference>]')
-      const p = await a.call('board.create', what, typeof opt.from === 'string' ? opt.from : null, null)
+      if (!what) throw new Error('Name it: panthr board new "Launch Teaser 9:16" [--from <video or @reference>]')
+      const p = await a.call('board.create', canvas, what, typeof opt.from === 'string' ? opt.from : null, null)
       return out(opt, { dir: p.dir, name: p.meta.name }, () => console.log(`${rose('●')} ${bold(p.meta.name)}\n${p.dir}`))
     }
-    if (sub === 'show' || sub === 'open') {
-      if (!what) throw new Error(`Which one: panthr board ${sub} <project or @reference>`)
-      const key = await a.call(`board.${sub === 'show' ? 'focus' : 'open'}`, what)
-      return out(opt, { key }, () => console.log(dim(sub === 'show' ? `Showing ${what}` : `Opened ${what}`)))
-    }
     if (sub === 'import') {
-      if (!rest.length) throw new Error('panthr board import <project folder | folder of projects | video | file>...')
-      const r = await a.call('board.import', rest.map((x) => resolve(x)), null)
+      if (!rest.length) throw new Error('panthr board import <video folder | folder of them | video file | file>...')
+      const r = await a.call('board.import', canvas, rest.map((x) => resolve(x)), null)
       return out(opt, r, () => {
-        if (r.projects.length) console.log(`${rose('●')} ${r.projects.length} project${r.projects.length === 1 ? '' : 's'}: ${r.projects.join(', ')}`)
+        if (r.projects.length) console.log(`${rose('●')} ${r.projects.length} video${r.projects.length === 1 ? '' : 's'}: ${r.projects.join(', ')}`)
         if (r.references.length) console.log(`${rose('●')} ${r.references.length} reference video${r.references.length === 1 ? '' : 's'} (being taken apart)`)
         if (r.library.length) console.log(`${rose('●')} ${r.library.length} file${r.library.length === 1 ? '' : 's'} into the Library`)
         for (const k of r.skipped) console.log(dim(`  skipped ${k.path}: ${k.why}`))
       })
     }
+    if (sub === 'show' || sub === 'open') {
+      if (!what) throw new Error(`Which one: panthr board ${sub} <video or @reference>`)
+      const key = await a.call(`board.${sub === 'show' ? 'focus' : 'open'}`, canvas, what)
+      return out(opt, { key }, () => console.log(dim(sub === 'show' ? `Showing ${what}` : `Opened ${what}`)))
+    }
     if (sub === 'link') {
       const [from, to] = rest
       if (!from || !to) throw new Error('panthr board link <from> <to>')
-      await a.call('board.link', from, to)
+      await a.call('board.link', canvas, from, to)
       return out(opt, { from, to }, () => console.log(dim(`${from} → ${to}`)))
     }
-    throw new Error('panthr board [new "<name>" [--from x] | import <path>... | show <x> | open <x> | link <from> <to>]')
+    throw new Error('panthr board [new "<name>" [--from x] | import <path>... | show <x> | open <x> | link <from> <to>] [--canvas <project>]')
   },
 
   async hosts(a, { opt }) {
@@ -543,14 +560,14 @@ ${bold('Make')}
   log [--wait]           The conversation (--wait follows a running turn)
   fix [--wait]           Have the agent address every open note
 
-${bold('The board')}
-  board                  Every tile and arrow on the board
-  board new "<name>" [--from <project|@ref>]
-                         A new project, its tile beside what it came from (prints its folder)
-  board import <path>... Put project folders (or folders of them), videos (as references)
-                         and other files (into the Library) on the board
-  board show <x>         Glide the window's board to a project or @reference
-  board open <x>         Open a project in the window
+${bold("A project's canvas")} (the project: --canvas, else the folder you are in, else the one open)
+  board                  Its tiles and arrows
+  board new "<name>" [--from <video|@ref>]
+                         A new video in the project, its tile beside what it came from (prints its folder)
+  board import <path>... Put video folders (or folders of them), video files (as references)
+                         and other files (into the Library) on the canvas
+  board show <x>         Glide the window to a video or @reference on it
+  board open <x>         Open a video in the window
   board link <from> <to> Draw an arrow: this one came from that one
 
 ${bold('Review and ship')}

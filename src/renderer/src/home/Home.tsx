@@ -1,10 +1,10 @@
 // Home: one job, a composer for the next video. The eye opens as it
-// appears; the word after "What are we" changes; recent projects sit below,
+// appears; the word after "What are we" changes; your projects sit below,
 // and hovering one scrubs through its frames.
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Engine, Host, Project, Skill } from '@shared/types'
+import type { Canvas, Engine, Host, Skill } from '@shared/types'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
@@ -15,7 +15,7 @@ import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Contr
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import { Tip } from '@/ui/Tooltip'
 import { ThemeToggle } from '@/ui/ThemeToggle'
-import { ActivityStatus } from '@/ui/Activity'
+import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { addVideos, ReferencesSection } from '@/editor/References'
 import './home.css'
 
@@ -29,14 +29,14 @@ const IDEAS: [string, string][] = [
 const WORDS = ['making', 'launching', 'explaining', 'teasing', 'cutting']
 const WORD_MS = 2600
 
-export function Home({ onOpen, onStart, onSettings, working }: {
-  onOpen: (p: Project) => void
+export function Home({ onOpen, onStart, onSettings }: {
+  onOpen: (dir: string) => void
   onStart: (idea: string, host: string | null, engine: Engine, model: string) => void
   onSettings: () => void
-  working: Set<string>
 }) {
   const s = useSettings()
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<Canvas[]>([])
+  const working = useActivity().turns
   const [word, setWord] = useState(0)
   const [engine, setEngine] = useState<Engine>(s.agent)
   const [model, setModel] = useState<string | null>(null)
@@ -72,7 +72,7 @@ export function Home({ onOpen, onStart, onSettings, working }: {
   }
 
   const load = (): void => {
-    api.projects.list().then(setProjects)
+    api.canvases.list().then(setProjects)
   }
   useEffect(load, [])
   useEvent('chat:turn', load)
@@ -171,13 +171,13 @@ export function Home({ onOpen, onStart, onSettings, working }: {
           {projects.length > 0 && (
             <motion.section className="recent" {...rise(10, SETTLE, 0.4)}>
               <div className="recent-head">
-                <span>Recent</span>
+                <span>Projects</span>
                 <span className="spacer" />
-                {projects.length > 8 && <span className="faint">{projects.length} projects</span>}
+                <span className="faint">{projects.length} project{projects.length === 1 ? '' : 's'}</span>
               </div>
               <div className="recent-grid">
-                {projects.slice(0, 8).map((p, i) => (
-                  <Card key={p.dir} p={p} i={i} working={working.has(p.dir)} onOpen={() => onOpen(p)} onRenamed={load} />
+                {projects.map((p, i) => (
+                  <Card key={p.dir} p={p} i={i} working={working.has(p.dir)} onOpen={() => onOpen(p.dir)} onRenamed={load} />
                 ))}
               </div>
             </motion.section>
@@ -226,7 +226,7 @@ function AddChip({ onVideo, onReferences, onSkills }: { onVideo(): void; onRefer
   )
 }
 
-function Card({ p, i, working, onOpen, onRenamed }: { p: Project; i: number; working: boolean; onOpen: () => void; onRenamed: () => void }) {
+function Card({ p, i, working, onOpen, onRenamed }: { p: Canvas; i: number; working: boolean; onOpen: () => void; onRenamed: () => void }) {
   const [thumb, setThumb] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -238,7 +238,7 @@ function Card({ p, i, working, onOpen, onRenamed }: { p: Project; i: number; wor
     if (!renaming) return
     setRenaming(false)
     const n = v.trim()
-    if (n && n !== p.meta.name) {
+    if (n && n !== p.name) {
       await api.projects.rename(p.dir, n)
       onRenamed()
     }
@@ -260,7 +260,7 @@ function Card({ p, i, working, onOpen, onRenamed }: { p: Project; i: number; wor
         </AnimatePresence>
       </div>
       {renaming ? (
-        <input className="card-rename" autoFocus defaultValue={p.meta.name} onClick={(e) => e.stopPropagation()} onFocus={(e) => e.currentTarget.select()}
+        <input className="card-rename" autoFocus defaultValue={p.name} onClick={(e) => e.stopPropagation()} onFocus={(e) => e.currentTarget.select()}
           onBlur={(e) => commit(e.currentTarget.value)} onKeyDown={(e) => {
             e.stopPropagation()
             if (e.key === 'Enter') commit(e.currentTarget.value)
@@ -270,9 +270,9 @@ function Card({ p, i, working, onOpen, onRenamed }: { p: Project; i: number; wor
         <div className="card-name ellipsis" onDoubleClick={(e) => {
           e.stopPropagation()
           setRenaming(true)
-        }}>{p.meta.name}</div>
+        }}>{p.name}</div>
       )}
-      <div className="card-meta">{p.host ? `On ${p.host}` : `Edited ${ago(p.edited_at || p.meta.created_at)}`}</div>
+      <div className="card-meta">{p.host ? `On ${p.host}` : `${p.videos} video${p.videos === 1 ? '' : 's'} · ${ago(p.edited_at || p.created_at)}`}</div>
       <Popover anchor={anchor} open={menu} onClose={() => setMenu(false)} side="bottom" align="start" width={200}>
         <div className="menu" onClick={(e) => e.stopPropagation()}>
           <MenuItem icon={<Icon name="pen" size={14} />} label="Rename" onSelect={() => {

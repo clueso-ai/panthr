@@ -77,6 +77,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export interface AppState {
   project?: string | null
+  /** The project (canvas) last looked at. */
+  canvas?: string | null
   side?: string | null
   frame?: [number, number, number, number] | null
   maximized?: boolean
@@ -360,12 +362,27 @@ export interface BoardView {
 }
 
 export interface Board {
+  /** The project (canvas folder) this is. */
+  dir: string
   /** Top-left corner of each tile, by key (a project folder, or "ref:<id>"). */
   tiles: Record<string, { x: number; y: number }>
   links: BoardLink[]
   view: BoardView | null
   /** A tile's size on the canvas. */
   tile: { w: number; h: number }
+}
+
+/** A project as Home lists it: a folder holding a canvas of videos. */
+export interface Canvas {
+  dir: string
+  name: string
+  created_at: number
+  edited_at: number
+  /** How many videos are on its canvas. */
+  videos: number
+  /** A poster: the first video's newest picture. */
+  thumb: string | null
+  host: string | null
 }
 
 /** What an import put on the board (keys as in Board.tiles; library: copied files). */
