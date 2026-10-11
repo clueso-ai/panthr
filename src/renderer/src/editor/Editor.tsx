@@ -491,8 +491,8 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   /** The project's conversation hears which video is active. */
   const withVideo = (text: string): string => {
     if (!dir) return text
-    const rel = dir === canvas ? '.' : dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir
-    return `${text}\n\n(Active video: "${project?.meta.name ?? rel}", folder ${rel}.)`
+    const where = dir === canvas ? 'the project folder itself' : `folder "${dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir}"`
+    return `${text}\n\n(Active video: "${project?.meta.name ?? ''}", in ${where})`
   }
 
   // ── Notes ──────────────────────────────────────────────────
