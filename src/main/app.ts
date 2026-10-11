@@ -45,13 +45,17 @@ export const appApi: Api['app'] = {
     for (const t of ['node', 'npx', 'ffmpeg']) if (!(await has(t))) out.push(t)
     return out
   },
+  // A headless test run never opens Finder, files or links on the person's screen.
   async reveal(path) {
+    if (process.env.PANTHR_SHOT) return console.log('reveal (skipped in a test run):', path)
     shell.showItemInFolder(path)
   },
   async openPath(path) {
+    if (process.env.PANTHR_SHOT) return void console.log('open (skipped in a test run):', path)
     await shell.openPath(path)
   },
   async openExternal(url) {
+    if (process.env.PANTHR_SHOT) return console.log('open link (skipped in a test run):', url)
     if (/^https?:\/\//.test(url)) await shell.openExternal(url)
   },
   async fileUrl(path) {

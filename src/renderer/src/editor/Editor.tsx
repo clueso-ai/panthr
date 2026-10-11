@@ -478,6 +478,10 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     composer.current?.focus()
   }
 
+  /** A message to the project's conversation from the canvas (other sizes, notes). */
+  const askProject = useCallback((text: string): void => {
+    if (chatId) api.chats.send(canvas, chatId, text)
+  }, [canvas, chatId])
   const refs = useReferences()
   /** Put a reference's @handle into the message being written. */
   const mention = useCallback((handle: string): void => {
@@ -822,6 +826,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
             chatWorking={!!chat?.working}
             onSettings={onSettings}
             onMention={mention}
+            onAsk={askProject}
             overlay={liveVideo}
           />
           <AnimatePresence>

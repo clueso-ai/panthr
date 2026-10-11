@@ -80,3 +80,8 @@
 .compare-bar { display: flex; align-items: center; gap: 12px; padding: 0 18px; border-top: 1px solid var(--hair); }
 .compare-time { font-size: 12px; color: var(--t2); min-width: 120px; }
 .compare-scrub { flex: 1; accent-color: var(--acc); }
+.tile-export { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 8px; background: var(--scrim); color: #fff; font-size: 11px; }
+.tile-export i { display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); overflow: hidden; }
+.tile-export b { display: block; height: 100%; background: var(--acc); }
+.tile-export.failed { background: color-mix(in srgb, var(--danger) 70%, black); }
+.sizes-go { display: flex; justify-content: flex-end; padding: 6px 4px 2px; }

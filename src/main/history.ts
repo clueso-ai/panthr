@@ -23,7 +23,7 @@ const IGNORE = [
   '.studio/history.git/', '.studio/checkpoints.json', '.studio/project.json', '.studio/canvas-view.json',
   '**/.studio/frames/', '**/.studio/versions/', '**/.studio/chats/', '**/.studio/annotations/',
   '**/node_modules/', '**/renders/', '**/snapshots/', '**/.hyperframes*/', '.DS_Store', '**/.DS_Store',
-  '.claude/', '.agents/'
+  '.claude/', '.agents/', 'Exports/'
 ]
 
 function git(dir: string, args: string[], timeout = 120_000): Promise<string> {

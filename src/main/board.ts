@@ -9,7 +9,7 @@
 // becomes a project whose canvas holds that video, its first tile: nothing
 // moves, and its chat becomes the project's conversation.
 
-import { existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { Api } from '@shared/api'
 import type { Board, BoardImport, BoardLink, BoardView, Canvas, Project } from '@shared/types'
@@ -318,6 +318,26 @@ export const fromProject = (canvas: string, dir: string): string => {
   return r === '' ? '.' : r.startsWith('..') ? dir : r
 }
 
+/** Exported videos gathered in one place: the project's Exports/<when>/,
+ *  each named after its video. Returns the folder. */
+export function collect(canvas0: string, files: { dir: string; file: string }[]): string {
+  const canvas = real(canvas0)
+  const d = new Date()
+  const p2 = (n: number): string => String(n).padStart(2, '0')
+  const out = join(canvas, 'Exports', `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}.${p2(d.getMinutes())}`)
+  mkdirSync(out, { recursive: true })
+  const used = new Set<string>()
+  for (const f of files) {
+    const src = join(f.dir, '.studio', 'versions', f.file)
+    if (!existsSync(src)) continue
+    let name = folderName(loadMeta(f.dir)?.name ?? basename(f.dir))
+    for (let n = 2; used.has(name); n++) name = `${folderName(loadMeta(f.dir)?.name ?? basename(f.dir))} ${n}`
+    used.add(name)
+    copyFileSync(src, join(out, `${name}${extname(f.file) || '.mp4'}`))
+  }
+  return out
+}
+
 export const canvasesApi: Api['canvases'] = {
   async list() {
     return listCanvases()
@@ -356,6 +376,9 @@ export const boardApi: Api['board'] = {
   },
   async import(canvas, paths, at) {
     return importPaths(canvas, paths, at)
+  },
+  async collect(canvas, files) {
+    return collect(canvas, files)
   },
   async link(canvas, from, to) {
     canvas = real(canvas)

@@ -19,6 +19,7 @@ import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
 import { Compare } from './Compare'
+import { MenuItem, Popover } from '@/ui/Popover'
 import './board.css'
 
 const ZOOM = { min: 0.15, max: 4 }
@@ -30,7 +31,7 @@ const WORDS = 50
 
 /** Memoised: the editor re-renders on every playback tick; the canvas only
  *  when what it shows changes. */
-export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, onSettings, onMention }: {
+export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, onSettings, onMention, onAsk }: {
   canvas: string
   /** The video being edited (its folder), or none. */
   active: string | null
@@ -41,6 +42,8 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
   overlay: ReactNode
   onSettings(): void
   onMention(handle: string): void
+  /** Ask the project's conversation (for what the agent makes, like other sizes). */
+  onAsk(text: string): void
 }) {
   const [board, setBoard] = useState<BoardData | null>(null)
   const [videos, setVideos] = useState<Map<string, Project>>(new Map())
@@ -51,6 +54,48 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
   /** Videos picked with ⌘ or ⇧ for something done to several (compare, export). */
   const [picked, setPicked] = useState<string[]>([])
   const [comparing, setComparing] = useState<string[] | null>(null)
+  // ── Exporting several: one after another, each with its progress on its tile ──
+  const [exports, setExports] = useState<Record<string, { percent: number; stage: string; file?: string; failed?: string }>>({})
+  const exportRun = useRef(false)
+  useEvent('job', (j) => {
+    if (!(j.dir in exports)) return
+    setExports((x) => {
+      const was = x[j.dir]
+      if (!was) return x
+      if (j.type === 'progress') return { ...x, [j.dir]: { ...was, percent: j.percent } }
+      if (j.type === 'stage') return { ...x, [j.dir]: { ...was, stage: j.text } }
+      if (j.type === 'rendered') return { ...x, [j.dir]: { ...was, percent: 100, stage: 'Done', file: j.version.file } }
+      if (j.type === 'failed') return { ...x, [j.dir]: { ...was, stage: 'Failed', failed: j.error } }
+      return x
+    })
+  }, [exports])
+  const exportAll = async (dirs: string[]): Promise<void> => {
+    if (exportRun.current || !dirs.length) return
+    exportRun.current = true
+    setExports(Object.fromEntries(dirs.map((d) => [d, { percent: 0, stage: 'Waiting' }])))
+    const done: { dir: string; file: string }[] = []
+    let failed = 0
+    for (const dir of dirs) {
+      const result = await new Promise<string | null>((ok) => {
+        const off = api.on('job', (j) => {
+          if (j.dir !== dir) return
+          if (j.type === 'rendered') { off(); ok(j.version.file) }
+          else if (j.type === 'failed') { off(); ok(null) }
+        })
+        api.review.render(dir)
+      })
+      if (result) done.push({ dir, file: result })
+      else failed++
+    }
+    exportRun.current = false
+    if (done.length) {
+      const folder = await api.board.collect(canvas, done)
+      api.app.reveal(folder)
+      setNote(`Exported ${done.length} video${done.length === 1 ? '' : 's'} into ${folder.split('/').slice(-2).join('/')}${failed ? `; ${failed} failed (see its Versions)` : ''}.`)
+    } else setNote('The export failed. Open a video and look at its Versions.')
+    setTimeout(() => setExports({}), 4000)
+  }
+
   const togglePick = (key: string): void => setPicked((ps) => (ps.includes(key) ? ps.filter((k) => k !== key) : [...ps, key]))
   const [refsOpen, setRefsOpen] = useState(false)
 
@@ -440,7 +485,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
                   } else onActivate(key)
                 }}
               >
-                {ref ? <RefTile r={ref} h={tile.h} /> : <VideoTile p={video!} h={tile.h} live={!isActive && (fresh.has(key) || working(key))} active={isActive} working={working(key)} />}
+                {ref ? <RefTile r={ref} h={tile.h} /> : <VideoTile p={video!} h={tile.h} live={!isActive && (fresh.has(key) || working(key))} active={isActive} working={working(key)} exporting={exports[key]} />}
               </motion.div>
             )
           })}
@@ -501,6 +546,12 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
           <motion.div className="board-ui pick-bar no-drag" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={tr(MOVE)}>
             <span><b>{picked.length}</b> picked</span>
             <button className="btn small" disabled={picked.length < 2} onClick={() => setComparing(picked.slice(0, 6))}><Icon name="layers" size={13} /> Compare</button>
+            <button className="btn small" disabled={exportRun.current} onClick={() => exportAll(picked)}><Icon name="export" size={13} /> Export</button>
+            <SizesMenu onPick={(sizes) => {
+              const names = picked.map((k) => `"${videos.get(k)?.meta.name ?? k}"`).join(', ')
+              onAsk(`Make ${sizes.join(', ')} versions of ${names}: each its own tile, made with \`panthr board new\` --from the video it adapts, laid out again for that frame (not just cropped).`)
+              setPicked([])
+            }} />
             <button className="link" onClick={() => setPicked([])}>Clear</button>
           </motion.div>
         )}
@@ -576,7 +627,7 @@ api.on('chat:turn', () => posterAsked.clear())
 
 /** A video: its poster, or the video itself playing while it is new or
  *  being worked on. The active one shows its poster under the live picture. */
-function VideoTile({ p, h, live, active, working }: { p: Project; h: number; live: boolean; active: boolean; working: boolean }) {
+function VideoTile({ p, h, live, active, working, exporting }: { p: Project; h: number; live: boolean; active: boolean; working: boolean; exporting?: { percent: number; stage: string; failed?: string } }) {
   const [poster, setPoster] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [hover, setHover] = useState(false)
@@ -640,6 +691,12 @@ function VideoTile({ p, h, live, active, working }: { p: Project; h: number; liv
           )}
         </AnimatePresence>
         {working && <span className="tile-working"><i /> Working</span>}
+        {exporting && (
+          <div className={`tile-export${exporting.failed ? ' failed' : ''}`}>
+            <span>{exporting.failed ? 'Export failed' : exporting.stage === 'Done' ? 'Exported' : `${exporting.stage === 'Waiting' ? 'Waiting' : 'Exporting'} · ${Math.round(exporting.percent)}%`}</span>
+            <i><motion.b animate={{ width: `${exporting.percent}%` }} transition={tr(MOVE)} /></i>
+          </div>
+        )}
       </div>
       <div className="tile-words">
         <b className="ellipsis">{p.meta.name}</b>
@@ -674,6 +731,27 @@ function LiveMark() {
   return <span className="board-empty-mark"><EyeMark width={44} /></span>
 }
 
+
+/** Other frame sizes for the picked videos: the agent lays each out again. */
+function SizesMenu({ onPick }: { onPick(sizes: string[]): void }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const [on, setOn] = useState<string[]>(['9:16'])
+  const SIZES: [string, string][] = [['9:16', 'Vertical (Reels, Shorts, TikTok)'], ['1:1', 'Square'], ['4:5', 'Portrait (feed)'], ['16:9', 'Wide']]
+  return (
+    <>
+      <button ref={anchor} className="btn small" onClick={() => setOpen((o) => !o)}>Make sizes…</button>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="center" width={260}>
+        <div className="menu sizes-menu">
+          {SIZES.map(([k, label]) => (
+            <MenuItem key={k} label={<>{k} <span className="faint">· {label}</span></>} on={on.includes(k)} onSelect={() => setOn((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]))} />
+          ))}
+          <div className="sizes-go"><button className="btn small primary" disabled={!on.length} onClick={() => { setOpen(false); onPick(on) }}>Ask the agent</button></div>
+        </div>
+      </Popover>
+    </>
+  )
+}
 
 /** ⇧1 shows everything, ⌘= / ⌘- zoom. */
 function CanvasKeys({ onFit, onZoom }: { onFit(): void; onZoom(f: number): void }) {
