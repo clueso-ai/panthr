@@ -847,7 +847,7 @@ function ToolButton({ icon, on, hint, onHint, onClick }: { icon: 'cursor' | 'pen
   )
 }
 
-function ChatPills({ chats, active, onPick }: { chats: { id: string; title: string }[]; active: string | null; onPick(id: string): void }) {
+export function ChatPills({ chats, active, onPick }: { chats: { id: string; title: string }[]; active: string | null; onPick(id: string): void }) {
   return (
     <div className="chat-pills">
       {chats.map((c) => (

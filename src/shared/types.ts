@@ -343,3 +343,27 @@ export interface RefFile {
   size: number
   kind: 'folder' | 'markdown' | 'image' | 'video' | 'audio' | 'text' | 'other'
 }
+
+// ── The Board (Application Support/Panthr/board.json) ─────────────
+
+/** What one thing on the board came from (keys: a project folder, or "ref:<id>"). */
+export interface BoardLink {
+  from: string
+  to: string
+}
+
+/** Where the board was looked at: the canvas point at the centre, and zoom. */
+export interface BoardView {
+  x: number
+  y: number
+  zoom: number
+}
+
+export interface Board {
+  /** Top-left corner of each tile, by key (a project folder, or "ref:<id>"). */
+  tiles: Record<string, { x: number; y: number }>
+  links: BoardLink[]
+  view: BoardView | null
+  /** A tile's size on the canvas. */
+  tile: { w: number; h: number }
+}

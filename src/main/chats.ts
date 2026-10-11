@@ -18,6 +18,7 @@ import { ClaudeChat, promptText } from './agents/claude'
 import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
 import { suggestName } from './namer'
+import { isBoard } from './board'
 
 /** A chat's title until its first message names it. */
 export const NEW_CHAT = 'New chat'
@@ -258,7 +259,7 @@ class Chat {
     if (this.t.engine === 'codex') {
       try {
         this.gen++
-        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText() }, this.listener())
+        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(isBoard(this.dir)) }, this.listener())
       } catch (e) {
         this.note(`Could not start Codex: ${(e as Error).message}`)
         return this.sendQueued()
@@ -272,7 +273,7 @@ class Chat {
       if (!this.claude.running()) {
         try {
           this.gen++
-          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model }, this.listener())
+          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model, board: isBoard(this.dir) }, this.listener())
         } catch (e) {
           this.note(`Could not start Claude Code: ${(e as Error).message}`)
           return this.sendQueued()

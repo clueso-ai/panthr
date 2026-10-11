@@ -14,11 +14,15 @@ import { dataDir, libraryDir, resource, studioRoot, toolEnv, home } from '../pat
 import * as remote from '../remote'
 
 let prompt: string | null = null
+let boardPrompt: string | null = null
 
-/** The video-making instructions (Codex gets them too). */
-export function promptText(): string {
+/** The video-making instructions (Codex gets them too). On the Board, the
+ *  Board's own (making projects, showing them) come first. */
+export function promptText(board = false): string {
   prompt ??= readFileSync(resource('studio_prompt.md'), 'utf8')
-  return prompt
+  if (!board) return prompt
+  boardPrompt ??= `${readFileSync(resource('board_prompt.md'), 'utf8')}\n${prompt}`
+  return boardPrompt
 }
 
 /** The `claude` binary: the user's own, where Claude Code installs it. */
@@ -31,15 +35,15 @@ export function claudeBin(): string {
 }
 
 /** The prompt as a file (rewritten only when it changed). */
-export function promptFile(): string {
+export function promptFile(board = false): string {
   const dir = dataDir()
   mkdirSync(dir, { recursive: true })
-  const p = join(dir, 'studio_prompt.md')
+  const p = join(dir, board ? 'board_prompt.md' : 'studio_prompt.md')
   let current: string | null = null
   try {
     current = readFileSync(p, 'utf8')
   } catch {}
-  if (current !== promptText()) writeFileSync(p, promptText())
+  if (current !== promptText(board)) writeFileSync(p, promptText(board))
   return p
 }
 
@@ -139,6 +143,8 @@ export interface ClaudeOptions {
   resume: string | null
   agents: boolean
   model: string | null
+  /** The Board's conversation (its own instructions come first). */
+  board?: boolean
 }
 
 /** The command line for a chat's Claude Code (exactly claude.rs's). */
@@ -151,7 +157,7 @@ export function claudeArgs(o: ClaudeOptions, host: Host | null): string[] {
     args.push('--append-system-prompt', promptText())
     args.push('--permission-mode', 'acceptEdits', '--add-dir', `${host.root.replace(/\/+$/, '')}/Library`)
   } else {
-    args.push('--append-system-prompt-file', promptFile())
+    args.push('--append-system-prompt-file', promptFile(o.board))
     // The shared library, and the reference videos (@-mentioned in chat).
     args.push('--permission-mode', 'acceptEdits', '--add-dir', libraryDir(), '--add-dir', join(studioRoot(), 'References'))
   }

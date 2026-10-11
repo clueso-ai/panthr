@@ -125,6 +125,22 @@ export interface Api {
     /** A text file from its folder (null: missing, or too big to show). */
     readFile(id: string, path: string): Promise<string | null>
   }
+  board: {
+    /** Every tile (projects and references are placed the first time), arrows, the last view. */
+    get(): Promise<import('./types').Board>
+    move(key: string, x: number, y: number): Promise<void>
+    setView(view: import('./types').BoardView): Promise<void>
+    /** The folder whose chats are the Board's conversation (~/Panthr). */
+    chatDir(): Promise<string>
+    /** A new project, placed beside what it came from (or near `near`), and shown. */
+    create(name: string, from?: string | null, near?: { x: number; y: number } | null): Promise<Project>
+    link(from: string, to: string): Promise<void>
+    unlink(from: string, to: string): Promise<void>
+    /** Glide the window's board to a project or reference (returns its key). */
+    focus(what: string): Promise<string>
+    /** Open a project in the window. */
+    open(what: string): Promise<string>
+  }
   files: {
     /** A project file's text (null: missing). */
     read(dir: string, rel: string): Promise<string | null>
@@ -150,6 +166,10 @@ export interface Events {
   'chat:titled': { dir: string; chatId: string; title: string }
   /** A project got a new name (by the person, or from its first message). */
   'project:renamed': { dir: string; name: string }
+  /** The board's tiles or arrows changed. */
+  'board:changed': import('./types').Board
+  /** Show this tile (fresh: it was just made). */
+  'board:focus': { key: string; fresh: boolean }
   'chat:session': { dir: string; chatId: string; sessionId: string }
   'project:changed': { dir: string; files: string[] }
   job: import('./types').JobEvent

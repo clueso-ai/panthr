@@ -3,7 +3,7 @@
 
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
-import { existsSync, readdirSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { app } from 'electron'
 
 /** Inside the App Sandbox (the TestFlight / App Store build) HOME is the
@@ -47,6 +47,31 @@ export function pathEnv(): string {
 /** An environment for the tools we run. */
 // (Sandboxed, the tools get the real HOME too: Claude Code's sign-in and
 // settings live in ~/.claude.)
-export const toolEnv = (): NodeJS.ProcessEnv => ({ ...process.env, PATH: pathEnv(), ...(sandboxed() ? { HOME: home() } : {}) })
+// The agents get Panthr's own `panthr` first on PATH (agentBin), talking to
+// this app's data folder.
+export const toolEnv = (): NodeJS.ProcessEnv => ({
+  ...process.env,
+  PATH: `${agentBin()}:${pathEnv()}`,
+  PANTHR_DATA_DIR: dataDir(),
+  ...(sandboxed() ? { HOME: home() } : {})
+})
+
+/** Where the agents' `panthr` lives: a script that runs the bundled command
+ *  line (with node if there is one, else with Panthr itself as node). */
+export const agentBin = (): string => join(dataDir(), 'bin')
+
+export function writeAgentCli(): void {
+  const dir = agentBin()
+  const cli = resource('cli/panthr.mjs')
+  const q = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
+  const text = `#!/bin/sh\n# Panthr's command line for the agents it runs (written by Panthr).\nif command -v node >/dev/null 2>&1; then exec node ${q(cli)} "$@"; fi\nELECTRON_RUN_AS_NODE=1 exec ${q(process.execPath)} ${q(cli)} "$@"\n`
+  const p = join(dir, 'panthr')
+  try {
+    if (readFileSync(p, 'utf8') === text) return
+  } catch {}
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(p, text, { mode: 0o755 })
+  chmodSync(p, 0o755)
+}
 
 export const now = (): number => Math.floor(Date.now() / 1000)

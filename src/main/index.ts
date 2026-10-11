@@ -12,7 +12,7 @@ import type { Api } from '@shared/api'
 import { handleProtocol, registerScheme } from './preview'
 import { emit } from './bus'
 import { socketPath, startControl } from './control'
-import { dataDir } from './paths'
+import { dataDir, writeAgentCli } from './paths'
 import { getState as readState } from './state'
 import { settings, getSettings } from './settings'
 import { state, getState } from './state'
@@ -25,6 +25,7 @@ import { skills, seedSkills } from './skills'
 import { hosts } from './hosts'
 import { files } from './files'
 import { references, stopAllReferences } from './references'
+import { boardApi } from './board'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -34,7 +35,7 @@ registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
 
-const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references }
+const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references, board: boardApi }
 
 function registerApi(): void {
   for (const [ns, methods] of Object.entries(METHODS)) {
@@ -251,6 +252,7 @@ app.whenReady().then(() => {
   applyAppearance()
   handleProtocol()
   registerApi()
+  writeAgentCli()
   buildMenu()
   win = createWindow()
   if (HEADLESS) headlessCapture(win)

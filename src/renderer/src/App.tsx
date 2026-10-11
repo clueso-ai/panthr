@@ -1,12 +1,12 @@
-// Home or a project, and Settings over either. Where you were is kept:
+// The Board or a project, and Settings over either. Where you were is kept:
 // Panthr opens on the project that was open.
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Engine, Project } from '@shared/types'
+import type { Project } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { tr, SETTLE } from '@/lib/motion'
-import { Home } from './home/Home'
+import { Board } from './board/Board'
 import { Editor } from './editor/Editor'
 import { Settings, type Pane } from './settings/Settings'
 import { isDark, toggleTheme } from './ui/ThemeToggle'
@@ -14,13 +14,12 @@ import { frostAlpha } from './ui/Controls'
 import './ui/Activity' // starts listening for background work at once
 import { DropVideos } from './editor/References'
 
-type View = { kind: 'home' } | { kind: 'project'; dir: string; first: string | null }
+type View = { kind: 'home'; from: string | null; focus: string | null } | { kind: 'project'; dir: string; first: string | null }
 
 export function App() {
   const s = useSettings()
   const [view, setView] = useState<View | null>(null)
   const [settings, setSettings] = useState<{ open: boolean; pane: Pane }>({ open: false, pane: 'general' })
-  const [working, setWorking] = useState<Set<string>>(new Set())
 
   // Theme, frost and motion follow Settings.
   useEffect(() => {
@@ -42,37 +41,24 @@ export function App() {
   useEffect(() => {
     api.state.get().then(async (st) => {
       if (!st.home && st.project && (await api.projects.load(st.project))) setView({ kind: 'project', dir: st.project, first: null })
-      else setView({ kind: 'home' })
+      else setView({ kind: 'home', from: null, focus: null })
     })
   }, [])
 
-  useEvent('chat:state', (c) => {
-    setWorking((w) => {
-      if (c.working === w.has(c.dir)) return w
-      const n = new Set(w)
-      if (c.working) n.add(c.dir)
-      else n.delete(c.dir)
-      return n
-    })
-  })
 
   const open = (p: Project, first: string | null = null): void => {
     setView({ kind: 'project', dir: p.dir, first })
     api.state.set({ project: p.dir, home: false })
   }
-  const home = (): void => {
-    setView({ kind: 'home' })
+  /** Back to the board (zooming out of the project left, or gliding to a tile). */
+  const home = (focus: string | null = null): void => {
+    setView((v) => ({ kind: 'home', from: v?.kind === 'project' ? v.dir : null, focus }))
     api.state.set({ home: true })
   }
-  const start = async (idea: string, host: string | null, engine: Engine, model: string): Promise<void> => {
-    const name = idea.split(/\s+/).slice(0, 5).join(' ').replace(/[^\p{L}\p{N}]+$/u, '')
-    const p = await api.projects.create(name || 'Untitled', host)
-    const meta = { ...p.meta, models: { ...p.meta.models, [engine]: model } }
-    await api.projects.saveMeta(p.dir, meta)
-    const chatId = p.meta.chats[0]?.id ?? (await api.chats.create(p.dir, engine))
-    if (engine !== s.agent) await api.chats.setEngine(p.dir, chatId, engine)
-    open({ ...p, meta }, idea)
-  }
+  // The board's agent pointed at a tile while a project was open: go and look.
+  useEvent('board:focus', (e) => {
+    if (view?.kind === 'project') home(e.key)
+  }, [view])
 
   // The command line opened a project here.
   useEvent('open', async ({ dir, first }) => {
@@ -109,12 +95,15 @@ export function App() {
       <AnimatePresence mode="wait">
         {view?.kind === 'home' && (
           <motion.div key="home" className="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
-            <Home onOpen={(p) => open(p)} onStart={start} onSettings={() => setSettings({ open: true, pane: 'general' })} working={working} />
+            <Board returnTo={view.from} focus={view.focus} onOpen={async (dir) => {
+              const p = await api.projects.load(dir)
+              if (p) open(p)
+            }} onSettings={() => setSettings({ open: true, pane: 'general' })} />
           </motion.div>
         )}
         {view?.kind === 'project' && (
           <motion.div key={view.dir} className="view" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
-            <Editor dir={view.dir} firstMessage={view.first} onHome={home} onSettings={() => setSettings({ open: true, pane: 'general' })} />
+            <Editor dir={view.dir} firstMessage={view.first} onHome={() => home()} onSettings={() => setSettings({ open: true, pane: 'general' })} />
           </motion.div>
         )}
       </AnimatePresence>

@@ -54,7 +54,7 @@ function parse(argv) {
   return { pos, opt }
 }
 const SHORT = { p: 'project', w: 'wait', j: 'json', h: 'help', c: 'chat', m: 'model', a: 'agent' }
-const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill'])
+const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill', 'from'])
 
 // ── The connection to the app ───────────────────────────────────
 
@@ -482,6 +482,40 @@ const commands = {
     throw new Error('panthr ref add <file or link> [--name "\u2026"] [--wait] | show <handle> | rm <handle>')
   },
 
+  async board(a, { pos, opt }) {
+    const [sub, ...rest] = pos
+    const what = rest.join(' ').trim()
+    if (!sub) {
+      const b = await a.call('board.get')
+      const all = await a.call('projects.list')
+      const refs = await a.call('references.list')
+      const name = (k) => (k.startsWith('ref:') ? `@${refs.find((r) => `ref:${r.id}` === k)?.handle ?? k}` : all.find((p) => p.dir === k)?.meta.name ?? k)
+      const tiles = Object.entries(b.tiles).map(([key, at]) => ({ key, name: name(key), x: at.x, y: at.y }))
+      const links = b.links.map((l) => ({ from: name(l.from), to: name(l.to), fromKey: l.from, toKey: l.to }))
+      return out(opt, { tiles, links }, () => {
+        for (const t of tiles) console.log(`${bold(t.name)}  ${dim(t.key.startsWith('ref:') ? 'reference' : t.key)}`)
+        for (const l of links) console.log(dim(`  ${l.from} → ${l.to}`))
+      })
+    }
+    if (sub === 'new') {
+      if (!what) throw new Error('Name it: panthr board new "Launch Teaser 9:16" [--from <project or @reference>]')
+      const p = await a.call('board.create', what, typeof opt.from === 'string' ? opt.from : null, null)
+      return out(opt, { dir: p.dir, name: p.meta.name }, () => console.log(`${rose('●')} ${bold(p.meta.name)}\n${p.dir}`))
+    }
+    if (sub === 'show' || sub === 'open') {
+      if (!what) throw new Error(`Which one: panthr board ${sub} <project or @reference>`)
+      const key = await a.call(`board.${sub === 'show' ? 'focus' : 'open'}`, what)
+      return out(opt, { key }, () => console.log(dim(sub === 'show' ? `Showing ${what}` : `Opened ${what}`)))
+    }
+    if (sub === 'link') {
+      const [from, to] = rest
+      if (!from || !to) throw new Error('panthr board link <from> <to>')
+      await a.call('board.link', from, to)
+      return out(opt, { from, to }, () => console.log(dim(`${from} → ${to}`)))
+    }
+    throw new Error('panthr board [new "<name>" [--from x] | show <x> | open <x> | link <from> <to>]')
+  },
+
   async hosts(a, { opt }) {
     const h = await a.call('hosts.list')
     out(opt, h, () => (h.length ? h.forEach((x) => console.log(`${bold(x.name)}  ${dim(`${x.target} · ${x.root}`)}`)) : console.log(dim('No hosts. Add one in Settings › Hosts.'))))
@@ -498,6 +532,14 @@ ${bold('Make')}
   stop                   Stop the agent's turn
   log [--wait]           The conversation (--wait follows a running turn)
   fix [--wait]           Have the agent address every open note
+
+${bold('The board')}
+  board                  Every tile and arrow on the board
+  board new "<name>" [--from <project|@ref>]
+                         A new project, its tile beside what it came from (prints its folder)
+  board show <x>         Glide the window's board to a project or @reference
+  board open <x>         Open a project in the window
+  board link <from> <to> Draw an arrow: this one came from that one
 
 ${bold('Review and ship')}
   notes                  Notes pinned to moments of the video

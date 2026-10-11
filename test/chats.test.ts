@@ -212,7 +212,7 @@ describe('chats', () => {
     const dir = project({ models: { claude: 'opus' }, agents_enabled: false })
     const id = await chats.create(dir)
     await chats.send(dir, id, 'Make a launch teaser for our new feature please')
-    expect(fake.starts).toEqual([{ dir, resume: null, agents: false, model: 'opus' }])
+    expect(fake.starts).toEqual([{ dir, resume: null, agents: false, model: 'opus', board: false }])
     expect(fake.sent).toEqual(['Make a launch teaser for our new feature please'])
     expect(loadMeta(dir)!.chats[0].title).toBe('Make a launch teaser for our new feature')
     expect(emitted.find(([n]) => n === 'chat:titled')![1]).toEqual({ dir, chatId: id, title: 'Make a launch teaser for our new feature' })
