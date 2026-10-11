@@ -4,7 +4,7 @@
 // and inspector work on it. Clicking a video makes it active and brings it
 // up big; clicking empty canvas lets it go.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
 import type { Board as BoardData, BoardView, Project, Reference } from '@shared/types'
@@ -27,7 +27,9 @@ const dur = (d: number): number => (settingsNow().reduce_motion ? 0 : d)
 const PAD = 8
 const WORDS = 50
 
-export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, onSettings, onMention }: {
+/** Memoised: the editor re-renders on every playback tick; the canvas only
+ *  when what it shows changes. */
+export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, onSettings, onMention }: {
   canvas: string
   /** The video being edited (its folder), or none. */
   active: string | null
@@ -72,8 +74,11 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
   const ox = useMotionValue(0)
   const oy = useMotionValue(0)
   const z = useMotionValue(1)
-  const [zoomShown, setZoomShown] = useState(1)
-  useMotionValueEvent(z, 'change', (v) => setZoomShown(v))
+  // The zoom percentage, written straight into its label (not a re-render per frame).
+  const zoomLabel = useRef<HTMLButtonElement>(null)
+  useMotionValueEvent(z, 'change', (v) => {
+    if (zoomLabel.current) zoomLabel.current.textContent = `${Math.round(v * 100)}%`
+  })
   const size = (): { w: number; h: number } => {
     const r = stage.current?.getBoundingClientRect()
     return { w: r?.width ?? 800, h: r?.height ?? 600 }
@@ -284,14 +289,29 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
   const ovY = useMotionValue(0)
   const ovW = useMotionValue(0)
   const ovH = useMotionValue(0)
+  const ovS = useMotionValue(1)
   const activeAt = active ? pos(active) : null
+  // While the zoom changes, the live video is scaled as a picture; its frame
+  // takes the new size once the zoom rests, so the video lays itself out
+  // once, not on every step of a pinch.
+  const sized = useRef(0)
+  const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const place = (): void => {
     if (!activeAt) return
     const k = z.get()
+    if (!sized.current) sized.current = k
     ovX.set(ox.get() + (activeAt.x + PAD) * k)
     ovY.set(oy.get() + (activeAt.y + PAD) * k)
-    ovW.set(shot.w * k)
-    ovH.set(shot.h * k)
+    ovW.set(shot.w * sized.current)
+    ovH.set(shot.h * sized.current)
+    ovS.set(k / sized.current)
+    if (Math.abs(k - sized.current) > 1e-6) {
+      clearTimeout(settle.current)
+      settle.current = setTimeout(() => {
+        sized.current = z.get()
+        place()
+      }, 140)
+    }
   }
   useMotionValueEvent(ox, 'change', place)
   useMotionValueEvent(oy, 'change', place)
@@ -423,7 +443,7 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
           <motion.div
             key={active}
             className="canvas-live"
-            style={{ left: ovX, top: ovY, width: ovW, height: ovH }}
+            style={{ left: ovX, top: ovY, width: ovW, height: ovH, scale: ovS, transformOrigin: '0 0' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -460,7 +480,7 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
       {/* Bottom right: zoom */}
       <div className="board-ui board-zoom">
         <button onClick={() => zoomBy(1 / 1.25)} aria-label="Zoom out">−</button>
-        <button className="mono" onClick={() => glide({ ...centre(), zoom: 1 }, 0.4)}>{Math.round(zoomShown * 100)}%</button>
+        <button ref={zoomLabel} className="mono" onClick={() => glide({ ...centre(), zoom: 1 }, 0.4)}>{Math.round(z.get() * 100)}%</button>
         <button onClick={() => zoomBy(1.25)} aria-label="Zoom in">+</button>
         <Tip title="Show everything" keys="⇧1"><button onClick={fitAll} aria-label="Show everything"><Icon name="layers" size={13} /></button></Tip>
       </div>
@@ -488,7 +508,7 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
       <CanvasKeys onFit={fitAll} onZoom={zoomBy} />
     </div>
   )
-}
+})
 
 /** The view that shows every tile (or the origin, when there are none). */
 function fitView(b: BoardData, stage: { w: number; h: number }, tile: { w: number; h: number }): BoardView {
@@ -542,7 +562,17 @@ function VideoTile({ p, h, live, active, working }: { p: Project; h: number; liv
   useEffect(() => {
     if (p.thumb) api.app.fileUrl(p.thumb).then(setPoster)
   }, [p.thumb, p.edited_at])
-  const playing = !active && (live || hover)
+  // Live only while it is on screen: a tile panned away stops its preview.
+  const box = useRef<HTMLDivElement>(null)
+  const [seen, setSeen] = useState(true)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting), { root: el.closest('.board-stage'), rootMargin: '80px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  const playing = !active && seen && (live || hover)
   // No picture yet: make one (and show it when it comes).
   useEffect(() => {
     if (!p.thumb && !p.host) askPoster(p.dir)
@@ -567,7 +597,7 @@ function VideoTile({ p, h, live, active, working }: { p: Project; h: number; liv
     return () => removeEventListener('message', f)
   }, [])
   return (
-    <div className="tile-body" onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
+    <div ref={box} className="tile-body" onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
       <div className="tile-shot" style={{ height: h - WORDS }}>
         {poster && <img src={poster} alt="" draggable={false} />}
         {!poster && !playing && <div className="tile-blank"><Icon name="film" size={20} /></div>}

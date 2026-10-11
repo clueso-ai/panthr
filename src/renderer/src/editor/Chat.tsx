@@ -4,7 +4,7 @@
 // turn ends it folds to "Worked for 39s · $0.47 ›" and its final reply;
 // the fold opens on click.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ChatState, Item, Step } from '@shared/types'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
@@ -79,7 +79,8 @@ function useTicker(on: boolean): number {
   return now
 }
 
-export function Chat({ chat }: { chat: ChatState }) {
+/** Memoised: the editor re-renders on every playback tick, the chat need not. */
+export const Chat = memo(function Chat({ chat }: { chat: ChatState }) {
   const scroller = useRef<HTMLDivElement>(null)
   const follow = useRef(true)
   const [unfolded, setUnfolded] = useState<Set<number>>(new Set())
@@ -201,7 +202,7 @@ export function Chat({ chat }: { chat: ChatState }) {
       </AnimatePresence>
     </div>
   )
-}
+})
 
 /** @handles shown as chips in what you wrote. */
 function withMentions(text: string): React.ReactNode[] {

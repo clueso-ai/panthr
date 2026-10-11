@@ -141,12 +141,13 @@
         if (h.get('p') === '1') p.play(); else p.pause();
       }
       const t = p.getTime(), playing = !!p.isPlaying();
+      if (playing) busyUntil = now + 1000;
       if ((now - lastSent > 66 && Math.abs(t - last) > 0.01) || playing !== lastPlaying) {
         last = t; lastPlaying = playing; lastSent = now;
         send({ kind: 'time', t, playing, d: p.getDuration() });
       }
-      // Scenes rarely change: look once a second, not every frame.
-      if (now - lastScan > 1000) {
+      // Scenes and layers rarely change: look once a second while busy, every few seconds at rest.
+      if (now - lastScan > (now < busyUntil ? 1000 : 4000)) {
         lastScan = now;
         const sc = [...document.querySelectorAll('[data-composition-id]')]
           .filter(el => el.parentElement && el.parentElement.closest('[data-composition-id]'))
@@ -162,8 +163,14 @@
         } catch (e) {}
       }
     }
-    requestAnimationFrame(tick);
+    // Every frame while playing (or just told to seek or play); a few times
+    // a second while it rests, so a paused preview costs next to nothing.
+    if (now < busyUntil) requestAnimationFrame(tick);
+    else setTimeout(() => requestAnimationFrame(tick), 200);
   }
+  let busyUntil = performance.now() + 3000;
+  /** A command from the app: answer at frame rate for a moment. */
+  window.__panthrWake = () => { busyUntil = performance.now() + 1000; };
   requestAnimationFrame(tick);
   // Fit the composition into the view, letterboxed, whatever its size.
   function fit() {
@@ -220,6 +227,7 @@
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || d.source !== 'panthr') return;
+    if (window.__panthrWake) window.__panthrWake();
     const p = window.__player;
     switch (d.op) {
       case 'play': if (p) p.play(); break;

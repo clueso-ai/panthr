@@ -46,9 +46,12 @@ function place(pts: Pt[], open: number): string {
 }
 
 /** How shut the eye is at t seconds: a blink every few seconds (sin², never a jerk). */
+/** A blink every 4.7 s, lasting the last 0.26 s of each period. */
+const BLINK_EVERY = 4.7
+const BLINK_START = 4.44
 function blinkAt(t: number): number {
-  const phase = t % 4.7
-  return phase > 4.44 ? Math.sin(((phase - 4.44) / 0.26) * Math.PI) ** 2 : 0
+  const phase = t % BLINK_EVERY
+  return phase > BLINK_START ? Math.sin(((phase - BLINK_START) / (BLINK_EVERY - BLINK_START)) * Math.PI) ** 2 : 0
 }
 
 export function EyeMark({ width, blink = 0, watch = 0, color = 'var(--acc)', cut = 'var(--page)' }: { width: number; blink?: number; watch?: number; color?: string; cut?: string }) {
@@ -62,19 +65,34 @@ export function EyeMark({ width, blink = 0, watch = 0, color = 'var(--acc)', cut
   )
 }
 
-/** The living eye: opens on arrival, blinks, watches while `busy`. */
+/** The living eye: opens on arrival, blinks, watches while `busy`. It only
+ *  draws frames while something moves (opening, a blink, watching) and
+ *  sleeps between blinks, so a resting window costs nothing. */
 export function LiveEye({ width, busy = false, pulse = 0 }: { width: number; busy?: boolean; pulse?: number }) {
   const [t, setT] = useState(0)
   const t0 = useRef(performance.now())
   useEffect(() => {
     let raf = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const now = (): number => (performance.now() - t0.current) / 1000
     const tick = (): void => {
-      setT((performance.now() - t0.current) / 1000)
-      raf = requestAnimationFrame(tick)
+      const s = now()
+      setT(s)
+      // Moving now: the opening, a blink, or watching while busy.
+      if (busy || s < 1 || blinkAt(s) > 0 || (s % BLINK_EVERY) > BLINK_START - 0.02) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      // Still until the next blink.
+      const wait = (BLINK_START - (s % BLINK_EVERY)) * 1000
+      timer = setTimeout(() => (raf = requestAnimationFrame(tick)), Math.max(16, wait))
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(timer)
+    }
+  }, [busy])
   const opening = 1 - ease((t - 0.2) / 0.8)
   const blink = Math.max(opening, blinkAt(t))
   const watch = busy ? 0.55 + 0.25 * Math.sin(t * 2.4) ** 2 : pulse

@@ -461,11 +461,12 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
 
   const refs = useReferences()
   /** Put a reference's @handle into the message being written. */
-  const mention = (handle: string): void => {
+  const mention = useCallback((handle: string): void => {
     const v = composer.current?.value() ?? ''
     composer.current?.set(`${v}${v && !v.endsWith(' ') ? ' ' : ''}@${handle} `)
-    showSide('chat')
-  }
+    setSide('chat')
+    api.state.set({ side: 'chat' })
+  }, [])
   // A video dropped on the window: it shows in the Library while it is taken apart.
   useEffect(() => {
     const f = (): void => showSide('library')
@@ -617,6 +618,13 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   }
 
   const showInspector = !!dir && !!picked && tool === 'select'
+  // The active video's frames, rebuilt only when what they show changes (not on each playback tick).
+  const liveVideo = useMemo(() => (
+    <div className="video-card">
+      {url && <PreviewFrames preview={preview} />}
+      {!preview.state.ready && url && <div className="video-wait"><span className="shine" data-text="Loading the video">Loading the video</span></div>}
+    </div>
+  ), [url, preview.srcs[0], preview.srcs[1], preview.front, preview.state.ready]) // eslint-disable-line react-hooks/exhaustive-deps
   const layer = sel != null ? layers[sel] ?? null : null
   const size = preview.state.size
   const aspect = size ? size[0] / size[1] : 16 / 9
@@ -795,12 +803,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
             chatWorking={!!chat?.working}
             onSettings={onSettings}
             onMention={mention}
-            overlay={
-              <div className="video-card" style={{ '--aspect': aspect } as React.CSSProperties}>
-                {url && <PreviewFrames preview={preview} />}
-                {!preview.state.ready && url && <div className="video-wait"><span className="shine" data-text="Loading the video">Loading the video</span></div>}
-              </div>
-            }
+            overlay={liveVideo}
           />
           <AnimatePresence>
             {preview.state.error && (

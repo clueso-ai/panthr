@@ -13,7 +13,7 @@
 .board-stage { position: relative; overflow: hidden; cursor: grab; touch-action: none; }
 .board-stage.panning { cursor: grabbing; }
 .board-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(var(--hair-2) 1px, transparent 1.2px); background-size: 22px 22px; opacity: 0.7; }
-.board-canvas { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.board-canvas { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform; }
 .board-links { position: absolute; left: 0; top: 0; width: 1px; height: 1px; pointer-events: none; }
 .board-link { fill: none; stroke: color-mix(in srgb, var(--acc) 55%, var(--t3)); stroke-width: 2; stroke-linecap: round; }
 .board-link-head { fill: none; stroke: color-mix(in srgb, var(--acc) 55%, var(--t3)); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

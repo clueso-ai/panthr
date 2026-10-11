@@ -159,6 +159,24 @@ function headlessCapture(w0: BrowserWindow): void {
         console.log('after eval failed:', e)
       }
     }
+    // A CPU profile of the window (PANTHR_PROFILE: a .cpuprofile path), over
+    // PANTHR_PROFILE_SECS, through the DevTools protocol.
+    if (process.env.PANTHR_PROFILE) {
+      const dbg = w0.webContents.debugger
+      try {
+        dbg.attach('1.3')
+        await dbg.sendCommand('Profiler.enable')
+        await dbg.sendCommand('Profiler.setSamplingInterval', { interval: 500 })
+        await dbg.sendCommand('Profiler.start')
+        await new Promise((r) => setTimeout(r, 1000 * +(process.env.PANTHR_PROFILE_SECS || 5)))
+        const { profile } = await dbg.sendCommand('Profiler.stop')
+        writeFileSync(process.env.PANTHR_PROFILE, JSON.stringify(profile))
+        console.log('profile:', process.env.PANTHR_PROFILE)
+        dbg.detach()
+      } catch (e) {
+        console.log('profile failed:', e)
+      }
+    }
     await new Promise((r) => setTimeout(r, Math.max(0, delay - 1500)))
     const img = await w0.webContents.capturePage()
     writeFileSync(process.env.PANTHR_SHOT!, img.toPNG())
