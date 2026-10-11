@@ -1,7 +1,8 @@
-// A project open: the conversation on the left, the picture and its one
-// timeline in the middle, the inspector on the right while something is
-// picked. Every edit made here (a control, a dragged bar, a note) can be
-// taken back with ⌘Z.
+// A project open: its conversation on the left, its canvas of videos in the
+// middle, and for the active video its timeline below and the inspector on
+// the right while something in it is picked. The conversation works on every
+// video in the project; each message says which video is active. Every edit
+// made here (a control, a dragged bar, a note) can be taken back with ⌘Z.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -21,7 +22,9 @@ import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, type Edit } from './Timeline'
 import { PreviewFrames, usePreview } from './usePreview'
 import { addVideos } from './References'
+import { CanvasStage } from '../board/CanvasStage'
 import './editor.css'
+import '../home/home.css'
 
 type Side = 'chat' | 'notes' | 'versions' | 'library'
 type Tool = 'select' | 'draw'
@@ -35,9 +38,19 @@ const CHAT_MAX = 560
 const INSP_MIN = 260
 const INSP_MAX = 420
 
-/** One video in the editor. Its chat is its project's conversation (the
- *  canvas folder `canvas`), told which video you are in. */
-export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canvas: string; onHome(): void; onSettings(): void }) {
+/** A project: `canvas` is its folder (the canvas and the conversation),
+ *  `active` the video being edited (none: just the canvas and the chat). */
+export function Editor({ canvas, active, first, onActivate, onHome, onSettings }: {
+  canvas: string
+  active: string | null
+  /** A project started from Home: its idea goes to the conversation once. */
+  first: string | null
+  onActivate(dir: string | null): void
+  onHome(): void
+  onSettings(): void
+}) {
+  /** The active video's folder ('' when none). */
+  const dir = active ?? ''
   const settings = useSettings()
   const [project, setProject] = useState<Project | null>(null)
   const [url, setUrl] = useState<string | null>(null)
@@ -84,9 +97,8 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
     return () => clearTimeout(id)
   }, [status])
 
-  // ── The project ────────────────────────────────────────────
+  // ── The project: its conversation ──────────────────────────
   useEffect(() => {
-    let alive = true
     // A project opens on its conversation.
     setSide('chat')
     api.state.get().then((s) => {
@@ -94,37 +106,74 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
       if (s.inspector_w) setInspW(Math.min(INSP_MAX, Math.max(INSP_MIN, s.inspector_w)))
       if (s.tl_rows) setRows(s.tl_rows)
     })
+    api.projects.load(canvas).then(async (c) => {
+      setOwner(c)
+      // The project's newest conversation, or a first one.
+      const last = c?.meta.chats[c.meta.chats.length - 1]
+      setChatId(last ? last.id : await api.chats.create(canvas))
+    })
+    api.skills.link(canvas).catch(() => {})
+  }, [canvas])
+  // A project started from Home: its idea goes to the conversation once.
+  const sentFirst = useRef(false)
+  useEffect(() => {
+    if (first && chat && chatId && !sentFirst.current && chat.items.length === 0) {
+      sentFirst.current = true
+      api.chats.send(canvas, chatId, first)
+    }
+  }, [first, chat, chatId, canvas])
+
+  // ── The active video ───────────────────────────────────────
+  useEffect(() => {
+    api.state.set({ canvas, project: dir || null, home: false })
+    setPicked(null)
+    setSel(null)
+    setTween(null)
+    setScope(false)
+    setRange(null)
+    setFrames([])
+    undo.current = []
+    redo.current = []
+    if (!dir) {
+      setProject(null)
+      setUrl(null)
+      setComments([])
+      setVersions([])
+      if (side === 'notes' || side === 'versions') setSide('chat')
+      return
+    }
+    let alive = true
     api.projects.load(dir).then(async (p) => {
       if (!alive || !p) return
       setProject(p)
       setUrl(await api.projects.previewUrl(dir))
       api.projects.watch(dir)
       api.skills.link(dir).catch(() => {})
-      // The project's newest conversation, or a first one.
-      const c = await api.projects.load(canvas)
-      setOwner(c)
-      const last = c?.meta.chats[c.meta.chats.length - 1]
-      setChatId(last ? last.id : await api.chats.create(canvas))
     })
     api.review.comments(dir).then(setComments)
     api.review.versions(dir).then(setVersions)
-    setPicked(null)
-    setSel(null)
-    undo.current = []
-    redo.current = []
     return () => {
       alive = false
       api.projects.unwatch(dir)
     }
-  }, [dir])
+  }, [dir]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!chatId) return
     api.chats.open(canvas, chatId).then(setChat)
   }, [canvas, chatId])
   useEvent('chat:state', (c) => {
-    if (c.dir === canvas && c.chatId === chatId) setChat(c)
-  }, [canvas, chatId])
+    if (c.dir !== canvas) return
+    if (c.chatId === chatId) setChat(c)
+    // Another of the project's conversations started working (from the command line): show it.
+    else if (c.working && !chat?.working) {
+      setChatId(c.chatId)
+      api.projects.load(canvas).then(setOwner)
+    }
+  }, [canvas, chatId, chat?.working])
+  useEvent('project:renamed', (e) => {
+    if (e.dir === canvas) setOwner((o) => (o ? { ...o, meta: { ...o.meta, name: e.name } } : o))
+  }, [canvas])
   useEvent('project:renamed', (e) => {
     if (e.dir === dir) setProject((p) => (p ? { ...p, meta: { ...p.meta, name: e.name } } : p))
   }, [dir])
@@ -193,6 +242,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
   }, [tool, preview.front, url]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshTiming = useCallback(() => {
+    if (!dir) return
     api.controls.timing(dir).then(setTiming).catch((e) => say(`Couldn't read the timeline's timing: ${String(e.message ?? e).split('\n')[0]}`))
   }, [dir, say])
   const layersKey = layers.map((l) => l.id + l.sel).join('|')
@@ -219,14 +269,14 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
     }, 300)
   }, [dir, preview.reload, refreshTiming])
   useEvent('chat:turn', (e) => {
-    if (e.dir !== canvas) return
+    if (e.dir !== canvas || !dir) return
     api.review.comments(dir).then(setComments)
     api.controls.timing(dir).then(setTiming).catch(() => {})
   }, [dir])
 
   // The filmstrip under the timeline.
   useEffect(() => {
-    if (!settings.filmstrip || duration <= 0) return
+    if (!dir || !settings.filmstrip || duration <= 0) return
     api.review.frames(dir, duration, 12).then(async (f) => setFrames(await Promise.all(f.map((x) => api.app.fileUrl(x)))))
   }, [dir, duration, settings.filmstrip])
   useEvent('job', async (j) => {
@@ -438,11 +488,11 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
     await api.projects.saveMeta(canvas, meta)
     setOwner({ ...owner, meta })
   }
-  /** The project's conversation hears which video a message is about. */
+  /** The project's conversation hears which video is active. */
   const withVideo = (text: string): string => {
-    if (dir === canvas) return text
-    const rel = dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir
-    return `${text}\n\n(I'm in the editor on "${project?.meta.name ?? rel}", folder ${rel}.)`
+    if (!dir) return text
+    const rel = dir === canvas ? '.' : dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir
+    return `${text}\n\n(Active video: "${project?.meta.name ?? rel}", folder ${rel}.)`
   }
 
   // ── Notes ──────────────────────────────────────────────────
@@ -488,7 +538,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
 
   // ── Export ─────────────────────────────────────────────────
   const exportNow = (): void => {
-    if (exporting !== null) return
+    if (!dir || exporting !== null) return
     setExporting(0)
     setStage('Starting')
     api.review.render(dir)
@@ -505,9 +555,10 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
         if (tool === 'draw') toggleDraw()
         else if (range) setRange(null)
         else if (picked) deselect()
+        else if (dir && !typing()) onActivate(null)
         return
       }
-      if (typing()) return
+      if (typing() || !dir) return
       if (e.key === ' ') {
         e.preventDefault()
         preview.state.playing ? preview.pause() : preview.play()
@@ -561,7 +612,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
     addEventListener('pointerup', up)
   }
 
-  const showInspector = !!picked && tool === 'select'
+  const showInspector = !!dir && !!picked && tool === 'select'
   const layer = sel != null ? layers[sel] ?? null : null
   const size = preview.state.size
   const aspect = size ? size[0] / size[1] : 16 / 9
@@ -574,23 +625,10 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
       <aside className="left">
         <div className="titlebar drag">
           <div className="no-drag titlebar-btns">
-            <IconButton icon="back" tip="Back to the project" keys="⇧⌘H" onClick={onHome} />
+            <IconButton icon="back" tip="All projects" keys="⇧⌘H" onClick={onHome} />
           </div>
-          {renaming ? (
-            <input className="rename no-drag" autoFocus defaultValue={project?.meta.name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => commitRename(e.currentTarget.value)} onKeyDown={(e) => {
-              if (e.key === 'Enter') commitRename(e.currentTarget.value)
-              else if (e.key === 'Escape') setRenaming(false)
-            }} />
-          ) : (
-            <Tip title="Rename" body="Click to rename this project.">
-              <button className="pname no-drag" onClick={() => setRenaming(true)}>
-                <span className="ellipsis">{project?.meta.name ?? ''}</span>
-                <Icon name="pen" size={12} className="pname-pen" />
-              </button>
-            </Tip>
-          )}
-          {project?.host && <span className="host-badge"><Icon name="cloud" size={12} /> {project.host}</span>}
-          <span className="pmeta faint">{versions.length ? `${versions.length} version${versions.length === 1 ? '' : 's'}` : ''}</span>
+          <ProjectName dir={canvas} name={owner?.meta.name ?? ''} />
+          {owner?.host && <span className="host-badge"><Icon name="cloud" size={12} /> {owner.host}</span>}
           <span className="spacer" />
           <div className="no-drag titlebar-btns">
             <ThemeToggle />
@@ -599,7 +637,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
         </div>
         <div className="tabs">
           {(['chat', 'notes', 'versions', 'library'] as Side[]).map((s) => (
-            <button key={s} className={side === s ? 'on' : ''} onClick={() => showSide(s)}>
+            <button key={s} className={side === s ? 'on' : ''} disabled={!dir && (s === 'notes' || s === 'versions')} title={!dir && (s === 'notes' || s === 'versions') ? 'Choose a video on the canvas' : undefined} onClick={() => showSide(s)}>
               {s === 'chat' ? 'Chat' : s === 'notes' ? 'Notes' : s === 'versions' ? 'Versions' : 'Library'}
               {s === 'notes' && openNotes > 0 && <span className="tab-count">{openNotes}</span>}
               {side === s && <motion.i layoutId="tab-line" className="tab-line" transition={tr(MOVE)} />}
@@ -612,7 +650,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
               {side === 'chat' && (
                 <>
                   {chats.length > 1 && <ChatPills chats={chats} active={chatId} onPick={setChatId} />}
-                  {chat ? <Chat chat={chat} /> : <div className="chat" />}
+                  {chat && chat.items.length > 0 ? <Chat chat={chat} /> : <ProjectIntro />}
                 </>
               )}
               {side === 'notes' && (
@@ -653,10 +691,10 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
           {tool === 'draw' && (
             <div className="scope-row"><span className="scope draw"><Icon name="pen" size={12} /> Drawing on {clock(preview.state.time)} · {strokes.length} stroke{strokes.length === 1 ? '' : 's'}</span></div>
           )}
-          <Composer ref={composer} mentions={refs} placeholder={tool === 'draw' ? 'Say what to change where you drew…' : scope && picked ? 'Ask for a change to it…' : 'Ask for a change…'}
+          <Composer ref={composer} mentions={refs} placeholder={tool === 'draw' ? 'Say what to change where you drew…' : scope && picked ? 'Ask for a change to it…' : dir ? `Ask for a change to ${project?.meta.name ?? 'this video'}, or anything in the project…` : 'Describe a video, or ask for variants…'}
             onSubmit={(t) => (tool === 'draw' && strokes.length ? (composer.current?.set(t), sendDrawing()) : send(t))} maxRows={10} />
           <div className="composer-row">
-            <PlusMenu onDraw={toggleDraw} onNote={() => showSide('notes')} onLibrary={() => showSide('library')} onReference={async () => {
+            <PlusMenu video={!!dir} onDraw={toggleDraw} onNote={() => showSide('notes')} onLibrary={() => showSide('library')} onReference={async () => {
               if (await addVideos(await api.app.chooseFiles())) showSide('library')
             }} />
             <span className="spacer" />
@@ -688,6 +726,20 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
       {/* ── Centre: the picture and its timeline ───────────── */}
       <main className="centre">
         <div className="stagebar drag">
+          {dir ? (<>
+          {renaming ? (
+            <input className="rename no-drag video-rename" autoFocus defaultValue={project?.meta.name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => commitRename(e.currentTarget.value)} onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename(e.currentTarget.value)
+              else if (e.key === 'Escape') setRenaming(false)
+            }} />
+          ) : (
+            <Tip title="Rename" body="Click to rename this video.">
+              <button className="pname no-drag video-name" onClick={() => setRenaming(true)}>
+                <span className="ellipsis">{project?.meta.name ?? ''}</span>
+                <Icon name="pen" size={12} className="pname-pen" />
+              </button>
+            </Tip>
+          )}
           <div className="tools no-drag">
             <ToolButton icon="cursor" on={tool === 'select'} onHint={setHint} hint={['Select: click anything in the video to adjust it', 'V']} onClick={() => {
               if (tool === 'draw') toggleDraw()
@@ -727,16 +779,25 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
               </button>
             </Tip>
           </div>
+          </>) : (
+            <span className="stage-hint faint">Choose a video on the canvas to edit it, or ask for one on the left.</span>
+          )}
         </div>
-        <div className="stage">
-          <div className="stage-box">
-            <div className="stage-fit" style={{ '--aspect': aspect } as React.CSSProperties}>
-              <div className="video-card">
+        <div className="stage canvas-mode">
+          <CanvasStage
+            canvas={canvas}
+            active={active}
+            onActivate={onActivate}
+            chatWorking={!!chat?.working}
+            onSettings={onSettings}
+            onMention={mention}
+            overlay={
+              <div className="video-card" style={{ '--aspect': aspect } as React.CSSProperties}>
                 {url && <PreviewFrames preview={preview} />}
                 {!preview.state.ready && url && <div className="video-wait"><span className="shine" data-text="Loading the video">Loading the video</span></div>}
               </div>
-            </div>
-          </div>
+            }
+          />
           <AnimatePresence>
             {preview.state.error && (
               <motion.div className="stage-error" {...rise(6, MOVE)}>
@@ -746,7 +807,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
             )}
           </AnimatePresence>
         </div>
-        <div className="tl-panel">
+        {dir && <div className="tl-panel">
           <AnimatePresence initial={false}>
             {layersOpen && <motion.div className="drawer-handle" onPointerDown={(e) => resize('rows', e)} onDoubleClick={() => setRows(5)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(QUICK)}><i /></motion.div>}
           </AnimatePresence>
@@ -789,7 +850,7 @@ export function Editor({ dir, canvas, onHome, onSettings }: { dir: string; canva
             onRows={setRows}
             footer={<LayerBar layer={layer} win={windowOf(sel)} tween={tween} onNudge={nudge} onEase={setEase} onAdjustable={askAdjustable} />}
           />
-        </div>
+        </div>}
       </main>
 
       {/* ── Right: the inspector, while something is picked ── */}
@@ -849,6 +910,39 @@ function ToolButton({ icon, on, hint, onHint, onClick }: { icon: 'cursor' | 'pen
   )
 }
 
+/** The project's name in the title row: click to rename. */
+function ProjectName({ dir, name }: { dir: string; name: string }) {
+  const [editing, setEditing] = useState(false)
+  const save = async (v: string): Promise<void> => {
+    setEditing(false)
+    const n = v.trim()
+    if (n && n !== name) await api.projects.rename(dir, n)
+  }
+  return editing ? (
+    <input className="rename no-drag" autoFocus defaultValue={name} onFocus={(e) => e.currentTarget.select()} onBlur={(e) => save(e.currentTarget.value)} onKeyDown={(e) => {
+      if (e.key === 'Enter') save(e.currentTarget.value)
+      else if (e.key === 'Escape') setEditing(false)
+    }} />
+  ) : (
+    <Tip title="Rename" body="Click to rename this project.">
+      <button className="pname no-drag" onClick={() => setEditing(true)}>
+        <span className="ellipsis">{name}</span>
+        <Icon name="pen" size={12} className="pname-pen" />
+      </button>
+    </Tip>
+  )
+}
+
+/** An empty conversation: what this screen is for. */
+function ProjectIntro() {
+  return (
+    <motion.div className="board-intro" {...rise(8, SETTLE, 0.1)}>
+      <b>What are we making?</b>
+      <span className="muted">Describe a video and your agent makes it on this project's canvas. Ask for variants, cut-downs or other sizes and they land beside it. Click a video to make it active: its timeline opens below, and what you ask is about it.</span>
+    </motion.div>
+  )
+}
+
 export function ChatPills({ chats, active, onPick }: { chats: { id: string; title: string }[]; active: string | null; onPick(id: string): void }) {
   return (
     <div className="chat-pills">
@@ -862,7 +956,7 @@ export function ChatPills({ chats, active, onPick }: { chats: { id: string; titl
   )
 }
 
-function PlusMenu({ onDraw, onNote, onLibrary, onReference }: { onDraw(): void; onNote(): void; onLibrary(): void; onReference(): void }) {
+function PlusMenu({ video, onDraw, onNote, onLibrary, onReference }: { video: boolean; onDraw(): void; onNote(): void; onLibrary(): void; onReference(): void }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const pick = (f: () => void) => () => {
@@ -878,9 +972,11 @@ function PlusMenu({ onDraw, onNote, onLibrary, onReference }: { onDraw(): void; 
       </Tip>
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="start" width={240}>
         <div className="menu">
-          <MenuItem icon={<Icon name="pen" size={15} />} label="Draw on the frame" hint="⇧⌘D" onSelect={pick(onDraw)} />
-          <MenuItem icon={<Icon name="pin" size={15} />} label="Note at this moment" hint="⇧⌘K" onSelect={pick(onNote)} />
-          <MenuSep />
+          {video && <>
+            <MenuItem icon={<Icon name="pen" size={15} />} label="Draw on the frame" hint="⇧⌘D" onSelect={pick(onDraw)} />
+            <MenuItem icon={<Icon name="pin" size={15} />} label="Note at this moment" hint="⇧⌘K" onSelect={pick(onNote)} />
+            <MenuSep />
+          </>}
           <MenuItem icon={<Icon name="play" size={15} />} label="Reference a video…" hint="@" onSelect={pick(onReference)} />
           <MenuItem icon={<Icon name="library" size={15} />} label="From the library" onSelect={pick(onLibrary)} />
           <MenuSep />

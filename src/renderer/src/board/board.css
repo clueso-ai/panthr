@@ -53,3 +53,15 @@
 .board-empty span { font-size: 13px; line-height: 1.55; }
 .board-empty-mark { opacity: 0.85; margin-bottom: 4px; }
 .board-note { left: 50%; bottom: 14px; translate: -50% 0; max-width: min(560px, 80%); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; background: var(--raised); border: 1px solid var(--hair-2); box-shadow: var(--shadow-pop); }
+
+/* Inside a project: the canvas fills the stage, and the active video plays
+   over its tile at screen size (sharp at any zoom). */
+.stage.canvas-mode { background: transparent; }
+.stage.canvas-mode > .board-stage { position: absolute; inset: 0; }
+.canvas-live { position: absolute; z-index: 4; }
+.canvas-live .video-card { border-radius: 8px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 55%, transparent), 0 24px 60px rgba(0, 0, 0, 0.35); }
+.video-name { flex: none; max-width: 30%; }
+.tabs button:disabled { opacity: 0.4; cursor: default; }
+.tile.on.active-tile { border-color: transparent; box-shadow: none; background: transparent; }
+.tile.on.active-tile .tile-shot { visibility: hidden; }
+.tile.on.active-tile .tile-words { visibility: hidden; }

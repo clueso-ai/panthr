@@ -1,6 +1,6 @@
-// Home (every project), a project (its canvas of videos and its
-// conversation), or a video in the editor; Settings over any. Where you were
-// is kept: Panthr opens where it was left.
+// Home (every project) or a project (its canvas of videos, its conversation,
+// and the active video's timeline); Settings over either. Where you were is
+// kept: Panthr opens where it was left.
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -8,7 +8,6 @@ import type { Engine } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { tr, SETTLE } from '@/lib/motion'
 import { Home } from './home/Home'
-import { Board } from './board/Board'
 import { Editor } from './editor/Editor'
 import { Settings, type Pane } from './settings/Settings'
 import { isDark, toggleTheme } from './ui/ThemeToggle'
@@ -18,9 +17,8 @@ import { DropVideos } from './editor/References'
 
 type View =
   | { kind: 'home' }
-  /** from: the video just left (the canvas pulls back from it); focus: a tile to go to; first: an idea to send. */
-  | { kind: 'canvas'; dir: string; from: string | null; focus: string | null; first: string | null }
-  | { kind: 'video'; dir: string; canvas: string }
+  /** active: the video being edited; first: an idea to send the conversation. */
+  | { kind: 'project'; canvas: string; active: string | null; first: string | null }
 
 export function App() {
   const s = useSettings()
@@ -47,9 +45,9 @@ export function App() {
   useEffect(() => {
     api.state.get().then(async (st) => {
       if (!st.home && st.project && (await api.projects.load(st.project))) {
-        setView({ kind: 'video', dir: st.project, canvas: await api.canvases.of(st.project) })
+        setView({ kind: 'project', canvas: await api.canvases.of(st.project), active: st.project, first: null })
       } else if (!st.home && st.canvas && (await api.projects.load(st.canvas))) {
-        setView({ kind: 'canvas', dir: st.canvas, from: null, focus: null, first: null })
+        setView({ kind: 'project', canvas: st.canvas, active: null, first: null })
       } else setView({ kind: 'home' })
     })
   }, [])
@@ -58,14 +56,13 @@ export function App() {
     setView({ kind: 'home' })
     api.state.set({ home: true, project: null })
   }
-  const openCanvas = (dir: string, extra: { from?: string | null; focus?: string | null; first?: string | null } = {}): void => {
-    setView({ kind: 'canvas', dir, from: extra.from ?? null, focus: extra.focus ?? null, first: extra.first ?? null })
-    api.state.set({ canvas: dir, project: null, home: false })
+  const openProject = (canvas: string, active: string | null = null, first: string | null = null): void => {
+    setView({ kind: 'project', canvas, active, first })
+    api.state.set({ canvas, project: active, home: false })
   }
+  /** A video: its project, with it active. */
   const openVideo = async (dir: string): Promise<void> => {
-    const canvas = await api.canvases.of(dir)
-    setView({ kind: 'video', dir, canvas })
-    api.state.set({ project: dir, canvas, home: false })
+    openProject(await api.canvases.of(dir), dir)
   }
   /** A new project from Home: an empty canvas, its conversation given the idea. */
   const start = async (idea: string, host: string | null, engine: Engine, model: string): Promise<void> => {
@@ -78,29 +75,26 @@ export function App() {
       const chatId = p.meta.chats[0]?.id ?? (await api.chats.create(dir, engine))
       if (engine !== s.agent) await api.chats.setEngine(dir, chatId, engine)
     }
-    openCanvas(dir, { first: idea })
+    openProject(dir, null, idea)
   }
 
   // The command line (or the agent) opened a video here.
   useEvent('open', ({ dir }) => {
     openVideo(dir)
   })
-  // The agent pointed at a tile while you were elsewhere: go and look.
+  // The agent pointed at a tile in another project (or from Home): go and look.
   useEvent('board:focus', (e) => {
-    if (view?.kind !== 'canvas' || view.dir !== e.canvas) openCanvas(e.canvas, { focus: e.key })
+    if (view?.kind !== 'project' || view.canvas !== e.canvas) openProject(e.canvas, e.key.startsWith('ref:') ? null : e.key)
   }, [view])
   useEvent('command', ({ name }) => {
     if (name === 'settings') setSettings((x) => ({ ...x, open: !x.open }))
     else if (name === 'theme') toggleTheme(s.appearance)
     else if (name === 'new-project') home()
-    else if (name === 'home') {
-      // Up one level: a video goes back to its project, a project to Home.
-      if (view?.kind === 'video') openCanvas(view.canvas, { from: view.dir })
-      else home()
-    } else if (name === 'open-folder') {
+    else if (name === 'home') home()
+    else if (name === 'open-folder') {
       api.app.chooseFolder().then(async (d) => {
         const p = d && (await api.projects.openFolder(d))
-        if (p) openCanvas(await api.canvases.of(p.dir))
+        if (p) openProject(await api.canvases.of(p.dir), p.dir)
       })
     }
   })
@@ -123,21 +117,16 @@ export function App() {
       <AnimatePresence mode="wait">
         {view?.kind === 'home' && (
           <motion.div key="home" className="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
-            <Home onOpen={(dir) => openCanvas(dir)} onStart={start} onSettings={openSettings} />
+            <Home onOpen={(dir) => openProject(dir)} onStart={start} onSettings={openSettings} />
           </motion.div>
         )}
-        {view?.kind === 'canvas' && (
-          <motion.div key={`canvas:${view.dir}`} className="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
-            <Board canvas={view.dir} first={view.first} returnTo={view.from} focus={view.focus} onOpen={openVideo} onHome={home} onSettings={openSettings} />
-          </motion.div>
-        )}
-        {view?.kind === 'video' && (
-          <motion.div key={view.dir} className="view" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
-            <Editor dir={view.dir} canvas={view.canvas} onHome={() => openCanvas(view.canvas, { from: view.dir })} onSettings={openSettings} />
+        {view?.kind === 'project' && (
+          <motion.div key={view.canvas} className="view" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={tr(SETTLE)}>
+            <Editor canvas={view.canvas} active={view.active} first={view.first} onActivate={(active) => openProject(view.canvas, active)} onHome={home} onSettings={openSettings} />
           </motion.div>
         )}
       </AnimatePresence>
-      <DropVideos board={view?.kind === 'canvas'} onAdded={(n) => n && dispatchEvent(new CustomEvent('panthr:reference-added'))} />
+      <DropVideos board={view?.kind === 'project'} onAdded={(n) => n && dispatchEvent(new CustomEvent('panthr:reference-added'))} />
       <Settings open={settings.open} pane={settings.pane} onPane={(pane) => setSettings({ open: true, pane })} onClose={() => setSettings((x) => ({ ...x, open: false }))} />
     </>
   )
