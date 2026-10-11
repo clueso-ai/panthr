@@ -97,6 +97,12 @@ export interface Step {
   agent?: boolean
   done?: boolean
   error?: boolean
+  /** A sub-agent's step: the id of the sub-agent (its Task step) that took it. */
+  parent?: string
+  /** A sub-agent (Task step): what it was asked to do. */
+  brief?: string
+  /** A sub-agent (Task step): what it said, as it worked and at the end. */
+  said?: string
 }
 
 export type Item =
@@ -110,9 +116,9 @@ export type Item =
  *  --json, both mapped onto one shape). */
 export type AgentEvent =
   | { type: 'session'; id: string }
-  | { type: 'text'; text: string; agent: boolean }
+  | { type: 'text'; text: string; agent: boolean; parent?: string }
   | { type: 'delta'; text: string; agent: boolean }
-  | { type: 'tool'; id: string; name: string; summary: string; agent: boolean }
+  | { type: 'tool'; id: string; name: string; summary: string; agent: boolean; parent?: string; brief?: string }
   | { type: 'tool_done'; id: string; error: boolean }
   | { type: 'result'; cost_usd: number; duration_ms: number; turns: number; error: boolean }
   | { type: 'stderr'; line: string }

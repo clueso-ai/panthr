@@ -108,7 +108,7 @@ const CLAUDE_TURN = [
 ]
 
 describe('Transcript', () => {
-  it('builds a Claude turn: streamed text replaced by the block, steps grouped, subagent words kept out', () => {
+  it('builds a Claude turn: streamed text replaced by the block, steps grouped, a sub-agent with its own steps and words', () => {
     const t = new Transcript([{ User: 'Make it blue' }])
     t.working = true
     const seen: any[] = []
@@ -120,14 +120,20 @@ describe('Transcript', () => {
       { Text: 'Let me look.' },
       { Steps: [
         { id: 't1', name: 'Read', summary: 'Read index.html', agent: false, done: true, error: false },
-        { id: 't2', name: 'Task', summary: 'Agent: Find fonts', agent: false, done: true, error: false },
-        { id: 't3', name: 'Bash', summary: 'ls', agent: true, done: true, error: true }
+        // The sub-agent: its words on it (to read), never in the chat; its step points at it.
+        { id: 't2', name: 'Task', summary: 'Agent: Find fonts', agent: false, done: true, error: false, said: 'sub words' },
+        { id: 't3', name: 'Bash', summary: 'ls', agent: true, done: true, error: true, parent: 't2' }
       ] },
       { Text: 'Done: blue now.' },
       { Meta: { cost_usd: 0.12, seconds: 4.5, error: false } }
     ])
     expect(t.working).toBe(false)
     expect(t.streaming).toBeNull()
+  })
+
+  it("keeps a sub-agent's brief", () => {
+    const [e] = claudeParse('{"type":"assistant","parent_tool_use_id":null,"message":{"content":[{"type":"tool_use","id":"a1","name":"Task","input":{"description":"Build scene 2","prompt":"Make compositions/scene-2.html: the product reveal."}}]}}')
+    expect(e).toMatchObject({ type: 'tool', id: 'a1', summary: 'Agent: Build scene 2', brief: 'Make compositions/scene-2.html: the product reveal.' })
   })
 
   it('streams deltas into one reply and points at it', () => {

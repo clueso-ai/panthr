@@ -76,7 +76,13 @@ export class Transcript {
         return { streamed: true }
       }
       case 'text': {
-        if (ev.agent) return { none: true } // an agent's own words stay in its steps
+        // A sub-agent's words go with it (its Task step), for the person to read; not into the chat.
+        if (ev.agent) {
+          const task = ev.parent ? this.step(ev.parent) : undefined
+          if (!task) return { none: true }
+          task.said = ((task.said ? `${task.said}\n\n` : '') + ev.text).slice(-8000)
+          return {}
+        }
         // The whole block: it replaces what streamed in.
         const cur = this.streaming != null ? this.items[this.streaming] : undefined
         this.streaming = null
@@ -86,7 +92,7 @@ export class Transcript {
       }
       case 'tool': {
         if (!ev.agent) this.streaming = null
-        const step: Step = { id: ev.id, name: ev.name, summary: ev.summary, agent: ev.agent, done: false, error: false }
+        const step: Step = { id: ev.id, name: ev.name, summary: ev.summary, agent: ev.agent, done: false, error: false, ...(ev.parent ? { parent: ev.parent } : {}), ...(ev.brief ? { brief: ev.brief } : {}) }
         const last = this.items[this.items.length - 1]
         if (last && 'Steps' in last) last.Steps.push(step)
         else this.items.push({ Steps: [step] })
@@ -118,6 +124,16 @@ export class Transcript {
         this.items.push({ Note: `${this.engine === 'codex' ? 'Codex' : 'Claude Code'} stopped${ev.reason ? `: ${ev.reason}` : ''}` })
         return { turnEnded: true }
     }
+  }
+
+  /** A step by its id, newest first. */
+  step(id: string): Step | undefined {
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      const it = this.items[i]
+      const st = 'Steps' in it ? it.Steps.find((s) => s.id === id) : undefined
+      if (st) return st
+    }
+    return undefined
   }
 
   /** The user's message goes in; a turn begins. */

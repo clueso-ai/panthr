@@ -4,7 +4,7 @@
 // turn ends it folds to "Worked for 39s · $0.47 ›" and its final reply;
 // the fold opens on click.
 
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createContext, memo, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ChatState, Item, Step, Checkpoint } from '@shared/types'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
@@ -18,7 +18,7 @@ const kindOf = (name: string): Kind =>
   : name === 'Read' ? 'read'
   : name === 'Glob' || name === 'Grep' ? 'search'
   : name === 'WebFetch' || name === 'WebSearch' ? 'web'
-  : name === 'Task' ? 'agent'
+  : name === 'Task' || name === 'Agent' ? 'agent'
   : name === 'TodoWrite' ? 'plan' : 'other'
 const GLYPH: Record<Kind, string> = { command: '❯', edit: '✎', read: '◉', search: '⌕', web: '◎', agent: '◇', plan: '☰', other: '•' }
 
@@ -152,7 +152,8 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
           const folded = foldable && !unfolded.has(key)
           const isNew = (i: number): boolean => i >= opened.current
           return (
-            <div className="turn" key={key}>
+            <TurnSteps.Provider key={key} value={steps}>
+            <div className="turn">
               {turn.user !== null && (
                 <UserMessage text={(chat.items[turn.user] as { User: string }).User} long={!full.has(turn.user)} onMore={() => setFull((s) => new Set(s).add(turn.user!))} fresh={isNew(turn.user)} />
               )}
@@ -199,6 +200,7 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
                 <div className="thinking"><EyeMark width={18} watch={0.7} /> <Shine text="Thinking" /></div>
               )}
             </div>
+            </TurnSteps.Provider>
           )
         })}
         {chat.queued.map((q, i) => (
@@ -263,7 +265,70 @@ function ItemView({ item, streaming, fresh }: { item: Item; streaming: boolean; 
   return null
 }
 
-function StepGroup({ steps }: { steps: Step[] }) {
+/** Every step of the turn being drawn (a sub-agent's card finds its own in it). */
+const TurnSteps = createContext<Step[]>([])
+const isAgent = (s: Step): boolean => kindOf(s.name) === 'agent'
+
+/** The agent's own steps, folded; each sub-agent it started as its own card. */
+function StepGroup({ steps: all }: { steps: Step[] }) {
+  const mine = all.filter((s) => !s.parent)
+  const agents = mine.filter(isAgent)
+  const steps = mine.filter((s) => !isAgent(s))
+  return (
+    <>
+      {steps.length > 0 && <FoldedSteps steps={steps} />}
+      {agents.map((a) => <AgentCard key={a.id} a={a} />)}
+    </>
+  )
+}
+
+/** A sub-agent: what it was asked, its steps and what it said, to read
+ *  (it takes no messages; the main agent directs it). */
+function AgentCard({ a, live }: { a: Step; live?: boolean }) {
+  const turn = useContext(TurnSteps)
+  const [open, setOpen] = useState(false)
+  const [allBrief, setAllBrief] = useState(false)
+  const steps = turn.filter((s) => s.parent === a.id)
+  const working = !a.done
+  const name = a.summary.replace(/^Agent:\s*/, '') || 'Sub-agent'
+  return (
+    <div className={`agent-card${working ? ' working' : ''}${a.error ? ' err' : ''}`}>
+      <button className="agent-head" onClick={() => setOpen((o) => !o)}>
+        <span className={`step-glyph${working ? ' live' : ' done'}`}>◇</span>
+        <span className="ellipsis agent-name">{working && live ? <Shine text={name} /> : name}</span>
+        <span className="faint agent-meta">{working ? (steps.length ? `working · ${steps.length} step${steps.length === 1 ? '' : 's'}` : 'starting') : `${a.error ? 'stopped' : 'done'} · ${steps.length} step${steps.length === 1 ? '' : 's'}`}</span>
+        <motion.span animate={{ rotate: open ? 90 : 0 }} transition={tr(QUICK)} className="fold-mark">›</motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div className="agent-body" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={tr(MOVE)} style={{ overflow: 'hidden' }}>
+            {a.brief && (
+              <div className="agent-brief">
+                <span className="agent-label">Asked to</span>
+                <div className={allBrief ? '' : 'clamp4'}>{a.brief}</div>
+                {a.brief.length > 280 && <button className="link" onClick={() => setAllBrief((x) => !x)}>{allBrief ? 'Less' : 'All of it'}</button>}
+              </div>
+            )}
+            {steps.length > 0 && (
+              <div className="agent-steps">
+                {steps.map((s, i) => <StepRow key={s.id || i} s={s} live={working && i === steps.length - 1} />)}
+              </div>
+            )}
+            {a.said && (
+              <div className="agent-said">
+                <span className="agent-label">{working ? 'Says' : 'Reported'}</span>
+                <div className="am">{blocks(a.said).map((b, i) => <Block key={i} b={b} />)}</div>
+              </div>
+            )}
+            <div className="agent-foot faint">Sub-agents work on their own. To change what one does, tell the main agent.</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function FoldedSteps({ steps }: { steps: Step[] }) {
   const [open, setOpen] = useState(false)
   if (steps.length === 1) return <StepRow s={steps[0]} />
   return (
@@ -299,10 +364,14 @@ function StepRow({ s, live }: { s: Step; live?: boolean }) {
 
 /** While it works: the step under way, shining, and how many so far. A
  *  click opens them all (and folds them again). */
-function LiveStep({ steps }: { steps: Step[] }) {
+function LiveStep({ steps: all }: { steps: Step[] }) {
   const [open, setOpen] = useState(false)
+  const steps = all.filter((s) => !s.parent && !isAgent(s))
+  const agents = all.filter((s) => !s.parent && isAgent(s))
+  if (!steps.length) return <>{agents.map((a) => <AgentCard key={a.id} a={a} live />)}</>
   const step = steps[steps.length - 1]
   return (
+    <>
     <div className="live">
       <button className="live-step" onClick={() => setOpen((o) => !o)}>
         <motion.span className="fold-mark live-fold" animate={{ rotate: open ? 90 : 0 }} transition={tr(QUICK)}>›</motion.span>
@@ -325,5 +394,7 @@ function LiveStep({ steps }: { steps: Step[] }) {
         )}
       </AnimatePresence>
     </div>
+    {agents.map((a) => <AgentCard key={a.id} a={a} live />)}
+    </>
   )
 }

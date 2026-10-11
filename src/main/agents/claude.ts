@@ -78,7 +78,8 @@ export function summarize(name: string, input: unknown): string {
     case 'Grep': line = `Searched ${s('pattern')}`; break
     case 'WebFetch': line = `Read ${s('url')}`; break
     case 'WebSearch': line = `Searched the web for ${s('query')}`; break
-    case 'Task': line = `Agent: ${s('description')}`; break
+    case 'Task':
+    case 'Agent': line = `Agent: ${s('description')}`; break
     case 'TodoWrite': line = 'Updated its plan'; break
     default: line = name
   }
@@ -96,6 +97,7 @@ export function parse(line: string): AgentEvent[] {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return []
   const out: AgentEvent[] = []
   const agent = v.parent_tool_use_id != null
+  const parent = agent ? str(v.parent_tool_use_id) : undefined
   const blocks = (): any[] => (Array.isArray(v.message?.content) ? v.message.content : [])
   switch (v.type) {
     case 'system':
@@ -112,10 +114,11 @@ export function parse(line: string): AgentEvent[] {
       for (const b of blocks()) {
         if (b?.type === 'text') {
           const text = str(b.text)
-          if (text.trim() !== '') out.push({ type: 'text', text, agent })
+          if (text.trim() !== '') out.push({ type: 'text', text, agent, ...(parent ? { parent } : {}) })
         } else if (b?.type === 'tool_use') {
           const name = str(b.name)
-          out.push({ type: 'tool', id: str(b.id), name, summary: summarize(name, b.input), agent })
+          const brief = name === 'Task' || name === 'Agent' ? str(b.input?.prompt).slice(0, 4000) : ''
+          out.push({ type: 'tool', id: str(b.id), name, summary: summarize(name, b.input), agent, ...(parent ? { parent } : {}), ...(brief ? { brief } : {}) })
         }
       }
       break
