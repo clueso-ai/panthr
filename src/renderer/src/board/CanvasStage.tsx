@@ -5,6 +5,7 @@
 // up big; clicking empty canvas lets it go.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
 import type { Board as BoardData, BoardView, Project, Reference } from '@shared/types'
 import { api, settingsNow, useEvent, useReferences } from '@/lib/api'
@@ -240,6 +241,18 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
     const skipped = r.skipped.length ? `Skipped ${r.skipped.map((k) => `${k.path.split('/').pop()} (${k.why})`).join(', ')}` : ''
     setNote([parts.length ? `Brought in ${parts.join(', ')}.` : '', skipped].filter(Boolean).join(' '))
   }
+  // Esc closes the references sheet (its button says so).
+  useEffect(() => {
+    if (!refsOpen) return
+    const k = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && !document.querySelector('.ref-sheet')) {
+        e.stopPropagation()
+        setRefsOpen(false)
+      }
+    }
+    addEventListener('keydown', k, true)
+    return () => removeEventListener('keydown', k, true)
+  }, [refsOpen])
   useEffect(() => {
     if (!note) return
     const id = setTimeout(() => setNote(null), 5000)
@@ -454,6 +467,8 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
         )}
       </AnimatePresence>
 
+      {/* Sheets go above the window, not inside the canvas (which takes pointers for panning). */}
+      {createPortal(<>
       <AnimatePresence>
         {refsOpen && (
           <motion.div className="sheet-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)} onClick={() => setRefsOpen(false)}>
@@ -465,6 +480,7 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
         )}
       </AnimatePresence>
       <RefSheet r={refs.find((r) => r.id === openRef) ?? null} onClose={() => setOpenRef(null)} onMention={(h) => { setOpenRef(null); onMention(h) }} />
+      </>, document.body)}
       <CanvasKeys onFit={fitAll} onZoom={zoomBy} />
     </div>
   )
