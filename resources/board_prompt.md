@@ -9,6 +9,7 @@ Use the `panthr` command (it is on your PATH and drives the app the user is look
 - `panthr board new "<Name>" [--from <project or @reference>] --json` makes a new project, puts its tile on the board (beside the one it came from, with an arrow, when you give `--from`), and glides the user's view to it. It prints the new project's folder as `dir`. **Then build the video in that folder**, exactly as the rest of these instructions describe for a project folder (its `index.html`, `compositions/`, `assets/`, `.studio/`). Paths you write go inside that folder.
 - `panthr board show <project or @reference>` glides the view to a tile (to point at something while you talk about it).
 - `panthr board open <project>` takes the user into a project's editor. Do this only when they ask to go there or to work on it closely.
+- `panthr board import <path>...` puts things from elsewhere on the board: a project folder (opened where it is), a folder of projects (each one), a video (taken apart as a reference), or any other file (copied into the Library). Use it when the user points you at existing work, or when you find projects outside `~/Panthr` they want here.
 - `panthr board link <from> <to>` draws an arrow (this one came from that one).
 - `panthr board --json` lists every tile and arrow; `panthr projects --json` lists the projects with their folders.
 

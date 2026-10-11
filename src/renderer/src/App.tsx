@@ -107,7 +107,7 @@ export function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <DropVideos onAdded={(n) => n && dispatchEvent(new CustomEvent('panthr:reference-added'))} />
+      <DropVideos board={view?.kind === 'home'} onAdded={(n) => n && dispatchEvent(new CustomEvent('panthr:reference-added'))} />
       <Settings open={settings.open} pane={settings.pane} onPane={(pane) => setSettings({ open: true, pane })} onClose={() => setSettings((x) => ({ ...x, open: false }))} />
     </>
   )

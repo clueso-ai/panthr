@@ -4,15 +4,16 @@
 // where they are. The Board's own conversation is a chat of ~/Panthr itself,
 // whose agent makes projects with `panthr board new` and shows them to you.
 
-import { existsSync, mkdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import { extname, join, resolve } from 'node:path'
 import type { Api } from '@shared/api'
-import type { Board, BoardLink, BoardView, Project } from '@shared/types'
+import type { Board, BoardImport, BoardLink, BoardView, Project } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
-import { dataDir, now, studioRoot } from './paths'
-import { createIn, list as listProjects, load, loadMeta, saveMetaFile } from './projects'
-import { list as listReferences } from './references'
+import { dataDir, libraryDir, now, studioRoot } from './paths'
+import { createIn, list as listProjects, load, loadMeta, openFolder, saveMetaFile } from './projects'
+import { list as listReferences, references } from './references'
+import { addToLibrary } from './review'
 
 /** A tile's footprint on the board (the window draws it at this size). */
 export const TILE = { w: 320, h: 230 }
@@ -130,7 +131,78 @@ export function keyFor(what: string): string | null {
   return p?.dir ?? null
 }
 
+const VIDEO = new Set(['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.avi'])
+const isDir = (p: string): boolean => {
+  try {
+    return statSync(p).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/** Put things from elsewhere on the board: a project folder (opened where it
+ *  is), a folder of projects (each one), a video (taken apart as a
+ *  reference) or any other file (into the Library). They are placed in a row
+ *  from `at` (else the view's centre), and the view goes to the last. */
+export async function importPaths(paths: string[], at?: { x: number; y: number } | null): Promise<BoardImport> {
+  const out: BoardImport = { projects: [], references: [], library: [], skipped: [] }
+  const projectDirs: string[] = []
+  for (const raw of paths) {
+    const p = resolve(raw.startsWith('~/') ? join(studioRoot(), '..', raw.slice(2)) : raw)
+    if (!existsSync(p)) {
+      out.skipped.push({ path: raw, why: 'Not found' })
+      continue
+    }
+    if (isDir(p)) {
+      if (loadMeta(p)) {
+        projectDirs.push(p)
+        continue
+      }
+      // A folder of projects: each one inside it.
+      const inner = readdirSync(p).map((n) => join(p, n)).filter((d) => !d.split('/').pop()!.startsWith('.') && isDir(d) && loadMeta(d))
+      if (inner.length) projectDirs.push(...inner)
+      else out.skipped.push({ path: raw, why: 'No project in it (a project folder has an index.html)' })
+      continue
+    }
+    if (VIDEO.has(extname(p).toLowerCase())) {
+      try {
+        const r = await references.add(p)
+        out.references.push(r.id)
+      } catch (e) {
+        out.skipped.push({ path: raw, why: (e as Error).message })
+      }
+      continue
+    }
+    if (addToLibrary(libraryDir(), [p])) out.library.push(p)
+    else out.skipped.push({ path: raw, why: 'Could not copy it into the Library' })
+  }
+  for (const d of [...new Set(projectDirs)]) {
+    const proj = openFolder(d)
+    if (proj) out.projects.push(proj.dir)
+    else out.skipped.push({ path: d, why: 'Not a project' })
+  }
+  // Place what is new to the board in a row from the drop point.
+  const s = read()
+  const start = at ?? (s.view ? { x: s.view.x - TILE.w / 2, y: s.view.y - TILE.h / 2 } : { x: 0, y: 0 })
+  const keys = [...out.projects, ...out.references.map(refKey)]
+  let x = start.x
+  for (const k of keys) {
+    if (s.tiles[k]) continue
+    const spot = freeSpot(s.tiles, x, start.y)
+    s.tiles[k] = spot
+    x = spot.x + STEP.x
+  }
+  write(s)
+  emit('board:changed', board())
+  const last = keys[keys.length - 1]
+  if (last) emit('board:focus', { key: last, fresh: true })
+  return out
+}
+
 export const boardApi: Api['board'] = {
+  async import(paths, at) {
+    return importPaths(paths, at)
+  },
   async get() {
     return board()
   },

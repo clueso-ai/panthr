@@ -64,9 +64,9 @@ export const appApi: Api['app'] = {
     projectId(r.filePaths[0])
     return r.filePaths[0]
   },
-  async chooseFiles() {
+  async chooseFiles(folders) {
     const w = BrowserWindow.getFocusedWindow()
-    const opts: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] }
+    const opts: Electron.OpenDialogOptions = { properties: folders ? ['openFile', 'openDirectory', 'multiSelections'] : ['openFile', 'multiSelections'] }
     const r = await (w ? dialog.showOpenDialog(w, opts) : dialog.showOpenDialog(opts))
     return r.canceled ? [] : r.filePaths
   },

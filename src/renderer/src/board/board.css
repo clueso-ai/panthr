@@ -52,3 +52,4 @@
 .board-empty b { font-family: var(--display); font-size: 20px; font-weight: 500; }
 .board-empty span { font-size: 13px; line-height: 1.55; }
 .board-empty-mark { opacity: 0.85; margin-bottom: 4px; }
+.board-note { left: 50%; bottom: 14px; translate: -50% 0; max-width: min(560px, 80%); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; background: var(--raised); border: 1px solid var(--hair-2); box-shadow: var(--shadow-pop); }

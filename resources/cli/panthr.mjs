@@ -507,13 +507,23 @@ const commands = {
       const key = await a.call(`board.${sub === 'show' ? 'focus' : 'open'}`, what)
       return out(opt, { key }, () => console.log(dim(sub === 'show' ? `Showing ${what}` : `Opened ${what}`)))
     }
+    if (sub === 'import') {
+      if (!rest.length) throw new Error('panthr board import <project folder | folder of projects | video | file>...')
+      const r = await a.call('board.import', rest.map((x) => resolve(x)), null)
+      return out(opt, r, () => {
+        if (r.projects.length) console.log(`${rose('●')} ${r.projects.length} project${r.projects.length === 1 ? '' : 's'}: ${r.projects.join(', ')}`)
+        if (r.references.length) console.log(`${rose('●')} ${r.references.length} reference video${r.references.length === 1 ? '' : 's'} (being taken apart)`)
+        if (r.library.length) console.log(`${rose('●')} ${r.library.length} file${r.library.length === 1 ? '' : 's'} into the Library`)
+        for (const k of r.skipped) console.log(dim(`  skipped ${k.path}: ${k.why}`))
+      })
+    }
     if (sub === 'link') {
       const [from, to] = rest
       if (!from || !to) throw new Error('panthr board link <from> <to>')
       await a.call('board.link', from, to)
       return out(opt, { from, to }, () => console.log(dim(`${from} → ${to}`)))
     }
-    throw new Error('panthr board [new "<name>" [--from x] | show <x> | open <x> | link <from> <to>]')
+    throw new Error('panthr board [new "<name>" [--from x] | import <path>... | show <x> | open <x> | link <from> <to>]')
   },
 
   async hosts(a, { opt }) {
@@ -537,6 +547,8 @@ ${bold('The board')}
   board                  Every tile and arrow on the board
   board new "<name>" [--from <project|@ref>]
                          A new project, its tile beside what it came from (prints its folder)
+  board import <path>... Put project folders (or folders of them), videos (as references)
+                         and other files (into the Library) on the board
   board show <x>         Glide the window's board to a project or @reference
   board open <x>         Open a project in the window
   board link <from> <to> Draw an arrow: this one came from that one

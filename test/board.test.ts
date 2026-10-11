@@ -10,7 +10,13 @@ vi.mock('electron', () => ({ app: undefined }))
 const emitted: [string, any][] = []
 vi.mock('../src/main/bus', () => ({ emit: (n: string, p: any) => emitted.push([n, structuredClone(p)]) }))
 
-import { board, boardApi, boardDir, freeSpot, isBoard, keyFor, TILE } from '../src/main/board'
+const refsAdded: string[] = []
+vi.mock('../src/main/references', async (orig) => {
+  const real: any = await orig()
+  return { ...real, references: { ...real.references, add: async (p: string) => (refsAdded.push(p), { id: 'r1', handle: 'clip' }) } }
+})
+
+import { board, boardApi, boardDir, freeSpot, importPaths, isBoard, keyFor, TILE } from '../src/main/board'
 import { createIn, list, loadMeta } from '../src/main/projects'
 
 const env = { HOME: process.env.HOME, DATA: process.env.PANTHR_DATA_DIR, ROOT: process.env.PANTHR_ROOT }
@@ -88,6 +94,32 @@ describe('board', () => {
     const after = board()
     expect(after.tiles[b.dir]).toBeUndefined()
     expect(after.links).toEqual([])
+  })
+
+  it('imports a project from elsewhere where it is, a folder of projects, files and videos', async () => {
+    const away = join(tmp, `away${n}`)
+    const one = join(away, 'Old Film')
+    mkdirSync(one, { recursive: true })
+    writeFileSync(join(one, 'index.html'), '<html></html>')
+    const shelf = join(away, 'Shelf')
+    for (const name of ['A', 'B']) {
+      mkdirSync(join(shelf, name), { recursive: true })
+      writeFileSync(join(shelf, name, 'index.html'), 'x')
+    }
+    mkdirSync(join(away, 'Nothing'), { recursive: true })
+    writeFileSync(join(away, 'logo.png'), 'png')
+    writeFileSync(join(away, 'clip.mp4'), 'mp4')
+    const r = await importPaths([one, one, shelf, join(away, 'Nothing'), join(away, 'logo.png'), join(away, 'clip.mp4'), join(away, 'gone')], { x: 1000, y: 0 })
+    expect(r.projects.sort()).toEqual([one, join(shelf, 'A'), join(shelf, 'B')].sort())
+    expect(r.references).toEqual(['r1'])
+    expect(refsAdded.at(-1)).toBe(join(away, 'clip.mp4'))
+    expect(r.library).toEqual([join(away, 'logo.png')])
+    expect(r.skipped.map((k) => k.path.split('/').pop())).toEqual(['Nothing', 'gone'])
+    // Opened where they are, listed, and placed in a row from the drop point.
+    const b = board()
+    expect(b.tiles[one]).toEqual({ x: 1000, y: 0 })
+    expect(r.projects.every((d) => b.tiles[d])).toBe(true)
+    expect(emitted.some(([n, p]) => n === 'board:focus' && p.fresh)).toBe(true)
   })
 
   it('the conversation lives in ~/Panthr, which is not listed as a project', () => {

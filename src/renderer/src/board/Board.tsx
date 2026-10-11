@@ -196,6 +196,36 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
   const zoomBy = (f: number): void => {
     glide({ ...centre(), zoom: clamp(z.get() * f, ZOOM.min, ZOOM.max) }, 0.3)
   }
+  /** Bring things in: placed from a canvas point (the drop point, else the view's centre). */
+  const [note, setNote] = useState<string | null>(null)
+  const bringIn = async (paths: string[], at?: { x: number; y: number }): Promise<void> => {
+    if (!paths.length) return
+    const r = await api.board.import(paths, at ?? null)
+    const parts = [
+      r.projects.length && `${r.projects.length} project${r.projects.length === 1 ? '' : 's'}`,
+      r.references.length && `${r.references.length} video${r.references.length === 1 ? '' : 's'} to take apart`,
+      r.library.length && `${r.library.length} file${r.library.length === 1 ? '' : 's'} into the Library`
+    ].filter(Boolean)
+    const skipped = r.skipped.length ? `Skipped ${r.skipped.map((k) => `${k.path.split('/').pop()} (${k.why})`).join(', ')}` : ''
+    setNote([parts.length ? `Brought in ${parts.join(', ')}.` : '', skipped].filter(Boolean).join(' '))
+  }
+  useEffect(() => {
+    if (!note) return
+    const id = setTimeout(() => setNote(null), 5000)
+    return () => clearTimeout(id)
+  }, [note])
+  useEffect(() => {
+    const f = (e: Event): void => {
+      const d = (e as CustomEvent<{ paths: string[]; x: number; y: number }>).detail
+      e.preventDefault()
+      const r = stage.current?.getBoundingClientRect()
+      const inside = r && d.x >= r.left && d.x <= r.right && d.y >= r.top && d.y <= r.bottom
+      const at = inside ? { x: (d.x - r!.left - ox.get()) / z.get() - tile.w / 2, y: (d.y - r!.top - oy.get()) / z.get() - tile.h / 2 } : undefined
+      void bringIn(d.paths, at)
+    }
+    addEventListener('panthr:drop-paths', f)
+    return () => removeEventListener('panthr:drop-paths', f)
+  })
   const fitAll = (): void => {
     if (board) glide(fitView(board, size(), tile), 0.6)
   }
@@ -438,6 +468,9 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
 
         {/* Top right: references, skills, theme, settings */}
         <div className="board-ui board-tools no-drag">
+          <Tip title="Import" body="Project folders (or a folder of them), videos and files. Or drop them on the board.">
+            <button className="board-tool" onClick={async () => bringIn(await api.app.chooseFiles(true))}><Icon name="import" size={15} /><span>Import</span></button>
+          </Tip>
           <Tip title="References" body="Videos your agent has taken apart. Mention one with @.">
             <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>References</span></button>
           </Tip>
@@ -457,6 +490,11 @@ export function Board({ returnTo, focus, onOpen, onSettings }: {
         </div>
 
         <ActivityStatus className="board-activity board-ui" />
+        <AnimatePresence>
+          {note && (
+            <motion.div className="board-note board-ui" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={tr(MOVE)}>{note}</motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <AnimatePresence>

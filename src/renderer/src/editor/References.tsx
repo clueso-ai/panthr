@@ -217,7 +217,9 @@ function Viewer({ r, f }: { r: Reference; f: RefFile }) {
 }
 
 /** A window-wide drop zone: videos dropped anywhere become references. */
-export function DropVideos({ onAdded }: { onAdded?(n: number): void }) {
+/** Files dropped on the window. The Board takes them first (it listens for
+ *  'panthr:drop-paths' and cancels it); elsewhere videos become references. */
+export function DropVideos({ onAdded, board }: { onAdded?(n: number): void; board?: boolean }) {
   const [over, setOver] = useState(false)
   const depth = useRef(0)
   useEffect(() => {
@@ -241,6 +243,8 @@ export function DropVideos({ onAdded }: { onAdded?(n: number): void }) {
       depth.current = 0
       setOver(false)
       const paths = [...(e.dataTransfer?.files ?? [])].map((f) => window.panthr.pathForFile(f)).filter(Boolean)
+      const taken = !dispatchEvent(new CustomEvent('panthr:drop-paths', { detail: { paths, x: e.clientX, y: e.clientY }, cancelable: true }))
+      if (taken) return
       const n = await addVideos(paths)
       onAdded?.(n)
     }
@@ -260,9 +264,9 @@ export function DropVideos({ onAdded }: { onAdded?(n: number): void }) {
       {over && (
         <motion.div className="drop-zone" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(QUICK)}>
           <div className="drop-card">
-            <Icon name="play" size={20} />
-            <b>Drop to add as a reference video</b>
-            <span className="faint">Your agent takes it apart, then you can mention it in chat with @.</span>
+            <Icon name={board ? 'layers' : 'play'} size={20} />
+            <b>{board ? 'Drop to put it on the board' : 'Drop to add as a reference video'}</b>
+            <span className="faint">{board ? 'Project folders become tiles, videos become references, other files go to the Library.' : 'Your agent takes it apart, then you can mention it in chat with @.'}</span>
           </div>
         </motion.div>
       )}

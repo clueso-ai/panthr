@@ -20,7 +20,7 @@ export interface Api {
     fileUrl(path: string): Promise<string>
     /** Choose a folder (File ▸ Open Folder…) or files (Library ▸ Add). */
     chooseFolder(): Promise<string | null>
-    chooseFiles(): Promise<string[]>
+    chooseFiles(folders?: boolean): Promise<string[]>
     quit(): Promise<void>
     /** Put the `panthr` command on the PATH (~/.local/bin); where it went and whether the shell will find it. */
     installCli(): Promise<{ path: string; onPath: boolean; installed: boolean }>
@@ -134,6 +134,8 @@ export interface Api {
     chatDir(): Promise<string>
     /** A new project, placed beside what it came from (or near `near`), and shown. */
     create(name: string, from?: string | null, near?: { x: number; y: number } | null): Promise<Project>
+    /** Project folders (or folders of them), videos (as references) and other files (into the Library), placed from `at`. */
+    import(paths: string[], at?: { x: number; y: number } | null): Promise<import('./types').BoardImport>
     link(from: string, to: string): Promise<void>
     unlink(from: string, to: string): Promise<void>
     /** Glide the window's board to a project or reference (returns its key). */

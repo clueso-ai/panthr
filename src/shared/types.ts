@@ -367,3 +367,11 @@ export interface Board {
   /** A tile's size on the canvas. */
   tile: { w: number; h: number }
 }
+
+/** What an import put on the board (keys as in Board.tiles; library: copied files). */
+export interface BoardImport {
+  projects: string[]
+  references: string[]
+  library: string[]
+  skipped: { path: string; why: string }[]
+}
