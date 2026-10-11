@@ -18,6 +18,7 @@ import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
+import { Compare } from './Compare'
 import './board.css'
 
 const ZOOM = { min: 0.15, max: 4 }
@@ -47,6 +48,10 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
   const activity = useActivity()
   const [fresh, setFresh] = useState<Set<string>>(new Set())
   const [openRef, setOpenRef] = useState<string | null>(null)
+  /** Videos picked with ⌘ or ⇧ for something done to several (compare, export). */
+  const [picked, setPicked] = useState<string[]>([])
+  const [comparing, setComparing] = useState<string[] | null>(null)
+  const togglePick = (key: string): void => setPicked((ps) => (ps.includes(key) ? ps.filter((k) => k !== key) : [...ps, key]))
   const [refsOpen, setRefsOpen] = useState(false)
 
   /** The videos on the canvas (name, poster, when edited). */
@@ -393,7 +398,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
             return (
               <motion.div
                 key={key}
-                className={`tile${isActive ? ' on active-tile' : ''}${drag?.key === key ? ' dragging' : ''}${working(key) ? ' busy' : ''}`}
+                className={`tile${isActive ? ' on active-tile' : ''}${picked.includes(key) ? ' picked' : ''}${drag?.key === key ? ' dragging' : ''}${working(key) ? ' busy' : ''}`}
                 style={{ left: p.x, top: p.y, width: tile.w }}
                 initial={fresh.has(key) ? { opacity: 0, scale: 0.85, y: -24 } : { opacity: 0 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -414,10 +419,15 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
                   d.moved = true
                   setDrag({ key, x: d.x + dx, y: d.y + dy })
                 }}
-                onPointerUp={() => {
+                onPointerUp={(e) => {
                   const d = dragFrom.current
                   dragFrom.current = null
                   if (!d) return
+                  // ⌘ or ⇧: pick several videos.
+                  if (!d.moved && !ref && (e.metaKey || e.shiftKey)) {
+                    togglePick(key)
+                    return
+                  }
                   if (d.moved && drag) {
                     const { x, y } = drag
                     setBoard((b) => (b ? { ...b, tiles: { ...b.tiles, [key]: { x, y } } } : b))
@@ -485,6 +495,19 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
         <Tip title="Show everything" keys="⇧1"><button onClick={fitAll} aria-label="Show everything"><Icon name="layers" size={13} /></button></Tip>
       </div>
 
+      {/* Several videos picked: what can be done to them together */}
+      <AnimatePresence>
+        {picked.length > 0 && (
+          <motion.div className="board-ui pick-bar no-drag" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={tr(MOVE)}>
+            <span><b>{picked.length}</b> picked</span>
+            <button className="btn small" disabled={picked.length < 2} onClick={() => setComparing(picked.slice(0, 6))}><Icon name="layers" size={13} /> Compare</button>
+            <button className="link" onClick={() => setPicked([])}>Clear</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {comparing && <Compare dirs={comparing} onClose={() => setComparing(null)} onPick={(dir) => { setComparing(null); setPicked([]); onActivate(dir) }} />}
+      </AnimatePresence>
       <AnimatePresence>
         {note && (
           <motion.div className="board-note board-ui" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={tr(MOVE)}>{note}</motion.div>
