@@ -109,3 +109,20 @@
 .brand-logo img { height: 40px; max-width: 140px; object-fit: contain; border-radius: 6px; background: var(--field); padding: 4px; }
 .brand-voice { width: 100%; padding: 8px 10px; resize: vertical; user-select: text; }
 .brand-go { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+
+/* Notes and instruction arrows on the canvas. */
+.canvas-note { position: absolute; padding: 10px 10px 6px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 22%, var(--raised)); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22); cursor: grab; z-index: 3; transition: opacity var(--move) var(--ease); }
+.canvas-note.done { opacity: 0.55; }
+.note-text { font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 20px; user-select: text; cursor: text; }
+.note-text-edit { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; line-height: 1.45; resize: none; color: var(--t1); user-select: text; }
+.note-row, .arrow-actions { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 12px; }
+.icon-btn.small { width: 22px; height: 22px; }
+.board-ask { fill: none; stroke: var(--warn); stroke-width: 2; stroke-dasharray: 6 6; stroke-linecap: round; }
+.board-ask.done { opacity: 0.4; }
+.arrow-label { position: absolute; translate: -50% -50%; max-width: 260px; padding: 6px 10px; border-radius: 10px; background: var(--raised); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); font-size: 12.5px; box-shadow: var(--shadow-pop); z-index: 3; }
+.arrow-label.done { opacity: 0.6; }
+.arrow-actions { margin-top: 4px; }
+.arrow-text-edit { border: 0; outline: 0; background: transparent; font: inherit; color: var(--t1); width: 220px; user-select: text; }
+.tile-handle { position: absolute; right: -7px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: var(--raised); border: 2px solid var(--warn); opacity: 0; cursor: crosshair; z-index: 2; transition: opacity var(--quick) var(--ease); }
+.tile:hover .tile-handle { opacity: 1; }
+.notes-tool { color: var(--warn-text); }

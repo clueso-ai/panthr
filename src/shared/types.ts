@@ -361,9 +361,28 @@ export interface BoardView {
   zoom: number
 }
 
+/** A note on a canvas, free or on a tile, or an arrow from one tile to
+ *  another saying what should happen; sent to the agent when asked. */
+export interface CanvasNote {
+  id: string
+  kind: 'note' | 'arrow'
+  text: string
+  /** A note: where it sits (top-left), and the tile it is on, if any. */
+  x?: number
+  y?: number
+  on?: string | null
+  /** An arrow: from this tile to that one. */
+  from?: string
+  to?: string
+  /** Sent to the agent (or ticked off). */
+  done: boolean
+  at: number
+}
+
 export interface Board {
   /** The project (canvas folder) this is. */
   dir: string
+  notes: CanvasNote[]
   /** Top-left corner of each tile, by key (a project folder, or "ref:<id>"). */
   tiles: Record<string, { x: number; y: number }>
   links: BoardLink[]

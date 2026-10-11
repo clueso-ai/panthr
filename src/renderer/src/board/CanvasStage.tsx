@@ -7,7 +7,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
-import type { Board as BoardData, BoardView, Project, Reference } from '@shared/types'
+import type { Board as BoardData, BoardView, CanvasNote, Project, Reference } from '@shared/types'
 import { api, settingsNow, useEvent, useReferences } from '@/lib/api'
 import { EASE, rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
@@ -20,6 +20,7 @@ import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
 import { Compare } from './Compare'
 import { BrandCard } from './Brand'
+import { ArrowLabel, NoteCard, NOTE_W, noteMessage } from './Notes'
 import { MenuItem, Popover } from '@/ui/Popover'
 import './board.css'
 
@@ -369,6 +370,78 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
   useMotionValueEvent(z, 'change', place)
   useEffect(place, [activeAt?.x, activeAt?.y, shot.w, shot.h]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Notes and instruction arrows ────────────────────────────────
+  const notes = board?.notes ?? []
+  const [editingNote, setEditingNote] = useState<string | null>(null)
+  const saveNotes = (next: CanvasNote[], persist = true): void => {
+    setBoard((b) => (b ? { ...b, notes: next } : b))
+    if (persist) api.board.notes(canvas, next)
+  }
+  const patchNote = (id: string, p: Partial<CanvasNote>, persist = true): void => saveNotes(notes.map((n) => (n.id === id ? { ...n, ...p } : n)), persist)
+  const nameOf = (key: string): string => (key.startsWith('ref:') ? `@${refOf(key)?.handle ?? key}` : videos.get(key)?.meta.name ?? key.split('/').pop() ?? key)
+  const sendNotes = (ns: CanvasNote[]): void => {
+    const open = ns.filter((n) => !n.done && n.text.trim())
+    if (!open.length) return
+    onAsk(open.length === 1 ? noteMessage(open[0], nameOf) : `Notes on the canvas:\n${open.map((n) => `- ${noteMessage(n, nameOf)}`).join('\n')}`)
+    saveNotes(notes.map((n) => (open.some((o) => o.id === n.id) ? { ...n, done: true } : n)))
+  }
+  /** A canvas point from a point on screen. */
+  const toCanvas = (cx: number, cy: number): { x: number; y: number } => {
+    const r = stage.current!.getBoundingClientRect()
+    return { x: (cx - r.left - ox.get()) / z.get(), y: (cy - r.top - oy.get()) / z.get() }
+  }
+  const tileAt = (p: { x: number; y: number }): string | null =>
+    Object.entries(board?.tiles ?? {}).find(([, t]) => p.x >= t.x && p.x <= t.x + tile.w && p.y >= t.y && p.y <= t.y + tile.h)?.[0] ?? null
+  const newNote = (cx: number, cy: number): void => {
+    const p = toCanvas(cx, cy)
+    const n: CanvasNote = { id: Math.random().toString(16).slice(2, 10), kind: 'note', text: '', x: p.x - NOTE_W / 2, y: p.y - 30, on: tileAt(p), done: false, at: Math.floor(Date.now() / 1000) }
+    saveNotes([...notes, n], false)
+    setEditingNote(n.id)
+  }
+  /** Drag a note: it moves with the pointer, saved where it is let go (on a tile, it is about that tile). */
+  const dragNote = (n: CanvasNote, e: React.PointerEvent): void => {
+    const start = { px: e.clientX, py: e.clientY, x: n.x ?? 0, y: n.y ?? 0 }
+    let moved = false
+    const move = (m: PointerEvent): void => {
+      const dx = (m.clientX - start.px) / z.get()
+      const dy = (m.clientY - start.py) / z.get()
+      if (!moved && Math.hypot(dx, dy) * z.get() < 3) return
+      moved = true
+      patchNote(n.id, { x: start.x + dx, y: start.y + dy }, false)
+    }
+    const up = (m: PointerEvent): void => {
+      removeEventListener('pointermove', move)
+      removeEventListener('pointerup', up)
+      if (!moved) return
+      const x = start.x + (m.clientX - start.px) / z.get()
+      const y = start.y + (m.clientY - start.py) / z.get()
+      patchNote(n.id, { x, y, on: tileAt({ x: x + NOTE_W / 2, y: y + 20 }) })
+    }
+    addEventListener('pointermove', move)
+    addEventListener('pointerup', up)
+  }
+  /** Drag from a tile's handle to another tile: an arrow saying what should happen. */
+  const [linking, setLinking] = useState<{ from: string; x: number; y: number } | null>(null)
+  const startLink = (from: string, e: React.PointerEvent): void => {
+    e.stopPropagation()
+    e.preventDefault()
+    setLinking({ from, ...toCanvas(e.clientX, e.clientY) })
+    const move = (m: PointerEvent): void => setLinking({ from, ...toCanvas(m.clientX, m.clientY) })
+    const up = (m: PointerEvent): void => {
+      removeEventListener('pointermove', move)
+      removeEventListener('pointerup', up)
+      setLinking(null)
+      const to = tileAt(toCanvas(m.clientX, m.clientY))
+      if (!to || to === from) return
+      const n: CanvasNote = { id: Math.random().toString(16).slice(2, 10), kind: 'arrow', text: '', from, to, done: false, at: Math.floor(Date.now() / 1000) }
+      saveNotes([...notes, n])
+      setEditingNote(n.id)
+    }
+    addEventListener('pointermove', move)
+    addEventListener('pointerup', up)
+  }
+  const openNotes = notes.filter((n) => !n.done && n.text.trim())
+
   // ── What the tiles show ────────────────────────────────────────
   const keys = useMemo(() => Object.keys(board?.tiles ?? {}), [board])
   // The conversation is the project's: while it works, the videos it made this time show it.
@@ -403,6 +476,11 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
         panFrom.current = null
       }}
       onPointerCancel={() => (panFrom.current = null)}
+      onDoubleClick={(e) => {
+        if (!e.currentTarget.contains(e.target as Node)) return
+        if ((e.target as HTMLElement).closest('.tile, .board-ui, .canvas-live, .canvas-note, .arrow-label')) return
+        newNote(e.clientX, e.clientY)
+      }}
     >
       <div className="board-dots" />
       <motion.div className="board-canvas" style={{ x: ox, y: oy, scale: z }}>
@@ -428,6 +506,17 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
               />
             )
           })}
+          {notes.filter((n) => n.kind === 'arrow').map((n) => {
+            const a = pos(n.from!)
+            const b = pos(n.to!)
+            if (!a || !b) return null
+            const [x1, y1, x2, y2] = [a.x + tile.w / 2, a.y + tile.h / 2, b.x + tile.w / 2, b.y + tile.h / 2]
+            return <path key={n.id} d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${Math.min(y1, y2) - 120}, ${x2} ${y2}`} className={`board-ask${n.done ? ' done' : ''}`} markerEnd="url(#board-arrow)" />
+          })}
+          {linking && pos(linking.from) && (() => {
+            const a = pos(linking.from)!
+            return <path d={`M ${a.x + tile.w / 2} ${a.y + tile.h / 2} L ${linking.x} ${linking.y}`} className="board-ask" />
+          })()}
           <defs>
             <marker id="board-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 1 L 9 5 L 0 9" className="board-link-head" />
@@ -444,6 +533,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
             return (
               <motion.div
                 key={key}
+                data-key={key}
                 className={`tile${isActive ? ' on active-tile' : ''}${picked.includes(key) ? ' picked' : ''}${drag?.key === key ? ' dragging' : ''}${working(key) ? ' busy' : ''}`}
                 style={{ left: p.x, top: p.y, width: tile.w }}
                 initial={fresh.has(key) ? { opacity: 0, scale: 0.85, y: -24 } : { opacity: 0 }}
@@ -486,10 +576,27 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
                   } else onActivate(key)
                 }}
               >
+                <span className="tile-handle" title="Drag to another video: say what should happen" onPointerDown={(e) => startLink(key, e)} />
                 {ref ? <RefTile r={ref} h={tile.h} /> : <VideoTile p={video!} h={tile.h} live={!isActive && (fresh.has(key) || working(key))} active={isActive} working={working(key)} exporting={exports[key]} />}
               </motion.div>
             )
           })}
+        </AnimatePresence>
+        {notes.filter((n) => n.kind === 'arrow').map((n) => {
+          const a = pos(n.from!)
+          const b = pos(n.to!)
+          if (!a || !b) return null
+          const mid = { x: (a.x + b.x + tile.w) / 2, y: (Math.min(a.y, b.y) + tile.h / 2 + Math.min(a.y, b.y) + tile.h / 2 - 120) / 2 }
+          return <ArrowLabel key={n.id} n={n} x={mid.x} y={mid.y} editing={editingNote === n.id} onEdit={(on) => setEditingNote(on ? n.id : null)}
+            onText={(text, final) => patchNote(n.id, { text }, final)} onSend={() => sendNotes([n])} onDone={() => patchNote(n.id, { done: !n.done })} onDelete={() => saveNotes(notes.filter((x) => x.id !== n.id))} />
+        })}
+        <AnimatePresence>
+          {notes.filter((n) => n.kind === 'note').map((n) => (
+            <NoteCard key={n.id} n={n} editing={editingNote === n.id} onEdit={(on) => setEditingNote(on ? n.id : null)}
+              onText={(text, final) => (!final ? patchNote(n.id, { text }, false) : text.trim() ? patchNote(n.id, { text }) : saveNotes(notes.filter((x) => x.id !== n.id)))}
+              onSend={() => sendNotes([n])} onDone={() => patchNote(n.id, { done: !n.done })} onDelete={() => saveNotes(notes.filter((x) => x.id !== n.id))}
+              onDragStart={(e) => dragNote(n, e)} />
+          ))}
         </AnimatePresence>
       </motion.div>
 
@@ -523,6 +630,11 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
         <Tip title="Import" body="Video folders (or a folder of them), video files and other files. Or drop them on the canvas.">
           <button className="board-tool" onClick={async () => bringIn(await api.app.chooseFiles(true))}><Icon name="import" size={15} /><span>Import</span></button>
         </Tip>
+        {openNotes.length > 0 && (
+          <Tip title="Send the notes" body="Every open note and arrow on the canvas, to the agent at once.">
+            <button className="board-tool notes-tool" onClick={() => sendNotes(openNotes)}><Icon name="note" size={15} /><span>Send {openNotes.length} note{openNotes.length === 1 ? '' : 's'}</span></button>
+          </Tip>
+        )}
         <BrandCard dir={canvas} onRestyle={() => onAsk('Restyle every video in this project to the brand kit in BRAND.md: its colours, type, logo and voice exactly. Change each video in place, one after another, and check each.')} />
         <Tip title="References" body="Videos your agent has taken apart. Mention one with @.">
           <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>References</span></button>

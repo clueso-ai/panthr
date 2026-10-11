@@ -158,6 +158,8 @@ export interface Api {
     create(canvas: string, name: string, from?: string | null, near?: { x: number; y: number } | null): Promise<Project>
     /** Video folders (or folders of them), video files (as references) and other files (into the Library), placed from `at`. */
     import(canvas: string, paths: string[], at?: { x: number; y: number } | null): Promise<import('./types').BoardImport>
+    /** The canvas's notes and instruction arrows, all of them. */
+    notes(canvas: string, notes: import('./types').CanvasNote[]): Promise<void>
     /** A copy of a video beside it (an arrow from it), to redo from a moment on. */
     branch(canvas: string, dir: string, name: string): Promise<Project>
     /** Exported videos copied into the project's Exports/<when>/ (returns the folder). */

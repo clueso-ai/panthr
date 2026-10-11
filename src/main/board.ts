@@ -12,7 +12,7 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { Api } from '@shared/api'
-import type { Board, BoardImport, BoardLink, BoardView, Canvas, Project } from '@shared/types'
+import type { Board, BoardImport, BoardLink, BoardView, Canvas, CanvasNote, Project } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { libraryDir, now, studioRoot } from './paths'
@@ -30,6 +30,7 @@ const STEP = { x: TILE.w + GAP.x, y: TILE.h + GAP.y }
 interface Stored {
   tiles: Record<string, { x: number; y: number }>
   links: BoardLink[]
+  notes: CanvasNote[]
   view: BoardView | null
 }
 
@@ -41,9 +42,9 @@ const viewFile = (dir: string): string => join(dir, '.studio', 'canvas-view.json
 const read = (dir: string): Stored => {
   const v = readJson<Partial<Stored>>(canvasFile(dir), {})
   const view = readJson<BoardView | null>(viewFile(dir), null) ?? v.view ?? null
-  return { tiles: v.tiles ?? {}, links: Array.isArray(v.links) ? v.links : [], view }
+  return { tiles: v.tiles ?? {}, links: Array.isArray(v.links) ? v.links : [], notes: Array.isArray(v.notes) ? v.notes : [], view }
 }
-const write = (dir: string, s: Stored): void => writeJson(canvasFile(dir), { tiles: s.tiles, links: s.links })
+const write = (dir: string, s: Stored): void => writeJson(canvasFile(dir), { tiles: s.tiles, links: s.links, notes: s.notes })
 
 export const refKey = (id: string): string => `ref:${id}`
 
@@ -74,7 +75,7 @@ function adopt(dir0: string): void {
   const meta = loadMeta(dir)
   if (!meta) return
   if (!existsSync(join(dir, '.studio', 'project.json'))) saveMetaFile(dir, meta)
-  write(dir, { tiles: { [dir]: { x: 0, y: 0 } }, links: [], view: null })
+  write(dir, { tiles: { [dir]: { x: 0, y: 0 } }, links: [], notes: [], view: null })
 }
 
 /** Folders at the top of ~/Panthr that are not projects. */
@@ -151,7 +152,7 @@ export function createCanvas(name: string): Canvas {
   for (let n = 2; existsSync(dir); n++) dir = join(root, `${base} ${n}`)
   mkdirSync(dir, { recursive: true })
   saveMetaFile(dir, { name: name.trim() || 'Untitled', created_at: now(), chats: [], agents_enabled: true, models: {}, auto_name: true })
-  write(dir, { tiles: {}, links: [], view: null })
+  write(dir, { tiles: {}, links: [], notes: [], view: null })
   linkSkills(dir)
   return canvasInfo(real(dir))!
 }
@@ -198,8 +199,13 @@ export function board(dir: string): Board {
   const links = s.links.filter((l) => s.tiles[l.from] && s.tiles[l.to])
   if (links.length !== s.links.length) changed = true
   s.links = links
+  // Arrows lose their meaning without both tiles; a note on a gone tile stays, free.
+  const notes = s.notes.filter((n) => n.kind !== 'arrow' || (s.tiles[n.from ?? ''] && s.tiles[n.to ?? '']))
+  for (const n of notes) if (n.kind === 'note' && n.on && !s.tiles[n.on]) n.on = null
+  if (notes.length !== s.notes.length) changed = true
+  s.notes = notes
   if (changed) write(dir, s)
-  return { dir, tiles: s.tiles, links: s.links, view: s.view, tile: TILE }
+  return { dir, tiles: s.tiles, links: s.links, notes: s.notes, view: s.view, tile: TILE }
 }
 
 /** A video or reference on this canvas by what someone might call it: its
@@ -423,6 +429,13 @@ export const boardApi: Api['board'] = {
   },
   async import(canvas, paths, at) {
     return importPaths(canvas, paths, at)
+  },
+  async notes(canvas, notes) {
+    canvas = real(canvas)
+    const s = read(canvas)
+    s.notes = notes
+    write(canvas, s)
+    changed(canvas)
   },
   async collect(canvas, files) {
     return collect(canvas, files)
