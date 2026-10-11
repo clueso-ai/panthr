@@ -125,6 +125,12 @@ export interface Api {
     /** A text file from its folder (null: missing, or too big to show). */
     readFile(id: string, path: string): Promise<string | null>
   }
+  history: {
+    /** Every recorded turn of a project. */
+    list(dir: string): Promise<import('./types').Checkpoint[]>
+    /** Put a turn's files back as they were before it (or, redo, as it left them). */
+    undo(dir: string, chatId: string, turn: number, redo?: boolean): Promise<{ restored: string[]; skipped: string[] }>
+  }
   canvases: {
     /** Every project (a canvas of videos), newest first. */
     list(): Promise<import('./types').Canvas[]>
@@ -176,6 +182,8 @@ export interface Events {
   'chat:titled': { dir: string; chatId: string; title: string }
   /** A project got a new name (by the person, or from its first message). */
   'project:renamed': { dir: string; name: string }
+  /** A project's checkpoints changed. */
+  'history:changed': { dir: string }
   /** The board's tiles or arrows changed. */
   'board:changed': import('./types').Board
   /** Show this tile (fresh: it was just made). */

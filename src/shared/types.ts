@@ -392,3 +392,20 @@ export interface BoardImport {
   library: string[]
   skipped: { path: string; why: string }[]
 }
+
+// ── Checkpoints (a project's .studio/checkpoints.json) ────────────
+
+/** One agent turn's files, before and after (commits in the project's own history). */
+export interface Checkpoint {
+  chatId: string
+  /** The index of the turn's message in its chat. */
+  turn: number
+  label: string
+  before: string
+  after: string
+  /** What the turn changed (paths from the project folder). */
+  files: string[]
+  /** Undone: the snapshot after the undo (redo goes back from it); null when not undone. */
+  undone: string | null
+  at: number
+}

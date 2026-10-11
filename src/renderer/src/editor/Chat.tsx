@@ -6,7 +6,7 @@
 
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ChatState, Item, Step } from '@shared/types'
+import type { ChatState, Item, Step, Checkpoint } from '@shared/types'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
 import { EyeMark } from '@/ui/Eye'
 import { Block, blocks } from './Markdown'
@@ -80,7 +80,12 @@ function useTicker(on: boolean): number {
 }
 
 /** Memoised: the editor re-renders on every playback tick, the chat need not. */
-export const Chat = memo(function Chat({ chat }: { chat: ChatState }) {
+export const Chat = memo(function Chat({ chat, history, onUndo }: {
+  chat: ChatState
+  /** The project's checkpoints: each finished turn can be undone (and redone). */
+  history?: Checkpoint[]
+  onUndo?(turn: number, redo: boolean): void
+}) {
   const scroller = useRef<HTMLDivElement>(null)
   const follow = useRef(true)
   const [unfolded, setUnfolded] = useState<Set<number>>(new Set())
@@ -179,6 +184,17 @@ export const Chat = memo(function Chat({ chat }: { chat: ChatState }) {
               </AnimatePresence>
               {active && steps.length > 0 && <LiveStep steps={steps} />}
               {foldable && finalText && <ItemView item={finalText.x} streaming={false} fresh={isNew(finalText.i)} />}
+              {!active && turn.user !== null && onUndo && (() => {
+                const cp = history?.find((x) => x.chatId === chat.chatId && x.turn === turn.user)
+                if (!cp || !cp.files.length) return null
+                const n = cp.files.length
+                return (
+                  <div className={`turn-undo${cp.undone ? ' undone' : ''}`}>
+                    <span className="faint">{cp.undone ? `Undone · ${n} file${n === 1 ? '' : 's'} put back` : `Changed ${n} file${n === 1 ? '' : 's'}`}</span>
+                    <button className="link" onClick={() => onUndo(turn.user!, !!cp.undone)}>{cp.undone ? 'Redo' : 'Undo this turn'}</button>
+                  </div>
+                )
+              })()}
               {active && !steps.length && !texts.length && (
                 <div className="thinking"><EyeMark width={18} watch={0.7} /> <Shine text="Thinking" /></div>
               )}

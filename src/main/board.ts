@@ -35,11 +35,15 @@ interface Stored {
 
 const canvasFile = (dir: string): string => join(dir, '.studio', 'canvas.json')
 export const isCanvas = (dir: string): boolean => existsSync(canvasFile(dir))
+/** Where the canvas was looked at: its own file, kept out of the project's
+ *  history (panning is not a change to undo). */
+const viewFile = (dir: string): string => join(dir, '.studio', 'canvas-view.json')
 const read = (dir: string): Stored => {
   const v = readJson<Partial<Stored>>(canvasFile(dir), {})
-  return { tiles: v.tiles ?? {}, links: Array.isArray(v.links) ? v.links : [], view: v.view ?? null }
+  const view = readJson<BoardView | null>(viewFile(dir), null) ?? v.view ?? null
+  return { tiles: v.tiles ?? {}, links: Array.isArray(v.links) ? v.links : [], view }
 }
-const write = (dir: string, s: Stored): void => writeJson(canvasFile(dir), s)
+const write = (dir: string, s: Stored): void => writeJson(canvasFile(dir), { tiles: s.tiles, links: s.links })
 
 export const refKey = (id: string): string => `ref:${id}`
 
@@ -345,10 +349,7 @@ export const boardApi: Api['board'] = {
     write(canvas, s)
   },
   async setView(canvas, view) {
-    canvas = real(canvas)
-    const s = read(canvas)
-    s.view = view
-    write(canvas, s)
+    writeJson(viewFile(real(canvas)), view)
   },
   async create(canvas, name, from, near) {
     return newVideo(canvas, name, from, near)

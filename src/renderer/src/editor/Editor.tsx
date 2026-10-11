@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ChatState, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
+import type { ChatState, Checkpoint, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
 import { setRequest } from '@shared/controls'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
@@ -114,6 +114,25 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     })
     api.skills.link(canvas).catch(() => {})
   }, [canvas])
+  // The project's checkpoints: every finished turn can be undone.
+  const [history, setHistory] = useState<Checkpoint[]>([])
+  useEffect(() => {
+    api.history.list(canvas).then(setHistory)
+  }, [canvas])
+  useEvent('history:changed', (e) => {
+    if (e.dir === canvas) api.history.list(canvas).then(setHistory)
+  }, [canvas])
+  const undoTurn = useCallback(async (turn: number, redo: boolean): Promise<void> => {
+    if (!chatId) return
+    try {
+      const r = await api.history.undo(canvas, chatId, turn, redo)
+      const n = r.restored.length
+      setStatus({ text: `${redo ? 'Redid' : 'Undid'} the turn: ${n} file${n === 1 ? '' : 's'}${r.skipped.length ? `; kept ${r.skipped.length} you changed since` : ''}`, id: Date.now() })
+    } catch (e) {
+      setStatus({ text: `Couldn't ${redo ? 'redo' : 'undo'} it: ${(e as Error).message}`, id: Date.now() })
+    }
+  }, [canvas, chatId])
+
   // A project started from Home: its idea goes to the conversation once.
   const sentFirst = useRef(false)
   useEffect(() => {
@@ -662,7 +681,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
               {side === 'chat' && (
                 <>
                   {chats.length > 1 && <ChatPills chats={chats} active={chatId} onPick={setChatId} />}
-                  {chat && chat.items.length > 0 ? <Chat chat={chat} /> : <ProjectIntro />}
+                  {chat && chat.items.length > 0 ? <Chat chat={chat} history={history} onUndo={undoTurn} /> : <ProjectIntro />}
                 </>
               )}
               {side === 'notes' && (

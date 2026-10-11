@@ -19,6 +19,7 @@ import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
 import { suggestName } from './namer'
 import { isCanvas } from './board'
+import { record, snap, tracked } from './history'
 
 /** A chat's title until its first message names it. */
 export const NEW_CHAT = 'New chat'
@@ -256,6 +257,16 @@ class Chat {
       }
     }
     const first = this.t.isEmpty()
+    // A checkpoint of the project's files before the agent touches them, so
+    // this turn can be undone. Messages typed meanwhile wait their turn.
+    if (isCanvas(this.dir) && tracked(this.dir)) {
+      this.busy = true
+      try {
+        this.pending = { turn: this.t.items.length, before: await snap(this.dir, `before: ${text.slice(0, 80)}`), label: text.split('\n')[0].slice(0, 80) }
+      } finally {
+        this.busy = false
+      }
+    }
     if (this.t.engine === 'codex') {
       try {
         this.gen++
@@ -329,7 +340,20 @@ class Chat {
     this.show()
   }
 
+  /** The turn's starting checkpoint, until it ends. */
+  private pending: { turn: number; before: string | null; label: string } | null = null
+
+  /** The turn's closing checkpoint, and what it changed. */
+  private async checkpoint(): Promise<void> {
+    const p = this.pending
+    this.pending = null
+    if (!p?.before) return
+    const after = await snap(this.dir, `after: ${p.label}`)
+    if (after) await record(this.dir, { chatId: this.chatId, turn: p.turn, label: p.label, before: p.before, after })
+  }
+
   private turnEnded(): void {
+    void this.checkpoint()
     emit('chat:turn', { dir: this.dir, chatId: this.chatId })
     // On a host: the agent's notes there (controls, comments) come back.
     if (remote.hostOf(this.dir)) void pullKeeping(this.dir)
@@ -393,6 +417,7 @@ class Chat {
       this.t.streaming = null
       this.t.items.push({ Note: 'Stopped' })
       this.save(true)
+      void this.checkpoint()
       emit('chat:turn', { dir: this.dir, chatId: this.chatId })
     }
     this.show(true)
