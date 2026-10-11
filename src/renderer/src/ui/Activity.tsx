@@ -36,7 +36,11 @@ const nameOf = (dir: string): void => {
 }
 
 api.on('project:renamed', ({ dir, name }) => publish({ names: new Map(now.names).set(dir, name) }))
+/** The assistant's folder: its turns are shown in its own box, not here. */
+let assistant = ''
+api.assistant.open().then((a) => (assistant = a.dir))
 api.on('chat:state', (c) => {
+  if (c.dir === assistant) return
   const running = now.turns.get(c.dir)
   if (c.working) {
     if (running?.chatId === c.chatId && running.startedAt === c.startedAt) return

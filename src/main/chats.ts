@@ -20,6 +20,10 @@ import { CodexRun, models as codexModels } from './agents/codex'
 import { suggestName } from './namer'
 import { isCanvas } from './board'
 import { record, snap, tracked } from './history'
+import { assistantDir } from './paths'
+
+/** The instructions for a chat in this folder: the assistant's, a project's or a video's. */
+const kindOf = (dir: string): boolean | 'assistant' => (resolve(dir) === resolve(assistantDir()) ? 'assistant' : isCanvas(dir))
 
 /** A chat's title until its first message names it. */
 export const NEW_CHAT = 'New chat'
@@ -286,7 +290,7 @@ class Chat {
     if (this.t.engine === 'codex') {
       try {
         this.gen++
-        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(isCanvas(this.dir)) }, this.listener())
+        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(kindOf(this.dir)) }, this.listener())
       } catch (e) {
         this.note(`Could not start Codex: ${(e as Error).message}`)
         return this.sendQueued()
@@ -300,7 +304,7 @@ class Chat {
       if (!this.claude.running()) {
         try {
           this.gen++
-          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model, board: isCanvas(this.dir) }, this.listener())
+          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model, board: kindOf(this.dir) }, this.listener())
         } catch (e) {
           this.note(`Could not start Claude Code: ${(e as Error).message}`)
           return this.sendQueued()

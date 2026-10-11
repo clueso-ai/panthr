@@ -23,6 +23,9 @@ export const dataDir = (): string =>
   process.env.PANTHR_DATA_DIR ||
   join(sandboxed() ? join(home(), 'Library/Application Support') : (app?.getPath?.('appData') ?? join(homedir(), 'Library/Application Support')), 'Panthr')
 
+/** The assistant's folder: its conversations (in .studio, as a project's), kept out of ~/Panthr. */
+export const assistantDir = (): string => join(dataDir(), 'assistant')
+
 /** The app's own files (runtime, picker, bridge, editor tool, prompt). */
 export const resourcesDir = (): string =>
   app?.isPackaged ? join(process.resourcesPath, 'resources') : join(app?.getAppPath?.() ?? process.cwd(), 'resources')

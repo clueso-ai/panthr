@@ -54,7 +54,7 @@ function parse(argv) {
   return { pos, opt }
 }
 const SHORT = { p: 'project', w: 'wait', j: 'json', h: 'help', c: 'chat', m: 'model', a: 'agent' }
-const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill', 'from', 'canvas'])
+const VALUED = new Set(['project', 'chat', 'host', 'agent', 'model', 'at', 'name', 'when', 'file', 'skill', 'from', 'canvas', 'video'])
 
 // ── The connection to the app ───────────────────────────────────
 
@@ -266,6 +266,25 @@ const commands = {
       const s2 = await wait
       if (opt.json) console.log(JSON.stringify({ dir: p.dir, chat: chatId, items: s2.items }, null, 2))
     } else out(opt, { dir: p.dir, chat: chatId }, () => console.log(dim('The agent is on it. Follow along: panthr log -p ' + JSON.stringify(p.meta.name) + ' --wait')))
+  },
+
+  async canvases(a, { opt }) {
+    // The projects as Home shows them: each a canvas of videos with its own conversation.
+    const all = await a.call('canvases.list')
+    out(opt, all, () => {
+      if (!all.length) return console.log(dim('No projects yet.'))
+      for (const p of all) console.log(`${bold(p.name)}  ${dim(`${p.videos} video${p.videos === 1 ? '' : 's'} \u00b7 edited ${ago(p.edited_at || p.created_at)}`)}\n  ${dim(p.dir)}`)
+    })
+  },
+
+  async ask(a, { pos, opt }) {
+    // A message for a project's own agent: the window goes to the project
+    // and the message into its conversation. --new: a new project for it.
+    const [proj, ...words] = opt.new ? [null, ...pos] : pos
+    const text = words.join(' ').trim()
+    if (!text) throw new Error('panthr ask "<project>" "<message>" [--video <name>]   or   panthr ask --new "<idea>"')
+    const r = await a.call('assistant.handoff', proj, text, typeof opt.video === 'string' ? opt.video : null)
+    out(opt, r, () => console.log(`${rose('\u25cf')} ${r.queued ? 'Queued for' : 'Sent to'} ${bold(r.name)}  ${dim(r.dir)}`))
   },
 
   async open(a, { opt }) {
@@ -583,7 +602,11 @@ ${bold('Inside the video')}
 
 ${bold('The app')}
   status                 Running? Which project is open? Is an agent working?
-  projects               Every project
+  canvases               Every project, as Home shows them (each a canvas of videos)
+  ask "<project>" "<message>" [--video <name>]
+                         Hand a message to a project's own agent; the window goes there
+  ask --new "<idea>"     A new project, its agent given the idea
+  projects               Every video
   open                   Show a project in the window [--show to bring it forward]
   shot [file.png]        A picture of the window
   settings [key [value]] Read or change a setting

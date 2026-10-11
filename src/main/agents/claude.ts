@@ -15,10 +15,17 @@ import * as remote from '../remote'
 
 let prompt: string | null = null
 let boardPrompt: string | null = null
+let assistantPrompt: string | null = null
+
+/** Which instructions a chat gets: a video's, a project's (its canvas), or
+ *  the assistant's (Panthr itself, from Home). */
+export type PromptKind = boolean | 'assistant'
 
 /** The video-making instructions (Codex gets them too). On the Board, the
- *  Board's own (making projects, showing them) come first. */
-export function promptText(board = false): string {
+ *  Board's own (making projects, showing them) come first. The assistant
+ *  makes no videos: it has only its own. */
+export function promptText(board: PromptKind = false): string {
+  if (board === 'assistant') return (assistantPrompt ??= readFileSync(resource('assistant_prompt.md'), 'utf8'))
   prompt ??= readFileSync(resource('studio_prompt.md'), 'utf8')
   if (!board) return prompt
   // The canvas rules first, the video-making instructions, then the one rule
@@ -37,10 +44,10 @@ export function claudeBin(): string {
 }
 
 /** The prompt as a file (rewritten only when it changed). */
-export function promptFile(board = false): string {
+export function promptFile(board: PromptKind = false): string {
   const dir = dataDir()
   mkdirSync(dir, { recursive: true })
-  const p = join(dir, board ? 'board_prompt.md' : 'studio_prompt.md')
+  const p = join(dir, board === 'assistant' ? 'assistant_prompt.md' : board ? 'board_prompt.md' : 'studio_prompt.md')
   let current: string | null = null
   try {
     current = readFileSync(p, 'utf8')
@@ -148,8 +155,8 @@ export interface ClaudeOptions {
   resume: string | null
   agents: boolean
   model: string | null
-  /** The Board's conversation (its own instructions come first). */
-  board?: boolean
+  /** The Board's conversation (its own instructions come first), or the assistant's. */
+  board?: PromptKind
 }
 
 /** The command line for a chat's Claude Code (exactly claude.rs's). */
@@ -164,7 +171,9 @@ export function claudeArgs(o: ClaudeOptions, host: Host | null): string[] {
   } else {
     args.push('--append-system-prompt-file', promptFile(o.board))
     // The shared library, and the reference videos (@-mentioned in chat).
-    args.push('--permission-mode', 'acceptEdits', '--add-dir', libraryDir(), '--add-dir', join(studioRoot(), 'References'))
+    // The assistant edits no project: it works through `panthr`.
+    if (o.board === 'assistant') args.push('--permission-mode', 'acceptEdits')
+    else args.push('--permission-mode', 'acceptEdits', '--add-dir', libraryDir(), '--add-dir', join(studioRoot(), 'References'))
   }
   const allowed = ['Bash', 'Read', 'Write', 'Edit', 'MultiEdit', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'TodoWrite', 'Skill']
   if (o.agents) allowed.push('Task')

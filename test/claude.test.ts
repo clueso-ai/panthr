@@ -153,6 +153,17 @@ describe('the command line', () => {
     expect(a).not.toContain('--resume')
   })
 
+  it('the assistant: its own prompt, no project folders', () => {
+    const a = claudeArgs({ dir: '/data/assistant', resume: null, agents: false, model: null, board: 'assistant' }, null)
+    const file = a[a.indexOf('--append-system-prompt-file') + 1]
+    expect(file).toBe(join(process.env.PANTHR_DATA_DIR!, 'assistant_prompt.md'))
+    expect(readFileSync(file, 'utf8')).toBe(promptText('assistant'))
+    expect(promptText('assistant')).toContain('panthr ask')
+    expect(promptText('assistant')).not.toBe(promptText(true))
+    expect(a).not.toContain('--add-dir')
+    expect(a[a.indexOf('--permission-mode') + 1]).toBe('acceptEdits')
+  })
+
   it('on a host: the prompt inline and the host library', () => {
     const a = claudeArgs({ dir: '/p', resume: null, agents: true, model: null }, host)
     expect(a[a.indexOf('--append-system-prompt') + 1]).toBe(promptText())

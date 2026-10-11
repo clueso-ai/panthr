@@ -15,6 +15,7 @@ import { frostAlpha } from './ui/Controls'
 import './ui/Activity' // starts listening for background work at once
 import { DropVideos } from './editor/References'
 import { sayOnCanvas } from './board/CanvasStage'
+import { openAssistant, toggleAssistant } from './assistant/Assistant'
 
 type View =
   | { kind: 'home' }
@@ -100,8 +101,22 @@ export function App() {
   useEvent('board:focus', (e) => {
     if (view?.kind !== 'project' || view.canvas !== e.canvas) openProject(e.canvas, e.key.startsWith('ref:') ? null : e.key)
   }, [view])
+  // The assistant handed a message to a project's conversation: go and watch.
+  useEvent('assistant:handoff', (e) => {
+    if (view?.kind === 'project' && view.canvas === e.canvas) {
+      if (e.active && e.active !== view.active) openProject(e.canvas, e.active)
+    } else openProject(e.canvas, e.active)
+  }, [view])
   useEvent('command', ({ name }) => {
     if (name === 'settings') setSettings((x) => ({ ...x, open: !x.open }))
+    // The assistant lives on Home.
+    else if (name === 'assistant') {
+      if (view?.kind === 'home') toggleAssistant()
+      else {
+        home()
+        openAssistant()
+      }
+    }
     else if (name === 'theme') toggleTheme(s.appearance)
     else if (name === 'new-project') home()
     else if (name === 'open-share') {

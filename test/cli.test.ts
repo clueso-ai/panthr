@@ -15,6 +15,7 @@ const comments: any[] = []
 let settings: Record<string, unknown> = { agent: 'claude', model: 'default', skimming: true, export_fps: 30 }
 const project = { dir: '/p/Demo', host: null, edited_at: 0, thumb: null, meta: { name: 'Demo', created_at: 1, chats: [{ id: 'c1', title: 'x', created_at: 1 }], agents_enabled: true, models: {} } }
 let items: any[] = []
+const handed: any[] = []
 
 async function dispatch(method: string, params: any[]): Promise<unknown> {
   switch (method) {
@@ -36,6 +37,10 @@ async function dispatch(method: string, params: any[]): Promise<unknown> {
       setTimeout(() => { items = [...items, { Meta: { cost_usd: 0.12, seconds: 4, error: false } }]; st(false) }, 80)
       return null
     }
+    case 'assistant.handoff':
+      handed.push(params)
+      if (params[0] === 'Nope') throw new Error('No project called "Nope"')
+      return { dir: '/p/Launch', name: 'Launch Reel', chatId: 'c9', queued: false }
     case 'review.render':
       setTimeout(() => forward('job', { type: 'progress', dir: '/p/Demo', percent: 50 }), 20)
       setTimeout(() => forward('job', { type: 'rendered', dir: '/p/Demo', version: { n: 3, file: 'v3.mp4', created_at: 1, bytes: 1, render_seconds: 1, duration: 6 } }), 40)
@@ -90,6 +95,18 @@ describe('panthr', () => {
   it('exports and waits for the file', async () => {
     const r = await cli('export', '--wait', '--json')
     expect(JSON.parse(r.out)).toMatchObject({ ok: true, file: '/p/Demo/.studio/versions/v3.mp4' })
+  })
+  it('hands a message to a project, or a new one', async () => {
+    const r = await cli('ask', 'Launch', 'Make the intro', 'shorter', '--video', 'Teaser 9:16')
+    expect(r.code).toBe(0)
+    expect(r.out).toContain('Sent to')
+    expect(handed.at(-1)).toEqual(['Launch', 'Make the intro shorter', 'Teaser 9:16'])
+    await cli('ask', '--new', 'A 10-second logo reveal')
+    expect(handed.at(-1)).toEqual([null, 'A 10-second logo reveal', null])
+    const bad = await cli('ask', 'Nope', 'hi')
+    expect(bad.code).toBe(1)
+    expect(bad.err).toContain('No project called')
+    expect((await cli('ask', 'Launch')).code).toBe(1)
   })
   it('says what is wrong', async () => {
     const r = await cli('chat', 'x', '-p', 'nothing-like-this')

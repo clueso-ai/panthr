@@ -17,6 +17,7 @@ import { Tip } from '@/ui/Tooltip'
 import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { addVideos, ReferencesSection } from '@/editor/References'
+import { Assistant } from '@/assistant/Assistant'
 import './home.css'
 
 const IDEAS: [string, string][] = [
@@ -185,6 +186,7 @@ export function Home({ onOpen, onStart, onSettings }: {
         </div>
       </div>
       <ActivityStatus className="home-activity" />
+      <Assistant />
       <AnimatePresence>
         {refsOpen && (
           <motion.div className="sheet-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)} onClick={() => setRefsOpen(false)}>

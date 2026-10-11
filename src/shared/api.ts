@@ -145,6 +145,14 @@ export interface Api {
     /** Open a .panthr: a new project, or the same project's notes merged in. */
     open(file: string): Promise<{ dir: string; merged: boolean; text: string }>
   }
+  assistant: {
+    /** The assistant's folder and its newest conversation (made the first time). */
+    open(): Promise<{ dir: string; chatId: string }>
+    /** A new conversation with it. */
+    fresh(): Promise<{ dir: string; chatId: string }>
+    /** A message for a project's own agent (no project: a new one, named from it); the window goes there. */
+    handoff(project: string | null, text: string, video?: string | null): Promise<{ dir: string; name: string; chatId: string; queued: boolean }>
+  }
   canvases: {
     /** Every project (a canvas of videos), newest first. */
     list(): Promise<import('./types').Canvas[]>
@@ -210,6 +218,8 @@ export interface Events {
   'history:changed': { dir: string }
   /** The board's tiles or arrows changed. */
   'board:changed': import('./types').Board
+  /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
+  'assistant:handoff': { canvas: string; chatId: string; active: string | null }
   /** Show this tile (fresh: it was just made). */
   'board:focus': { canvas: string; key: string; fresh: boolean }
   'chat:session': { dir: string; chatId: string; sessionId: string }

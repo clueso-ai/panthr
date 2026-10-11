@@ -1,0 +1,37 @@
+/* The assistant: a button at the bottom right, its chat box above it, and
+   the same box grown to fill the window. */
+
+.assistant-fab-wrap { position: absolute; right: 16px; bottom: 16px; z-index: 40; }
+.assistant-fab {
+  position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--raised); color: var(--t1); box-shadow: var(--shadow-pop);
+  transition: transform var(--quick) var(--ease), background var(--quick) var(--ease);
+}
+.assistant-fab:hover { background: color-mix(in srgb, var(--raised) 88%, var(--t1)); }
+.assistant-fab:active { transform: scale(0.94); }
+.assistant-dot { position: absolute; top: 3px; right: 3px; width: 9px; height: 9px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px var(--raised); }
+
+.assistant {
+  position: absolute; z-index: 39; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 16px; background: var(--pane); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--hair-2);
+}
+.assistant-head { flex: none; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--hair); min-width: 0; }
+.assistant-head b { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.assistant-head .faint { font-size: 12px; min-width: 0; }
+.assistant:not(.full) .assistant-head .faint { display: none; }
+.assistant-body { flex: 1; min-height: 0; display: flex; justify-content: center; }
+.assistant-col { flex: 1; min-width: 0; max-width: 100%; display: flex; flex-direction: column; }
+.assistant.full .assistant-col { max-width: 760px; }
+.assistant-col .chat-wrap { flex: 1; min-height: 0; }
+
+.assistant-empty { flex: 1; display: grid; place-items: end start; padding: 0 18px 14px; }
+.assistant.full .assistant-empty { place-items: center; text-align: center; }
+.assistant-empty-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.assistant-empty-body { color: var(--t2); font-size: 13px; line-height: 19px; max-width: 46ch; }
+.assistant.full .assistant-empty-body { margin: 0 auto; }
+.assistant-ideas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.assistant.full .assistant-ideas { justify-content: center; }
+.assistant-ideas .idea { font-size: 12px; padding: 5px 11px; }
+
+.assistant-composer { flex: none; }
+.assistant-hint { font-size: 11.5px; margin-left: 4px; }
