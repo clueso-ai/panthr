@@ -21,7 +21,9 @@ let boardPrompt: string | null = null
 export function promptText(board = false): string {
   prompt ??= readFileSync(resource('studio_prompt.md'), 'utf8')
   if (!board) return prompt
-  boardPrompt ??= `${readFileSync(resource('board_prompt.md'), 'utf8')}\n${prompt}`
+  // The canvas rules first, the video-making instructions, then the one rule
+  // that matters most once more at the end, where it is read last.
+  boardPrompt ??= `${readFileSync(resource('board_prompt.md'), 'utf8')}\n${prompt}\n\n${readFileSync(resource('board_prompt_end.md'), 'utf8')}`
   return boardPrompt
 }
 

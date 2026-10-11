@@ -492,7 +492,11 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const withVideo = (text: string): string => {
     if (!dir) return text
     const where = dir === canvas ? 'the project folder itself' : `folder "${dir.startsWith(`${canvas}/`) ? dir.slice(canvas.length + 1) : dir}"`
-    return `${text}\n\n(Active video: "${project?.meta.name ?? ''}", in ${where})`
+    const name = project?.meta.name ?? ''
+    // The decision that matters most, put where the agent makes it: a new
+    // video is its own tile, not more of this one. (The chat shows this line
+    // as a chip, not as part of the message.)
+    return `${text}\n\n(Active video: "${name}", in ${where}. If this asks for a new video, a variant, another style or a cut-down, make it its own tile first: \`panthr board new "<name>" --from "${name}"\`, then build it in the folder that prints. Never add another film to this video's timeline unless asked to combine them.)`
   }
 
   // ── Notes ──────────────────────────────────────────────────
