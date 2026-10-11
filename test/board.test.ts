@@ -1,7 +1,7 @@
 // The Board: tiles placed for every project, new ones beside what they came
 // from (with an arrow), names resolved the way the agent writes them, and
 // the board's conversation living in ~/Panthr. Temp folders only.
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -127,6 +127,8 @@ describe('board', () => {
     expect(dir).toBe(process.env.PANTHR_ROOT)
     expect(isBoard(dir)).toBe(true)
     expect(loadMeta(dir)!.name).toBe('Board')
+    // Its agent works from here, so the skills are linked here too.
+    expect(existsSync(join(dir, '.claude/skills'))).toBe(true)
     writeFileSync(join(dir, 'index.html'), 'x')
     expect(list().some((p) => p.dir === dir)).toBe(false)
   })

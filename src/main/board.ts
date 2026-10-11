@@ -14,6 +14,7 @@ import { dataDir, libraryDir, now, studioRoot } from './paths'
 import { createIn, list as listProjects, load, loadMeta, openFolder, saveMetaFile } from './projects'
 import { list as listReferences, references } from './references'
 import { addToLibrary } from './review'
+import { link as linkSkills } from './skills'
 
 /** A tile's footprint on the board (the window draws it at this size). */
 export const TILE = { w: 320, h: 230 }
@@ -42,6 +43,8 @@ export function boardDir(): string {
     mkdirSync(dir, { recursive: true })
     saveMetaFile(dir, { name: 'Board', created_at: now(), chats: [], agents_enabled: true, models: {} })
   }
+  // The board's agent works from here: it gets the skills that are on.
+  linkSkills(dir)
   return dir
 }
 export const isBoard = (dir: string): boolean => resolve(dir) === resolve(studioRoot())
@@ -178,7 +181,10 @@ export async function importPaths(paths: string[], at?: { x: number; y: number }
   }
   for (const d of [...new Set(projectDirs)]) {
     const proj = openFolder(d)
-    if (proj) out.projects.push(proj.dir)
+    if (proj) {
+      out.projects.push(proj.dir)
+      linkSkills(proj.dir)
+    }
     else out.skipped.push({ path: d, why: 'Not a project' })
   }
   // Place what is new to the board in a row from the drop point.
@@ -232,6 +238,7 @@ export const boardApi: Api['board'] = {
     const at = src && s.tiles[src] ? besideSpot(s.tiles, s.tiles[src]) : freeSpot(s.tiles, near?.x ?? s.view?.x ?? 0, near?.y ?? s.view?.y ?? 0)
     s.tiles[p.dir] = at
     if (src) s.links.push({ from: src, to: p.dir })
+    linkSkills(p.dir)
     write(s)
     emit('board:changed', board())
     emit('board:focus', { key: p.dir, fresh: true })

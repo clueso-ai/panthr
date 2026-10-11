@@ -242,6 +242,8 @@ export function linkAll(): void {
     if (resolve(p) === resolve(hub())) continue
     if (existsSync(join(p, 'index.html')) || existsSync(join(p, '.studio'))) link(p)
   }
+  // ~/Panthr itself, where the Board's conversation works.
+  if (existsSync(join(projectsRoot(), '.studio'))) link(projectsRoot())
 }
 
 /** Switch a skill on or off for every project. */
