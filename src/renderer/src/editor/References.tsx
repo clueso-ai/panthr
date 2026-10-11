@@ -243,6 +243,10 @@ export function DropVideos({ onAdded, board }: { onAdded?(n: number): void; boar
       depth.current = 0
       setOver(false)
       const paths = [...(e.dataTransfer?.files ?? [])].map((f) => window.panthr.pathForFile(f)).filter(Boolean)
+      // A .panthr anywhere on the window opens as a project.
+      const shared = paths.filter((p) => p.endsWith('.panthr'))
+      shared.forEach((p) => window.panthr.share.open(p).catch(() => {}))
+      if (shared.length === paths.length) return
       const taken = !dispatchEvent(new CustomEvent('panthr:drop-paths', { detail: { paths, x: e.clientX, y: e.clientY }, cancelable: true }))
       if (taken) return
       const n = await addVideos(paths)

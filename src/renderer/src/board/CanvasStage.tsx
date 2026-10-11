@@ -24,6 +24,14 @@ import { ArrowLabel, NoteCard, NOTE_W, noteMessage } from './Notes'
 import { MenuItem, Popover } from '@/ui/Popover'
 import './board.css'
 
+/** A line for the canvas to show (from outside it: a .panthr opened, a share saved). */
+let pendingNote: string | null = null
+const noteSubs = new Set<(t: string) => void>()
+export function sayOnCanvas(text: string): void {
+  if (noteSubs.size) noteSubs.forEach((f) => f(text))
+  else pendingNote = text
+}
+
 const ZOOM = { min: 0.15, max: 4 }
 const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v))
 const dur = (d: number): number => (settingsNow().reduce_motion ? 0 : d)
@@ -310,6 +318,16 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     addEventListener('keydown', k, true)
     return () => removeEventListener('keydown', k, true)
   }, [refsOpen])
+  useEffect(() => {
+    if (pendingNote) {
+      setNote(pendingNote)
+      pendingNote = null
+    }
+    noteSubs.add(setNote)
+    return () => {
+      noteSubs.delete(setNote)
+    }
+  }, [])
   useEffect(() => {
     if (!note) return
     const id = setTimeout(() => setNote(null), 5000)
@@ -627,6 +645,9 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
 
       {/* Top right: import, references, skills, theme, settings */}
       <div className="board-ui board-tools no-drag">
+        <Tip title="Share" keys="⇧⌘S" body="This project as one .panthr file, to send however you like. Opened, it becomes their project; sent back, their notes come home.">
+          <button className="board-tool" onClick={() => dispatchEvent(new CustomEvent('panthr:share'))}><Icon name="export" size={15} /><span>Share</span></button>
+        </Tip>
         <Tip title="Import" body="Video folders (or a folder of them), video files and other files. Or drop them on the canvas.">
           <button className="board-tool" onClick={async () => bringIn(await api.app.chooseFiles(true))}><Icon name="import" size={15} /><span>Import</span></button>
         </Tip>

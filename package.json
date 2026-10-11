@@ -43,6 +43,15 @@
     "appId": "io.clueso.panthr",
     "productName": "Panthr",
     "copyright": "Panthr by Clueso",
+    "fileAssociations": [
+      {
+        "ext": "panthr",
+        "name": "Panthr project",
+        "description": "A Panthr project: its videos, canvas, notes and brand kit",
+        "role": "Editor",
+        "rank": "Owner"
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"

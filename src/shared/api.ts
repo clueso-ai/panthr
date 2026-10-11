@@ -139,6 +139,12 @@ export interface Api {
     /** Copy a logo into the project's brand/ folder (returns its path from the project). */
     logo(dir: string, from: string): Promise<string>
   }
+  share: {
+    /** The project as one .panthr file (asks where, when no file is given); returns its path, or '' when cancelled. */
+    save(canvas: string, file?: string): Promise<string>
+    /** Open a .panthr: a new project, or the same project's notes merged in. */
+    open(file: string): Promise<{ dir: string; merged: boolean; text: string }>
+  }
   canvases: {
     /** Every project (a canvas of videos), newest first. */
     list(): Promise<import('./types').Canvas[]>
@@ -196,6 +202,8 @@ export interface Events {
   'chat:titled': { dir: string; chatId: string; title: string }
   /** A project got a new name (by the person, or from its first message). */
   'project:renamed': { dir: string; name: string }
+  /** A .panthr was opened (from Finder, a drop, or the menu): go to its project. */
+  'share:opened': { dir: string; merged: boolean; text: string }
   /** A project's brand kit changed. */
   'brand:changed': { dir: string }
   /** A project's checkpoints changed. */

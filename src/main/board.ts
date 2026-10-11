@@ -44,7 +44,11 @@ const read = (dir: string): Stored => {
   const view = readJson<BoardView | null>(viewFile(dir), null) ?? v.view ?? null
   return { tiles: v.tiles ?? {}, links: Array.isArray(v.links) ? v.links : [], notes: Array.isArray(v.notes) ? v.notes : [], view }
 }
-const write = (dir: string, s: Stored): void => writeJson(canvasFile(dir), { tiles: s.tiles, links: s.links, notes: s.notes })
+/** Tiles, arrows and notes; anything else in the file (its lasting id) is kept. */
+const write = (dir: string, s: Stored): void => {
+  const { view: _old, ...rest } = readJson<Record<string, unknown>>(canvasFile(dir), {})
+  writeJson(canvasFile(dir), { ...rest, tiles: s.tiles, links: s.links, notes: s.notes })
+}
 
 export const refKey = (id: string): string => `ref:${id}`
 

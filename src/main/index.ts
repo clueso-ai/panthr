@@ -28,6 +28,7 @@ import { references, stopAllReferences } from './references'
 import { boardApi, canvasesApi } from './board'
 import { historyApi } from './history'
 import { brandApi } from './brand'
+import { openShare, shareApi } from './share'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -37,7 +38,7 @@ registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
 
-const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references, board: boardApi, canvases: canvasesApi, history: historyApi, brand: brandApi }
+const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references, board: boardApi, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi }
 
 function registerApi(): void {
   for (const [ns, methods] of Object.entries(METHODS)) {
@@ -209,6 +210,8 @@ function buildMenu(): void {
         { label: 'New Project', accelerator: 'Cmd+N', click: command('new-project') },
         { label: 'New Chat', accelerator: 'Cmd+T', click: command('new-chat') },
         { label: 'Open Folder…', accelerator: 'Cmd+O', click: command('open-folder') },
+        { label: 'Open a .panthr File…', accelerator: 'Cmd+Shift+O', click: command('open-share') },
+        { label: 'Share Project as .panthr…', accelerator: 'Cmd+Shift+S', click: command('share') },
         { type: 'separator' },
         { label: 'Rename Project…', click: command('rename') },
         { label: 'Export', accelerator: 'Cmd+E', click: command('export') },
@@ -284,6 +287,22 @@ async function dispatch(method: string, params: unknown[]): Promise<unknown> {
   return (handlers as any)[ns][m](...params)
 }
 
+// A .panthr opened from Finder (double-click, or dropped on the Dock icon):
+// before the app is ready it waits, then opens like any other.
+const toOpen: string[] = []
+let ready = false
+const openFile = (path: string): void => {
+  void openShare(path)
+    .then((r) => emit('share:opened', r))
+    .catch((e) => console.error('open .panthr:', (e as Error).message))
+}
+app.on('open-file', (e, path) => {
+  if (!path.endsWith('.panthr')) return
+  e.preventDefault()
+  if (ready && win) openFile(path)
+  else toOpen.push(path)
+})
+
 app.whenReady().then(() => {
   applyAppearance()
   handleProtocol()
@@ -296,6 +315,11 @@ app.whenReady().then(() => {
   else seedSkills()
   // The command line's way in (not in a test run unless asked).
   if (!HEADLESS || process.env.PANTHR_CONTROL) startControl(socketPath(dataDir()), dispatch)
+  // Files opened before the window was up.
+  win.webContents.once('did-finish-load', () => {
+    ready = true
+    toOpen.splice(0).forEach(openFile)
+  })
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) win = createWindow()
   })

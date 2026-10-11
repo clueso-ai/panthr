@@ -18,6 +18,7 @@ export const METHODS: All = {
   references: { list: true, add: true, remove: true, rename: true, retry: true, files: true, readFile: true },
   history: { list: true, undo: true },
   brand: { get: true, save: true, logo: true },
+  share: { save: true, open: true },
   canvases: { list: true, create: true, of: true, find: true },
   board: { notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },

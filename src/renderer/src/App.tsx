@@ -14,6 +14,7 @@ import { isDark, toggleTheme } from './ui/ThemeToggle'
 import { frostAlpha } from './ui/Controls'
 import './ui/Activity' // starts listening for background work at once
 import { DropVideos } from './editor/References'
+import { sayOnCanvas } from './board/CanvasStage'
 
 type View =
   | { kind: 'home' }
@@ -78,6 +79,19 @@ export function App() {
     openProject(dir, null, idea)
   }
 
+  // A .panthr opened (Finder, a drop, the menu): its project, with a word about what came in.
+  useEvent('share:opened', (r) => {
+    sayOnCanvas(r.text)
+    openProject(r.dir)
+  })
+  const openShareFile = async (path: string): Promise<void> => {
+    try {
+      await api.share.open(path)
+    } catch (e) {
+      sayOnCanvas(`Couldn't open it: ${(e as Error).message}`)
+    }
+  }
+
   // The command line (or the agent) opened a video here.
   useEvent('open', ({ dir }) => {
     openVideo(dir)
@@ -90,6 +104,11 @@ export function App() {
     if (name === 'settings') setSettings((x) => ({ ...x, open: !x.open }))
     else if (name === 'theme') toggleTheme(s.appearance)
     else if (name === 'new-project') home()
+    else if (name === 'open-share') {
+      api.app.chooseFiles().then((fs) => fs.filter((f) => f.endsWith('.panthr')).forEach(openShareFile))
+    } else if (name === 'share' && view?.kind === 'project') {
+      api.share.save(view.canvas).then((f) => f && (api.app.reveal(f), sayOnCanvas(`Saved ${f.split('/').pop()}: send it however you like`))).catch((e) => sayOnCanvas(`Couldn't share it: ${(e as Error).message}`))
+    }
     else if (name === 'home') home()
     else if (name === 'open-folder') {
       api.app.chooseFolder().then(async (d) => {
@@ -104,6 +123,14 @@ export function App() {
     }
     addEventListener('panthr:open-project', f)
     return () => removeEventListener('panthr:open-project', f)
+  })
+  useEffect(() => {
+    const f = (): void => {
+      if (view?.kind !== 'project') return
+      api.share.save(view.canvas).then((p) => p && (api.app.reveal(p), sayOnCanvas(`Saved ${p.split('/').pop()}: send it however you like`))).catch((e) => sayOnCanvas(`Couldn't share it: ${(e as Error).message}`))
+    }
+    addEventListener('panthr:share', f)
+    return () => removeEventListener('panthr:share', f)
   })
   useEffect(() => {
     const f = (e: Event): void => setSettings({ open: true, pane: ((e as CustomEvent).detail as Pane) || 'general' })
