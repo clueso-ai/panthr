@@ -170,6 +170,9 @@ describe('frames', () => {
     expect(R.framesStale(d, true)).toBe(false)
     write(d, '.studio/frames/6000/frame-1.png', 'x')
     expect(R.framesStale(d, false)).toBe(false)
+    // A change in the same second as the newest frames: they are remade.
+    write(d, 'index.html', 'y', 6000)
+    expect(R.framesStale(d, false)).toBe(true)
   })
 
   it('frame times sit in the middle of each slot', () => {

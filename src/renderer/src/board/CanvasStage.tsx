@@ -737,10 +737,16 @@ function fitView(b: BoardData, stage: { w: number; h: number }, tile: { w: numbe
  *  (not while an agent is working; asked again when a turn ends). */
 const posterAsked = new Set<string>()
 let posterChain: Promise<void> = Promise.resolve()
-function askPoster(dir: string): void {
-  if (posterAsked.has(dir)) return
-  posterAsked.add(dir)
+/** `version`: when the video last changed (asked again for each change). */
+function askPoster(dir: string, version = 0): void {
+  const key = `${dir}@${version}`
+  if (posterAsked.has(key)) return
+  posterAsked.add(key)
   posterChain = posterChain.then(async () => {
+    // Its frames already newer than its last change: nothing to make.
+    const p = await api.projects.load(dir)
+    const stamp = Number(/\/\.studio\/frames\/(\d+)\//.exec(p?.thumb ?? '')?.[1] ?? 0)
+    if (stamp && p && stamp > p.edited_at) return
     const html = await api.files.read(dir, 'index.html')
     const d = Number(/data-duration="([\d.]+)"/.exec(html ?? '')?.[1] ?? 0)
     if (!d) return
@@ -782,10 +788,11 @@ function VideoTile({ p, h, live, active, working, exporting }: { p: Project; h: 
     return () => io.disconnect()
   }, [])
   const playing = !active && seen && (live || hover)
-  // No picture yet: make one (and show it when it comes).
+  // No picture yet, or the video changed since: make one (shown when it comes).
+  // Frames that are already current come back at once, without a new render.
   useEffect(() => {
-    if (!p.thumb && !p.host) askPoster(p.dir)
-  }, [p.thumb, p.dir, p.host, p.edited_at])
+    if (!p.host) askPoster(p.dir, p.edited_at)
+  }, [p.dir, p.host, p.edited_at])
   useEvent('job', (j) => {
     if (j.dir === p.dir && j.type === 'frames' && j.files.length) api.app.fileUrl(j.files[Math.floor(j.files.length / 3)]).then(setPoster)
   }, [p.dir])

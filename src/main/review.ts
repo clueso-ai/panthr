@@ -450,7 +450,8 @@ export function contentMtime(dir: string): number {
  *  there: only a missing set is remade; a new page asks again.) */
 export function framesStale(dir: string, onHost: boolean): boolean {
   const { files, stamp } = currentFrames(dir)
-  return files.length === 0 || (!onHost && stamp < contentMtime(dir))
+  // Seconds on both sides: an edit in the same second as the frames counts as newer.
+  return files.length === 0 || (!onHost && stamp <= contentMtime(dir))
 }
 
 /** The times of `count` frames: the middle of each slot. */

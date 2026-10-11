@@ -275,6 +275,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const reloadNow = (): void => {
     ownReload.current = Date.now()
     preview.reload()
+    askFrames.current(1500)
   }
   // Files changed (the agent, an edit): the picture reloads at the same moment.
   const reloadTimer = useRef<number | undefined>(undefined)
@@ -284,20 +285,35 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     reloadTimer.current = window.setTimeout(() => {
       if (Date.now() - ownReload.current > 1500) preview.reload()
       refreshTiming()
+      askFrames.current(1500)
       api.review.comments(dir).then(setComments)
     }, 300)
   }, [dir, preview.reload, refreshTiming])
   useEvent('chat:turn', (e) => {
     if (e.dir !== canvas || !dir) return
+    // Frames wait while an agent works; once its turn ends, the new picture.
+    askFrames.current(800)
     api.review.comments(dir).then(setComments)
     api.controls.timing(dir).then(setTiming).catch(() => {})
   }, [dir])
 
-  // The filmstrip under the timeline.
-  useEffect(() => {
-    if (!dir || !settings.filmstrip || duration <= 0) return
-    api.review.frames(dir, duration, 12).then(async (f) => setFrames(await Promise.all(f.map((x) => api.app.fileUrl(x)))))
-  }, [dir, duration, settings.filmstrip])
+  // The filmstrip under the timeline: made when the video opens, and made
+  // again a moment after anything changes it (a control, a dragged bar, an
+  // undo, the agent), so it shows the video as it is now. A run of edits
+  // (a slider dragged) asks once, after the last.
+  // A ref, so handlers made on an earlier render (before the length was
+  // known) still ask with the video as it is now.
+  const framesTimer = useRef<number | undefined>(undefined)
+  const askFrames = useRef((_wait = 0): void => {})
+  askFrames.current = (wait = 0): void => {
+    window.clearTimeout(framesTimer.current)
+    framesTimer.current = window.setTimeout(() => {
+      if (!dir || !settings.filmstrip || duration <= 0) return
+      api.review.frames(dir, duration, 12).then(async (f) => setFrames(await Promise.all(f.map((x) => api.app.fileUrl(x)))))
+    }, wait)
+  }
+  useEffect(() => askFrames.current(0), [dir, duration, settings.filmstrip])
+  useEffect(() => () => window.clearTimeout(framesTimer.current), [])
   useEvent('job', async (j) => {
     if (j.dir !== dir) return
     switch (j.type) {
