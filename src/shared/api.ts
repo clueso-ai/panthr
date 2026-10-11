@@ -131,6 +131,14 @@ export interface Api {
     /** Put a turn's files back as they were before it (or, redo, as it left them). */
     undo(dir: string, chatId: string, turn: number, redo?: boolean): Promise<{ restored: string[]; skipped: string[] }>
   }
+  brand: {
+    /** A project's brand kit (empty when it has none). */
+    get(dir: string): Promise<import('./types').Brand>
+    /** Save it (and BRAND.md beside it, for the agent). */
+    save(dir: string, brand: import('./types').Brand): Promise<void>
+    /** Copy a logo into the project's brand/ folder (returns its path from the project). */
+    logo(dir: string, from: string): Promise<string>
+  }
   canvases: {
     /** Every project (a canvas of videos), newest first. */
     list(): Promise<import('./types').Canvas[]>
@@ -186,6 +194,8 @@ export interface Events {
   'chat:titled': { dir: string; chatId: string; title: string }
   /** A project got a new name (by the person, or from its first message). */
   'project:renamed': { dir: string; name: string }
+  /** A project's brand kit changed. */
+  'brand:changed': { dir: string }
   /** A project's checkpoints changed. */
   'history:changed': { dir: string }
   /** The board's tiles or arrows changed. */

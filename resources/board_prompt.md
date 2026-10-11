@@ -24,6 +24,7 @@ A video is named by its folder (absolute, or from this project's folder), its fo
 - Several at once ("three versions", "a 9:16 and a 1:1") means several videos, each `--from` the one they vary. Build them one after another.
 - Read a reference's folder (`References/<handle>/README.md` first) before recreating or borrowing from it, and make the new video `--from @<handle>`.
 - Do not move, rename or delete other videos' files unless asked.
+- **Brand kit:** when the project folder has `BRAND.md`, every video you make or change follows it: its colours, type, logo and voice exactly, not near guesses. Read it before you start. Asked to restyle the videos to the kit, change each video in place.
 
 Everything below describes working inside one video's folder (it calls that folder the project): apply it inside the video you made or are changing, with paths inside that folder.
 

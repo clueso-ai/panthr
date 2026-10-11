@@ -409,3 +409,14 @@ export interface Checkpoint {
   undone: string | null
   at: number
 }
+
+// ── A project's brand kit (.studio/brand.json, written out as BRAND.md) ──
+
+export interface Brand {
+  colors: { name: string; hex: string }[]
+  fonts: { role: string; family: string }[]
+  /** The logo, from the project folder (copied in as brand/logo.*). */
+  logo: string | null
+  /** How it sounds: tone, words to use and avoid. */
+  voice: string
+}

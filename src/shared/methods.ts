@@ -17,6 +17,7 @@ export const METHODS: All = {
   skills: { state: true, add: true, remove: true, setOn: true, link: true, search: true, addOne: true, create: true, importFolder: true, read: true, write: true, removeOwn: true },
   references: { list: true, add: true, remove: true, rename: true, retry: true, files: true, readFile: true },
   history: { list: true, undo: true },
+  brand: { get: true, save: true, logo: true },
   canvases: { list: true, create: true, of: true, find: true },
   board: { branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },

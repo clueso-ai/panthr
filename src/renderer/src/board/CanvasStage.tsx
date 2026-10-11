@@ -19,6 +19,7 @@ import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
 import { Compare } from './Compare'
+import { BrandCard } from './Brand'
 import { MenuItem, Popover } from '@/ui/Popover'
 import './board.css'
 
@@ -522,6 +523,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
         <Tip title="Import" body="Video folders (or a folder of them), video files and other files. Or drop them on the canvas.">
           <button className="board-tool" onClick={async () => bringIn(await api.app.chooseFiles(true))}><Icon name="import" size={15} /><span>Import</span></button>
         </Tip>
+        <BrandCard dir={canvas} onRestyle={() => onAsk('Restyle every video in this project to the brand kit in BRAND.md: its colours, type, logo and voice exactly. Change each video in place, one after another, and check each.')} />
         <Tip title="References" body="Videos your agent has taken apart. Mention one with @.">
           <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>References</span></button>
         </Tip>
