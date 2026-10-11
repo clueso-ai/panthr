@@ -124,6 +124,22 @@ function headlessCapture(w0: BrowserWindow): void {
         console.log('eval failed:', e)
       }
     }
+    // A real click (PANTHR_CLICK: a CSS selector), sent through Chromium's
+    // input like a mouse would be: pointer capture and all, which a click
+    // dispatched from a script does not exercise.
+    if (process.env.PANTHR_CLICK) {
+      const r = await w0.webContents.executeJavaScript(`(() => { const e = document.querySelector(${JSON.stringify(process.env.PANTHR_CLICK)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2] })()`)
+      if (!r) console.log('click: nothing matches', process.env.PANTHR_CLICK)
+      else {
+        const [x, y] = [Math.round(r[0]), Math.round(r[1])]
+        w0.webContents.sendInputEvent({ type: 'mouseMove', x, y })
+        w0.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 })
+        await new Promise((ok) => setTimeout(ok, 80))
+        w0.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 })
+        await new Promise((ok) => setTimeout(ok, 700))
+        console.log('click: sent at', x, y)
+      }
+    }
     // A script in the preview page itself (PANTHR_FRAME_EVAL), then one more
     // in the window (PANTHR_EVAL_AFTER): to click inside the video and see
     // what the app made of it.

@@ -310,6 +310,9 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
       ref={stage}
       className="board-stage"
       onPointerDown={(e) => {
+        // Only presses on the canvas itself: React also passes up presses
+        // from the sheets drawn above the window (a portal), which are not in it.
+        if (!e.currentTarget.contains(e.target as Node)) return
         if ((e.target as HTMLElement).closest('.tile, .board-ui, .canvas-live')) return
         anims.current.forEach((a) => a.stop())
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -322,7 +325,8 @@ export function CanvasStage({ canvas, active, onActivate, chatWorking, overlay, 
         ox.set(p.ox + e.clientX - p.x)
         oy.set(p.oy + e.clientY - p.y)
       }}
-      onPointerUp={() => {
+      onPointerUp={(e) => {
+        if (!e.currentTarget.contains(e.target as Node) && !panFrom.current) return
         // A click on empty canvas (not a drag) lets the active video go.
         if (panFrom.current && !panFrom.current.moved) onActivate(null)
         panFrom.current = null
