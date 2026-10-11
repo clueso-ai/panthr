@@ -800,6 +800,17 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
           </div>
           {size && <span className="fit mono faint">Fit · {size[0]}×{size[1]}</span>}
           <div className="no-drag stagebar-right">
+            <BranchButton at={preview.state.time} onBranch={async (note) => {
+              if (!dir || !project) return
+              const t = preview.now()
+              try {
+                const b = await api.board.branch(canvas, dir, `${project.meta.name} · from ${clock(t)}`)
+                const rel = b.dir.startsWith(`${canvas}/`) ? b.dir.slice(canvas.length + 1) : b.dir
+                askProject(`"${b.meta.name}" (folder ${rel}) is a copy of "${project.meta.name}" I just branched. In that folder only: keep everything up to ${t.toFixed(2)} s exactly as it is, and redo what comes after${note.trim() ? `: ${note.trim()}` : ', trying a clearly different direction'}. Leave "${project.meta.name}" as it is.`)
+              } catch (e) {
+                say(`Couldn't branch it: ${(e as Error).message}`)
+              }
+            }} />
             <Tip title="Versions" body="Every export, to play or compare.">
               <button className="btn" onClick={() => showSide('versions')}><Icon name="history" size={15} /><span className="btn-label">{versions.length ? `v${versions.length}` : 'Versions'}</span></button>
             </Tip>
@@ -971,6 +982,38 @@ function ProjectIntro() {
       <b>What are we making?</b>
       <span className="muted">Describe a video and your agent makes it on this project's canvas. Ask for variants, cut-downs or other sizes and they land beside it. Click a video to make it active: its timeline opens below, and what you ask is about it.</span>
     </motion.div>
+  )
+}
+
+/** Try another take from the playhead: a copy beside it, redone from there. */
+function BranchButton({ at, onBranch }: { at: number; onBranch(note: string): void }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const go = (): void => {
+    setOpen(false)
+    onBranch(note)
+    setNote('')
+  }
+  return (
+    <>
+      <Tip title="Branch from here" body="A copy beside this video that keeps everything up to the playhead; the agent redoes the rest.">
+        <button ref={anchor} className="btn" onClick={() => setOpen((o) => !o)}><Icon name="branch" size={15} /><span className="btn-label">Branch</span></button>
+      </Tip>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="end" width={300}>
+        <div className="menu branch-pop">
+          <b>Another take from {clock(at)}</b>
+          <span className="faint">Everything before stays as it is. What should be different after?</span>
+          <textarea className="text-input" autoFocus rows={3} placeholder="Leave empty for a different direction" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              go()
+            }
+          }} />
+          <div className="branch-go"><button className="btn small primary" onClick={go}>Branch</button></div>
+        </div>
+      </Popover>
+    </>
   )
 }
 

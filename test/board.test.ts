@@ -17,7 +17,7 @@ vi.mock('../src/main/references', async (orig) => {
   return { ...real, references: { ...real.references, add: async (p: string) => (refsAdded.push(p), { id: 'r1', handle: 'clip' }) } }
 })
 
-import { board, canvasOf, createCanvas, freeSpot, importPaths, isCanvas, keyFor, listCanvases, newVideo, TILE } from '../src/main/board'
+import { board, branch, canvasOf, createCanvas, freeSpot, importPaths, isCanvas, keyFor, listCanvases, newVideo, TILE } from '../src/main/board'
 import { createIn, loadMeta } from '../src/main/projects'
 
 const env = { HOME: process.env.HOME, DATA: process.env.PANTHR_DATA_DIR, ROOT: process.env.PANTHR_ROOT }
@@ -153,5 +153,33 @@ describe('projects as canvases', () => {
     // Imported into this project, not made projects of their own.
     expect(listCanvases().map((x) => x.dir)).toEqual([c.dir])
     expect(emitted.some(([n, p]) => n === 'board:focus' && p.fresh && p.canvas === c.dir)).toBe(true)
+  })
+
+  it('branches a video: a copy beside it with an arrow, without caches, exports or its talk', () => {
+    const c = createCanvas('P')
+    const v = newVideo(c.dir, 'Cut', null, null)
+    for (const [p, t] of [['compositions/a.html', 'a'], ['.studio/frames/1/f.png', 'x'], ['.studio/versions/v1.mp4', 'x'], ['.studio/chats/c.json', '[]'], ['.studio/comments.json', '[]'], ['renders/r.mp4', 'x']]) {
+      mkdirSync(join(v.dir, p, '..'), { recursive: true })
+      writeFileSync(join(v.dir, p), t)
+    }
+    const b = branch(c.dir, v.dir, 'Cut · from 0:12')
+    expect(b.meta.name).toBe('Cut · from 0:12')
+    expect(readFileSync(join(b.dir, 'compositions/a.html'), 'utf8')).toBe('a')
+    expect(existsSync(join(b.dir, '.studio/comments.json'))).toBe(true)
+    for (const gone of ['.studio/frames', '.studio/versions', '.studio/chats', 'renders']) expect(existsSync(join(b.dir, gone))).toBe(false)
+    expect(board(c.dir).links).toContainEqual({ from: v.dir, to: b.dir })
+  })
+
+  it('branches a project folder that is itself a video, without copying the branch into itself', () => {
+    const old = createIn(root(), 'Old Film')
+    writeFileSync(join(old.dir, 'scene.html'), 's')
+    listCanvases()
+    const inner = newVideo(old.dir, 'Inner', null, null)
+    const b = branch(old.dir, old.dir, 'Old Film · from 0:05')
+    expect(b.dir.startsWith(old.dir + '/')).toBe(true)
+    expect(readFileSync(join(b.dir, 'scene.html'), 'utf8')).toBe('s')
+    expect(existsSync(join(b.dir, 'Inner'))).toBe(false)
+    expect(existsSync(join(b.dir, b.dir.split('/').pop()!))).toBe(false)
+    expect(existsSync(inner.dir)).toBe(true)
   })
 })

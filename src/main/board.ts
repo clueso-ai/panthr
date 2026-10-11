@@ -9,7 +9,7 @@
 // becomes a project whose canvas holds that video, its first tile: nothing
 // moves, and its chat becomes the project's conversation.
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import type { Api } from '@shared/api'
 import type { Board, BoardImport, BoardLink, BoardView, Canvas, Project } from '@shared/types'
@@ -318,6 +318,53 @@ export const fromProject = (canvas: string, dir: string): string => {
   return r === '' ? '.' : r.startsWith('..') ? dir : r
 }
 
+/** Not copied into a branch: rebuilt, exported, or the original's own talk. */
+const NOT_BRANCHED = new Set(['node_modules', 'renders', 'snapshots', 'versions', 'frames', 'chats', 'history.git', 'annotations', 'Exports'])
+
+/** A branch of a video: a copy of it beside it (with an arrow), the view
+ *  taken to it. The agent then redoes it from a moment on. */
+export function branch(canvas0: string, dir0: string, name: string): Project {
+  const canvas = real(canvas0)
+  const dir = real(dir0)
+  const src = loadMeta(dir)
+  if (!src) throw new Error('Not a video')
+  const p = createIn(canvas, name)
+  const sub = (d: string): boolean => d.startsWith(dir + '/') && isVideo(d) && d !== dir
+  // Everything of the original, minus caches and exports; a video folder
+  // inside it (the project folder holding its own videos) is not part of it,
+  // and nor is the branch itself, which may sit inside the original.
+  const keep = (from: string): boolean => {
+    if (from === p.dir || from.startsWith(p.dir + '/')) return false
+    const rel = from.slice(dir.length + 1)
+    if (rel.split('/').some((part) => NOT_BRANCHED.has(part))) return false
+    if (['.studio/canvas.json', '.studio/canvas-view.json', '.studio/checkpoints.json', '.studio/project.json'].includes(rel)) return false
+    if (rel === '.claude' || rel === '.agents' || rel.startsWith('.claude/') || rel.startsWith('.agents/')) return false
+    return !(isDir(from) && sub(from))
+  }
+  const copyTree = (from: string, to: string): void => {
+    for (const e of readdirSync(from, { withFileTypes: true })) {
+      const f = join(from, e.name)
+      if (!keep(f)) continue
+      const t = join(to, e.name)
+      if (e.isDirectory()) {
+        mkdirSync(t, { recursive: true })
+        copyTree(f, t)
+      } else if (e.isFile()) copyFileSync(f, t)
+      else if (e.isSymbolicLink()) cpSync(f, t, { verbatimSymlinks: true })
+    }
+  }
+  copyTree(dir, p.dir)
+  saveMetaFile(p.dir, { ...p.meta, name, models: src.models, agents_enabled: src.agents_enabled })
+  const s = read(canvas)
+  s.tiles[p.dir] = s.tiles[dir] ? besideSpot(s.tiles, s.tiles[dir]) : freeSpot(s.tiles, 0, 0)
+  if (s.tiles[dir]) s.links.push({ from: dir, to: p.dir })
+  write(canvas, s)
+  linkSkills(p.dir)
+  changed(canvas)
+  focus(canvas, p.dir, true)
+  return load(p.dir) ?? p
+}
+
 /** Exported videos gathered in one place: the project's Exports/<when>/,
  *  each named after its video. Returns the folder. */
 export function collect(canvas0: string, files: { dir: string; file: string }[]): string {
@@ -379,6 +426,9 @@ export const boardApi: Api['board'] = {
   },
   async collect(canvas, files) {
     return collect(canvas, files)
+  },
+  async branch(canvas, dir, name) {
+    return branch(canvas, dir, name)
   },
   async link(canvas, from, to) {
     canvas = real(canvas)
