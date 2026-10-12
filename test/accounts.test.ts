@@ -18,13 +18,18 @@ const fake = vi.hoisted(() => ({
   starts: [] as any[],
   sent: [] as string[],
   out: null as null | ((e: any) => void),
-  alive: false
+  alive: false,
+  codex: [] as any[]
 }))
 vi.mock('node:child_process', async (orig) => {
   const real: any = await orig()
   return {
     ...real,
     execFile: (_cmd: string, args: string[], opts: any, cb: (e: any, out: string) => void) => {
+      if (args[0] === 'login' && args[1] === 'status') {
+        cb(null, fake.signedIn.has(opts.env.CODEX_HOME ?? 'codex') ? 'Logged in using ChatGPT' : 'Not logged in')
+        return
+      }
       if (args[0] === 'auth' && args[1] === 'status') {
         const dir = opts.env.CLAUDE_CONFIG_DIR ?? ''
         const ok = fake.signedIn.has(dir)
@@ -46,9 +51,18 @@ vi.mock('../src/main/agents/claude', async (orig) => {
   }
   return { ...real, ClaudeChat, claudeBin: () => 'claude', promptText: () => 'PROMPT' }
 })
+vi.mock('../src/main/agents/codex', async (orig) => {
+  const real: any = await orig()
+  class CodexRun {
+    running() { return false }
+    send(o: any, out: (e: any) => void) { fake.codex.push(o); fake.out = out }
+    stop() {}
+  }
+  return { ...real, CodexRun, codexBin: () => 'codex' }
+})
 
 import { parse } from '../src/main/agents/claude'
-import { accountsApi, claudeEnv, moveSession, nextAccount, noteUsage } from '../src/main/accounts'
+import { accountsApi, claudeEnv, codexEnv, codexUsage, moveSession, nextAccount, noteUsage } from '../src/main/accounts'
 import { chats, stopAll } from '../src/main/chats'
 import { settings } from '../src/main/settings'
 import { loadMeta, saveMetaFile } from '../src/main/projects'
@@ -68,7 +82,7 @@ afterAll(() => {
   process.env.PANTHR_DATA_DIR = env.DATA
   if (env.CCD) process.env.CLAUDE_CONFIG_DIR = env.CCD
 })
-beforeEach(() => Object.assign(fake, { starts: [], sent: [], out: null, alive: false }))
+beforeEach(() => Object.assign(fake, { starts: [], sent: [], out: null, alive: false, codex: [] }))
 
 describe('the stream', () => {
   it('reads how much of the account is used', () => {
@@ -79,37 +93,37 @@ describe('the stream', () => {
 
 describe('accounts', () => {
   it('gives each its own folder, never another HOME', async () => {
-    const a = await accountsApi.add('Work')
+    const a = await accountsApi.add('claude', 'Work')
     expect(a.id).toBe('work')
     expect(a.dir).toBe('~/.claude-work')
     const e = claudeEnv('work')
     expect(e.CLAUDE_CONFIG_DIR).toBe(join(process.env.HOME!, '.claude-work'))
     expect(e.HOME).toBe(process.env.HOME)
     expect(claudeEnv('default').CLAUDE_CONFIG_DIR).toBeUndefined()
-    expect((await accountsApi.add('Work')).id).toBe('work-2')
+    expect((await accountsApi.add('claude', 'Work')).id).toBe('work-2')
     await accountsApi.remove('work-2')
   })
 
   it('says who each is', async () => {
     fake.signedIn = new Set(['', join(process.env.HOME!, '.claude-work')])
     const list = await accountsApi.list(true)
-    expect(list.map((a) => [a.id, a.signedIn, a.email, a.plan])).toEqual([['default', true, 'me@x.io', 'Max'], ['work', true, 'work@x.io', 'Max']])
+    expect(list.filter((a) => a.engine === 'claude').map((a) => [a.id, a.signedIn, a.email, a.plan])).toEqual([['default', true, 'me@x.io', 'Max'], ['work', true, 'work@x.io', 'Max']])
   })
 
   it('brings a conversation to another account', () => {
     const from = join(process.env.HOME!, '.claude', 'projects', '-p-x')
     mkdirSync(from, { recursive: true })
     writeFileSync(join(from, 'sess-9.jsonl'), '{"a":1}\n')
-    expect(moveSession('sess-9', 'default', 'work')).toBe(true)
+    expect(moveSession('claude', 'sess-9', 'default', 'work')).toBe(true)
     expect(readFileSync(join(process.env.HOME!, '.claude-work', 'projects', '-p-x', 'sess-9.jsonl'), 'utf8')).toBe('{"a":1}\n')
-    expect(moveSession('nope', 'default', 'work')).toBe(false)
+    expect(moveSession('claude', 'nope', 'default', 'work')).toBe(false)
   })
 
   it('picks the next account: signed in, not at its limit', async () => {
     noteUsage('work', { status: 'rejected', resetsAt: Date.now() / 1000 + 3600, five_hour: null, seven_day: null })
-    expect(await nextAccount('default')).toBeNull()
+    expect(await nextAccount('claude', 'default')).toBeNull()
     noteUsage('work', { status: 'allowed', resetsAt: null, five_hour: { utilization: 0.2, resetsAt: null }, seven_day: null })
-    expect((await nextAccount('default'))?.id).toBe('work')
+    expect((await nextAccount('claude', 'default'))?.id).toBe('work')
   })
 })
 
@@ -155,5 +169,64 @@ describe('a chat at its limit', () => {
     expect((await chats.open(dir, 'c1')).account).toBe('default')
     await chats.send(dir, 'c1', 'Bigger')
     await expect(chats.setAccount(dir, 'c1', 'work')).rejects.toThrow('Wait for this turn')
+  })
+})
+
+/** A Codex session file, as Codex writes it (with how much is used). */
+function rollout(homeDir: string, thread: string, used: [number, number], reached: string | null): string {
+  const d = join(homeDir, 'sessions', '2026', '10', '12')
+  mkdirSync(d, { recursive: true })
+  const f = join(d, `rollout-2026-10-12T10-00-00-${thread}.jsonl`)
+  const rl = { limit_id: 'codex', primary: { used_percent: used[0], window_minutes: 300, resets_at: 1791800000 }, secondary: { used_percent: used[1], window_minutes: 10080, resets_at: 1792300000 }, plan_type: 'team', rate_limit_reached_type: reached }
+  writeFileSync(f, JSON.stringify({ type: 'session_meta', payload: { id: thread } }) + '\n' + JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', rate_limits: rl } }) + '\n')
+  return f
+}
+
+describe('Codex accounts', () => {
+  it('gives each its own CODEX_HOME, made if missing', async () => {
+    const a = await accountsApi.add('codex', 'Work')
+    expect(a.id).toBe('codex-work')
+    expect(a.dir).toBe('~/.codex-work')
+    const e = codexEnv('codex-work')
+    expect(e.CODEX_HOME).toBe(join(process.env.HOME!, '.codex-work'))
+    expect(existsSync(e.CODEX_HOME!)).toBe(true)
+    expect(codexEnv('codex').CODEX_HOME).toBeUndefined()
+    // Another agent's account is not one of Codex's.
+    expect(codexEnv('work').CODEX_HOME).toBeUndefined()
+  })
+
+  it('says who each is', async () => {
+    fake.signedIn = new Set(['codex', join(process.env.HOME!, '.codex-work')])
+    const list = (await accountsApi.list(true)).filter((a) => a.engine === 'codex')
+    expect(list.map((a) => [a.id, a.signedIn])).toEqual([['codex', true], ['codex-work', true]])
+  })
+
+  it('reads how much is used from its session file', () => {
+    rollout(join(process.env.HOME!, '.codex'), 'th-1', [42, 63], null)
+    expect(codexUsage('codex', 'th-1')).toEqual({ status: 'allowed', resetsAt: null, five_hour: { utilization: 0.42, resetsAt: 1791800000 }, seven_day: { utilization: 0.63, resetsAt: 1792300000 } })
+    rollout(join(process.env.HOME!, '.codex'), 'th-2', [100, 70], 'primary')
+    expect(codexUsage('codex', 'th-2')?.status).toBe('rejected')
+  })
+
+  it('carries a chat on to the next account at its limit, thread and all', async () => {
+    const dir = join(tmp, 'cproj')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'index.html'), 'x')
+    saveMetaFile(dir, { name: 'P', created_at: 1, chats: [{ id: 'k1', title: 'x', session_id: null, created_at: 1, engine: 'codex' }], agents_enabled: true, models: {} })
+    await settings.set({ codex_account: 'codex', claude_failover: true })
+    await chats.send(dir, 'k1', 'Make it blue')
+    expect(fake.codex[0].env.CODEX_HOME).toBeUndefined()
+    fake.out!({ type: 'session', id: 'th-9' })
+    rollout(join(process.env.HOME!, '.codex'), 'th-9', [100, 50], 'primary')
+    fake.out!({ type: 'result', cost_usd: 0, duration_ms: 10, turns: 1, error: true })
+    await new Promise((r) => setTimeout(r, 50))
+    const again = fake.codex.at(-1)
+    expect(again.env.CODEX_HOME).toBe(join(process.env.HOME!, '.codex-work'))
+    expect(again.thread).toBe('th-9')
+    expect(again.text).toBe('Make it blue')
+    expect(existsSync(join(process.env.HOME!, '.codex-work', 'sessions', '2026', '10', '12', 'rollout-2026-10-12T10-00-00-th-9.jsonl'))).toBe(true)
+    const st = await chats.open(dir, 'k1')
+    expect(st.account).toBe('codex-work')
+    expect(st.items.some((i) => 'Note' in i && /Default reached its usage limit. Carrying on with Work/.test(i.Note))).toBe(true)
   })
 })

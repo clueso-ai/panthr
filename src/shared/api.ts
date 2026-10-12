@@ -62,7 +62,7 @@ export interface Api {
     /** Append a note line (e.g. "Moved Title to 1.2 s"). */
     note(dir: string, chatId: string, text: string): Promise<void>
     remove(dir: string, chatId: string): Promise<void>
-    /** Run the chat on another Claude account (its conversation goes along). */
+    /** Run the chat on another of its agent's accounts (its conversation goes along). */
     setAccount(dir: string, chatId: string, account: string): Promise<void>
     /** Any chat in any project working right now. */
     anyWorking(): Promise<boolean>
@@ -195,16 +195,16 @@ export interface Api {
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
   accounts: {
-    /** Every Claude account: who it is, its plan, how much is used (refresh: ask Claude Code again now). */
+    /** Every account of both agents: who it is, its plan, how much is used (refresh: ask the agents again now). */
     list(refresh?: boolean): Promise<AccountStatus[]>
-    /** A new account (its own config folder); sign in to it next. */
-    add(label: string): Promise<AccountStatus>
+    /** A new account for an agent (its own folder); sign in to it next. */
+    add(engine: import('./types').Engine, label: string): Promise<AccountStatus>
     rename(id: string, label: string): Promise<void>
     /** Forget it (its folder and sign-in stay on disk). */
     remove(id: string): Promise<void>
-    /** Open Terminal to sign in to it (claude auth login). */
+    /** Open Terminal to sign in to it (claude auth login, codex login). */
     signIn(id: string): Promise<void>
-    /** The account new chats use. */
+    /** The account new chats use (for its agent). */
     setDefault(id: string): Promise<void>
   }
   connections: {

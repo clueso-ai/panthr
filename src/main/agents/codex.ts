@@ -151,6 +151,8 @@ export interface CodexOptions {
   text: string
   model: string | null
   instructions: string
+  /** Its account's environment (CODEX_HOME). */
+  env?: NodeJS.ProcessEnv
 }
 
 /** The command line for one message (exactly codex.rs's). */
@@ -198,7 +200,7 @@ export class CodexRun {
           const r = remote.remoteCommand(where.host, remote.remoteDir(where.host, where.name), 'codex', args)
           return spawn(r.cmd, r.args, { env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
         })()
-      : spawn(codexBin(), args, { cwd: o.dir, env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
+      : spawn(codexBin(), args, { cwd: o.dir, env: o.env ?? toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
     child.on('error', () => {})
     if (child.pid === undefined) throw new Error(`could not run ${where ? 'ssh' : codexBin()}`)
     this.child = child

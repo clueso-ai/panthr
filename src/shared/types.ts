@@ -58,21 +58,27 @@ export interface Settings {
   reference_codex_model: string
   skimming: boolean
   /** Claude Code accounts besides the default (~/.claude), each its own config folder. */
-  claude_accounts: ClaudeAccount[]
-  /** The account new chats use ('default': ~/.claude). */
+  claude_accounts: AgentAccount[]
+  /** The Claude account new chats use ('default': ~/.claude). */
   claude_account: string
-  /** When an account hits its usage limit, carry on with the next one. */
+  /** Codex accounts besides the default (~/.codex), each its own CODEX_HOME. */
+  codex_accounts: AgentAccount[]
+  /** The Codex account new chats use ('codex': ~/.codex). */
+  codex_account: string
+  /** When an account hits its usage limit, carry on with the next one (of the same agent). */
   claude_failover: boolean
 }
 
-// ── Claude accounts ───────────────────────────────────────────────
-// Several Claude Code subscriptions at once: each signed in to its own
-// config folder (CLAUDE_CONFIG_DIR); a chat runs on one of them.
+// ── Agent accounts ────────────────────────────────────────────────
+// Several subscriptions at once, for Claude Code and for Codex: each
+// signed in to its own folder (CLAUDE_CONFIG_DIR, CODEX_HOME); a chat runs
+// on one of its agent's accounts.
 
-export interface ClaudeAccount {
+export interface AgentAccount {
   id: string
+  engine: Engine
   label: string
-  /** Its config folder ('' for the default: ~/.claude). */
+  /** Its folder ('' for the default: ~/.claude or ~/.codex). */
   dir: string
   color: string
 }
@@ -93,7 +99,7 @@ export interface AccountUsage {
   at: number
 }
 
-export interface AccountStatus extends ClaudeAccount {
+export interface AccountStatus extends AgentAccount {
   /** Null: not checked yet. */
   signedIn: boolean | null
   email: string | null
@@ -119,6 +125,8 @@ export const DEFAULT_SETTINGS: Settings = {
   skimming: true,
   claude_accounts: [],
   claude_account: 'default',
+  codex_accounts: [],
+  codex_account: 'codex',
   claude_failover: true
 }
 

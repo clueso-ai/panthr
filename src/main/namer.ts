@@ -11,7 +11,7 @@ import type { Engine } from '@shared/types'
 import { claudeBin } from './agents/claude'
 import { codexBin } from './agents/codex'
 import { home, toolEnv } from './paths'
-import { claudeEnv } from './accounts'
+import { claudeEnv, codexEnv } from './accounts'
 
 const WAIT_MS = 30_000
 
@@ -69,7 +69,7 @@ export async function suggestName(message: string, engine: Engine): Promise<stri
     const m = cheapCodexModel()
     if (m) args.push('-m', m)
     args.push(prompt)
-    if ((await run(codexBin(), args)) === null) return null
+    if ((await run(codexBin(), args, codexEnv())) === null) return null
     try {
       return cleanName(readFileSync(out, 'utf8'))
     } catch {

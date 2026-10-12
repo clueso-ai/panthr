@@ -21,7 +21,7 @@ import { suggestName } from './namer'
 import { isCanvas } from './board'
 import { record, snap, tracked } from './history'
 import { assistantDir } from './paths'
-import { accountFor, atLimit, claudeEnv, moveSession, nextAccount, noteUsage } from './accounts'
+import { accountFor, atLimit, claudeEnv, codexEnv, codexUsage, moveSession, nextAccount, noteUsage } from './accounts'
 
 /** The instructions for a chat in this folder: the assistant's, a project's or a video's. */
 const kindOf = (dir: string): boolean | 'assistant' => (resolve(dir) === resolve(assistantDir()) ? 'assistant' : isCanvas(dir))
@@ -220,7 +220,7 @@ class Chat {
     const t = this.t
     return {
       dir: this.dir, chatId: this.chatId, items: t.items, working: t.working || this.busy,
-      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine, account: accountFor(this.account).id
+      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine, account: accountFor(this.account, t.engine).id
     }
   }
 
@@ -299,7 +299,7 @@ class Chat {
     if (this.t.engine === 'codex') {
       try {
         this.gen++
-        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(kindOf(this.dir)) }, this.listener())
+        this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(kindOf(this.dir)), env: codexEnv(accountFor(this.account, 'codex').id) }, this.listener())
       } catch (e) {
         this.note(`Could not start Codex: ${(e as Error).message}`)
         return this.sendQueued()
@@ -307,7 +307,7 @@ class Chat {
     } else {
       const agents = loadMeta(this.dir)?.agents_enabled ?? true
       const model = modelFor(this.dir, 'claude')
-      const account = accountFor(this.account).id
+      const account = accountFor(this.account, 'claude').id
       // A new model, account or Agents switch: the next turn starts a process with them.
       const s = this.claude.started
       if (this.claude.running() && s && (s.agents !== agents || s.model !== model || s.account !== account)) this.stopProcesses()
@@ -350,7 +350,7 @@ class Chat {
   onEvent(ev: AgentEvent): void {
     // How much of the account is used; at its limit, the turn may go on elsewhere.
     if (ev.type === 'limits') {
-      noteUsage(accountFor(this.account).id, ev.usage)
+      noteUsage(accountFor(this.account, this.t.engine).id, ev.usage)
       if (ev.usage.status === 'rejected') this.limited = true
       return
     }
@@ -370,6 +370,15 @@ class Chat {
       this.save(true)
       this.show(true)
       this.turnEnded()
+      // Codex says how much is used in its session file: read once the run is over.
+      if (this.t.engine === 'codex' && this.t.sessionId) {
+        const id = accountFor(this.account, 'codex').id
+        const u = codexUsage(id, this.t.sessionId)
+        if (u) {
+          noteUsage(id, u)
+          if (u.status === 'rejected') this.limited = true
+        }
+      }
       if (this.limited) void this.carryOn()
       else this.sendQueued()
       return
@@ -401,11 +410,12 @@ class Chat {
    *  (signed in, not at its own limit), its conversation brought along. */
   private async carryOn(): Promise<void> {
     this.limited = false
-    const from = accountFor(this.account)
+    const engine = this.t.engine
+    const from = accountFor(this.account, engine)
     const last = [...this.t.items].reverse().find((i): i is { User: string } => 'User' in i)
-    const next = this.t.engine === 'claude' && getSettings().claude_failover ? await nextAccount(from.id) : null
+    const next = getSettings().claude_failover ? await nextAccount(engine, from.id) : null
     if (!next || !last) {
-      if (atLimit(from.id)) this.note(`${from.label === 'Default' ? 'Your Claude account' : from.label} has reached its usage limit.`)
+      if (atLimit(from.id)) this.note(`${from.label === 'Default' ? `Your ${engine === 'codex' ? 'Codex' : 'Claude'} account` : from.label} has reached its usage limit.`)
       return this.sendQueued()
     }
     this.useAccount(next.id)
@@ -415,11 +425,12 @@ class Chat {
 
   /** Run on another account from the next turn on (the conversation goes along). */
   useAccount(id: string): void {
-    const from = accountFor(this.account).id
-    const to = accountFor(id).id
+    const engine = this.t.engine
+    const from = accountFor(this.account, engine).id
+    const to = accountFor(id, engine).id
     if (from === to && this.account) return
     this.stopProcesses()
-    if (this.t.sessionId && from !== to && !moveSession(this.t.sessionId, from, to)) {
+    if (this.t.sessionId && from !== to && !moveSession(engine, this.t.sessionId, from, to)) {
       // Its conversation could not be found to bring along: a fresh one there.
       this.t.sessionId = null
     }
@@ -503,12 +514,15 @@ class Chat {
     if (!this.t.isEmpty() || this.t.engine === engine) return
     this.stopProcesses()
     this.t.engine = engine
+    // Accounts are an agent's own: the new agent's default.
+    this.account = null
     this.t.sessionId = null
     updateMeta(this.dir, (m) => {
       const c = m.chats.find((c) => c.id === this.chatId)
       if (c) {
         c.engine = engine
         c.session_id = null
+        delete c.account
       }
     })
     this.show(true)

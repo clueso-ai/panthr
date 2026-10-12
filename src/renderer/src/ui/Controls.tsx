@@ -274,9 +274,9 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
   account?: string
   onAccount?: (id: string) => void
 }) {
-  const accounts = useAccounts()
+  const accounts = useAccounts().filter((a) => a.engine === engine)
   const acct = accounts.find((a) => a.id === account)
-  const several = !!onAccount && engine === 'claude' && accounts.length > 1
+  const several = !!onAccount && accounts.length > 1
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [shown, setShown] = useState<Engine>(engine)
@@ -325,7 +325,7 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
             trailing={off ? <span className="menu-hint">New chat to switch</span> : <Icon name="chevron-right" size={12} className="faint" />}
             onSelect={() => setShown(other)}
           />
-          {shown === 'claude' && several && (
+          {shown === engine && several && (
             <>
               <MenuSep />
               <MenuTitle>Account</MenuTitle>

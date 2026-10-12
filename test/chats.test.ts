@@ -342,7 +342,7 @@ describe('chats', () => {
     const dir = project({ models: { codex: 'gpt-5-codex' } })
     const id = await chats.create(dir, 'codex')
     await chats.send(dir, id, 'first')
-    expect(fake.codex[0]).toEqual({ dir, thread: null, text: 'first', model: 'gpt-5-codex', instructions: 'PROMPT' })
+    expect(fake.codex[0]).toMatchObject({ dir, thread: null, text: 'first', model: 'gpt-5-codex', instructions: 'PROMPT' })
     feed({ type: 'session', id: 'th-9' }, { type: 'text', text: 'ok', agent: false }, { type: 'result', cost_usd: 0, duration_ms: 1000, turns: 1, error: false })
     await chats.send(dir, id, 'second')
     expect(fake.codex[1]).toMatchObject({ thread: 'th-9', text: 'second' })

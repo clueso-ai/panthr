@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ConnectionStatus, Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
+import type { ConnectionStatus, Engine, Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
@@ -164,7 +164,9 @@ function Agents() {
           <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[{ value: 'claude', label: <span className="seg-mark"><AgentMark engine="claude" size={13} />Claude Code</span> }, { value: 'codex', label: <span className="seg-mark"><AgentMark engine="codex" size={13} />Codex</span> }]} />
         </Row>
       </Card>
-      <ClaudeAccounts />
+      <AgentAccounts engine="claude" />
+      <AgentAccounts engine="codex" />
+      <Failover />
       <Card title="Default models">
         <Row title="Claude Code" body="Default is what Claude Code is set to." mark="claude"><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
         <Row title="Codex" body="Default is what Codex is set to." mark="codex"><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
@@ -181,41 +183,44 @@ function Agents() {
   )
 }
 
-/** Several Claude Code subscriptions: each signed in to its own folder; chats pick one. */
-function ClaudeAccounts() {
+/** Several subscriptions per agent: each signed in to its own folder; chats pick one. */
+function AgentAccounts({ engine }: { engine: Engine }) {
   const s = useSettings()
-  const list = useAccounts(true)
+  const list = useAccounts(true).filter((a) => a.engine === engine)
   const [name, setName] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<string | null>(null)
+  const picked = engine === 'codex' ? s.codex_account : s.claude_account
+  const fallback = engine === 'codex' ? 'codex' : 'default'
   const add = async (): Promise<void> => {
-    const a = await api.accounts.add(name.trim() || `Account ${list.length + 1}`)
+    const a = await api.accounts.add(engine, name.trim() || `Account ${list.length + 1}`)
     setName('')
     api.accounts.signIn(a.id)
   }
   return (
-    <>
-      <Card title="Claude accounts">
-        {list.map((a) => (
+    <Card title={engine === 'codex' ? 'Codex accounts' : 'Claude accounts'}>
+      {list.map((a) => {
+        const builtIn = a.id === fallback
+        return (
           <div key={a.id} className="acct">
             <div className="acct-head">
               <AccountDot color={a.color} size={10} />
               {renaming === a.id ? (
                 <input className="text-input acct-rename" autoFocus defaultValue={a.label} onBlur={(e) => { api.accounts.rename(a.id, e.target.value); setRenaming(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
               ) : (
-                <b onDoubleClick={() => a.id !== 'default' && setRenaming(a.id)}>{a.label}</b>
+                <b title={builtIn ? undefined : 'Double-click to rename'} onDoubleClick={() => !builtIn && setRenaming(a.id)}>{a.label}</b>
               )}
               <span className="faint ellipsis">
-                {a.signedIn === null ? 'Checking…' : a.signedIn ? [a.email, a.plan, a.org].filter(Boolean).join(' · ') : 'Not signed in'}
+                {a.signedIn === null ? 'Checking…' : a.signedIn ? [a.email, a.plan, a.org].filter(Boolean).join(' · ') || 'Signed in' : 'Not signed in'}
               </span>
               <span className="spacer" />
-              {s.claude_account === a.id || (a.id === 'default' && !list.some((x) => x.id === s.claude_account)) ? (
+              {picked === a.id || (builtIn && !list.some((x) => x.id === picked)) ? (
                 <span className="acct-default">New chats</span>
               ) : (
                 a.signedIn && <button className="btn small ghost" onClick={() => api.accounts.setDefault(a.id)}>Use for new chats</button>
               )}
               {a.signedIn === false && <button className="btn small primary" onClick={() => api.accounts.signIn(a.id)}>Sign in</button>}
-              {a.id !== 'default' && (confirm === a.id
+              {!builtIn && (confirm === a.id
                 ? <button className="btn small danger" onClick={() => { setConfirm(null); api.accounts.remove(a.id) }}>Remove it</button>
                 : <button className="btn small ghost danger" onClick={() => setConfirm(a.id)}>Remove</button>)}
             </div>
@@ -228,18 +233,24 @@ function ClaudeAccounts() {
             )}
             {confirm === a.id && <div className="acct-note faint">Panthr forgets it; its sign-in stays in {a.dir}. Chats on it move to the account new chats use.</div>}
           </div>
-        ))}
-        <div className="acct-add">
-          <input className="text-input" placeholder="Name another account (Work, Personal…)" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-          <button className="btn" onClick={add}>Add and sign in</button>
-        </div>
-      </Card>
-      <Card>
-        <Row title="Carry on when one runs out" body="When an account hits its usage limit, the chat moves to the next signed-in account and sends your message again, its conversation brought along.">
-          <Switch on={s.claude_failover} onChange={(v) => set({ claude_failover: v })} />
-        </Row>
-      </Card>
-    </>
+        )
+      })}
+      <div className="acct-add">
+        <input className="text-input" placeholder={`Name another ${engine === 'codex' ? 'Codex' : 'Claude'} account (Work, Personal…)`} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        <button className="btn" onClick={add}>Add and sign in</button>
+      </div>
+    </Card>
+  )
+}
+
+function Failover() {
+  const s = useSettings()
+  return (
+    <Card>
+      <Row title="Carry on when one runs out" body="When an account hits its usage limit, the chat moves to the next signed-in account of the same agent and sends your message again, its conversation brought along.">
+        <Switch on={s.claude_failover} onChange={(v) => set({ claude_failover: v })} />
+      </Row>
+    </Card>
   )
 }
 
