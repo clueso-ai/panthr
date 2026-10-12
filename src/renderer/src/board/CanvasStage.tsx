@@ -186,8 +186,9 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     const p = at(key)
     if (!p) return null
     const { w, h } = size()
-    // About three quarters of the stage, so the videos beside it peek in.
-    const zoom = clamp(Math.min((w * 0.78) / shot.w, (h * 0.8) / shot.h), ZOOM.min, ZOOM.max)
+    // About three fifths of the stage, never past 150%: big enough to work
+    // on, with the videos beside it in view and its words at a sane size.
+    const zoom = clamp(Math.min((w * 0.55) / shot.w, (h * 0.58) / shot.h), ZOOM.min, 1.5)
     return { x: p.x + PAD + shot.w / 2, y: p.y + PAD + shot.h / 2, zoom }
   }
 
