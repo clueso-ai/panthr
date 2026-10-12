@@ -1,8 +1,9 @@
 // Recording the screen into a project: pick a screen or a window (and the
 // microphone if you like), a 3-2-1, and Panthr steps aside while it records;
 // the menu-bar timer or ⇧⌘2 stops it. The recording lands as a video on the
-// canvas, with a card offering to make a demo of it. From Home it goes into
-// a new project, opened when it lands.
+// canvas, with a card offering to make a demo of it. From Home it makes no
+// project: it is attached to Home's chat box, and sending makes the project
+// with it on the canvas.
 //
 // The recording itself is main's (panthr-capture, with the pointer in the
 // picture or not; panthr-input notes the pointer either way). What is shown
@@ -12,7 +13,7 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { RecordingSource } from '@shared/types'
+import type { HeldRecording, RecordingSource } from '@shared/types'
 import { api } from '@/lib/api'
 import { tr, MOVE, SETTLE } from '@/lib/motion'
 import { Icon } from '@/ui/Icon'
@@ -28,9 +29,11 @@ interface State {
   saving: boolean
   done: { canvas: string; dir: string; name: string } | null
   error: string | null
+  /** Recordings made from Home, attached to its chat box. */
+  held: HeldRecording[]
 }
 
-let state: State = { sheet: null, count: null, saving: false, done: null, error: null }
+let state: State = { sheet: null, count: null, saving: false, done: null, error: null, held: [] }
 const subs = new Set<(s: State) => void>()
 const set = (p: Partial<State>): void => {
   state = { ...state, ...p }
@@ -40,18 +43,26 @@ const set = (p: Partial<State>): void => {
 /** Open the picker: recording into this project, or (null) into a new one. */
 export const openRecorder = (canvas: string | null): void => set({ sheet: { canvas }, error: null })
 
-/** The take now (its id and project), from the moment it starts. */
-let current: { id: string; fromHome: boolean } | null = null
+/** Take a recording off Home's chat box (it stays in the data folder). */
+export const unhold = (dir: string): void => set({ held: state.held.filter((h) => h.dir !== dir) })
+/** Home's attached recordings, taken for a new project (the box is emptied). */
+export const takeHeld = (): HeldRecording[] => {
+  const h = state.held
+  set({ held: [] })
+  return h
+}
+
+/** The take now, from the moment it starts. */
+let current: { id: string } | null = null
 
 api.on('recorder:saving', ({ id }) => {
   if (current?.id === id) set({ saving: true })
 })
 api.on('recorder:done', (d) => {
-  const home = current?.id === d.id && current.fromHome
   current = null
-  set({ saving: false, done: { canvas: d.canvas, dir: d.dir, name: d.name } })
-  // From Home: its new project opens, with the recording chosen.
-  if (home) dispatchEvent(new CustomEvent('panthr:open-project', { detail: d.dir }))
+  // From Home: attached to its chat box; in a project: on the canvas, with the card.
+  if (d.held) set({ saving: false, held: [...state.held, d.held] })
+  else if (d.canvas) set({ saving: false, done: { canvas: d.canvas, dir: d.dir, name: d.name } })
 })
 api.on('recorder:failed', ({ message }) => {
   current = null
@@ -67,7 +78,7 @@ async function start(target: string | null, source: RecordingSource, opts: { poi
   set({ count: null })
   try {
     const r = await api.recorder.start(target, source.id, opts)
-    current = { id: r.id, fromHome: !target }
+    current = { id: r.id }
   } catch (e) {
     set({ error: `Could not record: ${(e as Error).message}` })
   }
@@ -91,6 +102,9 @@ function useRecordState(): State {
   }, [])
   return s
 }
+
+/** Home's attached recordings. */
+export const useHeld = (): HeldRecording[] => useRecordState().held
 
 // ── What is shown ──────────────────────────────────────────────────────
 
@@ -184,7 +198,7 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
       <motion.div className="rec-sheet" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={tr(SETTLE)} onClick={(e) => e.stopPropagation()}>
         <div className="rec-head">
           <b>Record your screen</b>
-          <span className="faint">{fromHome ? 'It goes into a new project; the agent can make a demo of it.' : 'It lands on this canvas; the agent can make a demo of it.'}</span>
+          <span className="faint">{fromHome ? 'It is attached to your message; send it and the agent can make a demo of it.' : 'It lands on this canvas; the agent can make a demo of it.'}</span>
           <div className="refs-sheet-close"><IconButton icon="close" tip="Close" keys="esc" onClick={onClose} /></div>
         </div>
         {blocked ? (

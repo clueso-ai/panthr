@@ -10,19 +10,24 @@
 // needs to make a demo of it: the clicks and the pointer's path in the
 // video's own pixels, whether the pointer is in the picture, and the dead
 // time (no input, nothing moving).
+//
+// From Home it makes no project: the take is held in the data folder and
+// attached to Home's chat box; sending makes the project with it on the
+// canvas (recorder.attach).
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join, resolve, sep } from 'node:path'
 import { createInterface } from 'node:readline'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, nativeImage, screen, shell, systemPreferences, Tray, type DesktopCapturerSource } from 'electron'
 import { anyWorking } from './chats'
 import type { Api } from '@shared/api'
-import type { RecordingSource } from '@shared/types'
+import type { HeldRecording, RecordingSource } from '@shared/types'
 import { emit } from './bus'
-import { canvasOf, createCanvas, newVideo, real } from './board'
+import { board, canvasOf, newVideo, real } from './board'
 import { dataDir, resource, toolEnv } from './paths'
 import { exec } from './review'
+import { fileUrl } from './preview'
 
 interface InputEvent {
   t: number
@@ -36,7 +41,8 @@ interface InputEvent {
 
 interface Take {
   id: string
-  canvas: string
+  /** Its project; null from Home (held until a project is made with it). */
+  canvas: string | null
   source: { id: string; name: string }
   file: string
   /** The display's frame (screen recordings), in points from the main display's top left. */
@@ -195,10 +201,48 @@ export function recordingHtml(w: number, h: number, duration: number, hasAudio: 
 `
 }
 
+type Landing = Pick<Take, 'file' | 'events' | 'display' | 'startedAt' | 'helperAt'> & { source: { name: string }; pointer?: boolean }
+
 /** The take, as a video on its canvas. */
-export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display' | 'startedAt' | 'helperAt'> & { source: { name: string }; pointer?: boolean }, name: string, mic: boolean): Promise<string> {
+export async function land(t: Landing & { canvas: string }, name: string, mic: boolean): Promise<string> {
   const v = newVideo(t.canvas, name)
-  const assets = join(v.dir, 'assets')
+  await fill(v.dir, t, mic)
+  emit('board:changed', board(t.canvas))
+  emit('board:focus', { canvas: t.canvas, key: v.dir, fresh: true })
+  return v.dir
+}
+
+const heldRoot = (): string => join(dataDir(), 'recordings', 'held')
+
+/** A take from Home: held in the data folder (a video folder of its own,
+ *  with a still), until a project is made with it. */
+export async function hold(t: Landing & { id: string }, name: string, mic: boolean): Promise<HeldRecording> {
+  const dir = join(heldRoot(), t.id)
+  mkdirSync(dir, { recursive: true })
+  const duration = await fill(dir, t, mic)
+  const poster = join(dir, 'poster.jpg')
+  await exec('ffmpeg', ['-hide_banner', '-y', '-ss', String(Math.min(1, duration / 2)), '-i', join(dir, 'assets', 'recording.mp4'), '-frames:v', '1', '-vf', 'scale=480:-2', poster], { env: toolEnv() })
+  writeFileSync(join(dir, 'held.json'), JSON.stringify({ name, duration }))
+  return { dir, name, duration, poster: fileUrl(poster) }
+}
+
+/** A held take onto a project's canvas, as a video; its folder. */
+export function attach(canvas: string, held: string): string {
+  const from = resolve(held)
+  if (!from.startsWith(heldRoot() + sep) || !existsSync(join(from, 'recording.json'))) throw new Error('That recording is gone')
+  const { name } = JSON.parse(readFileSync(join(from, 'held.json'), 'utf8')) as { name: string }
+  const v = newVideo(canvas, name)
+  cpSync(join(from, 'assets'), join(v.dir, 'assets'), { recursive: true })
+  for (const f of ['recording.json', 'index.html']) cpSync(join(from, f), join(v.dir, f))
+  rmSync(from, { recursive: true, force: true })
+  emit('board:changed', board(real(canvas)))
+  return v.dir
+}
+
+/** The recording made into a video in `dir`: the MP4, recording.json and an
+ *  index.html that plays it; its length. */
+async function fill(dir: string, t: Landing, mic: boolean): Promise<number> {
+  const assets = join(dir, 'assets')
   mkdirSync(assets, { recursive: true })
   const mp4 = join(assets, 'recording.mp4')
   // H.264, even sizes, seekable from the start; the voice as AAC.
@@ -216,12 +260,10 @@ export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display
     pointer: t.pointer !== false,
     idle: deadTime(frozen, [...input.clicks.map((c) => c.t), ...input.keys, ...input.scrolls.map((s) => s.t)])
   }
-  writeFileSync(join(v.dir, 'recording.json'), JSON.stringify(data, null, 1))
-  writeFileSync(join(v.dir, 'index.html'), recordingHtml(fw, fh, duration, mic))
+  writeFileSync(join(dir, 'recording.json'), JSON.stringify(data, null, 1))
+  writeFileSync(join(dir, 'index.html'), recordingHtml(fw, fh, duration, mic))
   rmSync(t.file, { force: true })
-  emit('board:changed', (await import('./board')).board(t.canvas))
-  emit('board:focus', { canvas: t.canvas, key: v.dir, fresh: true })
-  return v.dir
+  return duration
 }
 
 export const recorderApi: Api['recorder'] = {
@@ -261,8 +303,8 @@ export const recorderApi: Api['recorder'] = {
     if (!source) throw new Error('That screen or window is gone: pick again')
     const capture = resource('bin/panthr-capture')
     if (!existsSync(capture)) throw new Error('The recorder is missing from this build')
-    // Into this project, or (from Home) a new one.
-    const canvas = canvas0 ? canvasOf(real(canvas0)) : createCanvas(`Screen recording · ${new Date().toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`).dir
+    // Into this project, or (from Home) held for Home's chat box.
+    const canvas = canvas0 ? canvasOf(real(canvas0)) : null
     const id = `rec-${Date.now().toString(36)}`
     const dir = join(dataDir(), 'recordings')
     mkdirSync(dir, { recursive: true })
@@ -334,6 +376,9 @@ export const recorderApi: Api['recorder'] = {
   },
   async stop() {
     stopTake()
+  },
+  async attach(canvas, held) {
+    return attach(canvas, held)
   }
 }
 
@@ -352,8 +397,13 @@ async function ended(t: Take, error: string | null): Promise<void> {
   }
   try {
     const name = `Recording · ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
-    const dir = await land(t, name, t.mic)
-    emit('recorder:done', { id: t.id, canvas: t.canvas, dir, name })
+    if (t.canvas) {
+      const dir = await land({ ...t, canvas: t.canvas }, name, t.mic)
+      emit('recorder:done', { id: t.id, canvas: t.canvas, dir, name })
+    } else {
+      const held = await hold(t, name, t.mic)
+      emit('recorder:done', { id: t.id, canvas: null, dir: held.dir, name, held })
+    }
   } catch (e) {
     emit('recorder:failed', { id: t.id, message: (e as Error).message })
   }

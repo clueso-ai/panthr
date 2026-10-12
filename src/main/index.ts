@@ -109,6 +109,12 @@ function headlessCapture(w0: BrowserWindow): void {
   w0.webContents.once('did-finish-load', async () => {
     const delay = +(process.env.PANTHR_SHOT_DELAY || 2500)
     await new Promise((r) => setTimeout(r, Math.min(delay, 1500)))
+    // An event from the app, as if it had happened (PANTHR_EMIT: JSON {name, payload}).
+    if (process.env.PANTHR_EMIT) {
+      const e = JSON.parse(process.env.PANTHR_EMIT) as { name: string; payload: unknown }
+      emit(e.name as never, e.payload as never)
+      await new Promise((r) => setTimeout(r, 600))
+    }
     if (process.env.PANTHR_EVAL) {
       try {
         const out = await w0.webContents.executeJavaScript(process.env.PANTHR_EVAL)

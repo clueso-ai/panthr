@@ -128,8 +128,10 @@ export interface ComposerHandle {
  *  offers the reference videos (`mentions`); Enter or Tab puts one in. */
 export const Composer = forwardRef<ComposerHandle, {
   placeholder: string; onSubmit: (text: string) => void; maxRows?: number; className?: string; autoFocus?: boolean; onChange?: (t: string) => void
+  /** Return sends even with nothing typed (something else is attached). */
+  allowEmpty?: boolean
   mentions?: Reference[]
-}>(function Composer({ placeholder, onSubmit, maxRows = 10, className, autoFocus, onChange, mentions }, ref) {
+}>(function Composer({ placeholder, onSubmit, maxRows = 10, className, autoFocus, onChange, mentions, allowEmpty }, ref) {
   const el = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   /** The @-query before the caret (null: no menu), and the row chosen. */
@@ -217,7 +219,7 @@ export const Composer = forwardRef<ComposerHandle, {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault()
             const v = text.trim()
-            if (!v) return
+            if (!v && !allowEmpty) return
             setText('')
             onChange?.('')
             onSubmit(v)

@@ -17,6 +17,15 @@
   transition: border-color var(--move) var(--ease), box-shadow var(--move) var(--ease);
 }
 .home-box:focus-within { border-color: color-mix(in srgb, var(--acc) 45%, var(--hair-2)); }
+.home-held { display: flex; flex-wrap: wrap; gap: 8px; cursor: default; }
+.home-held-item {
+  display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 6px; border-radius: 12px;
+  background: var(--hover); border: 1px solid var(--hair-2); max-width: 300px;
+}
+.home-held-item img { width: 64px; height: 40px; border-radius: 7px; object-fit: cover; background: var(--hair); flex: none; }
+.home-held-words { display: flex; flex-direction: column; min-width: 0; font-size: 13px; line-height: 17px; }
+.home-held-words b { font-weight: 500; color: var(--t1); }
+.home-held-words .mono { font-size: 11.5px; }
 .home-input { font-size: 17px; line-height: 26px; min-height: 52px; }
 .home-box-row { display: flex; align-items: center; gap: 4px; margin-left: -6px; cursor: default; }
 .home-box-row .send { width: 34px; height: 34px; margin-left: 4px; }

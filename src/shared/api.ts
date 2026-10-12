@@ -215,8 +215,10 @@ export interface Api {
     relaunch(force?: boolean): Promise<void>
     /** Screens and windows to record (not Panthr's own). */
     sources(): Promise<import('./types').RecordingSource[]>
-    /** Record one into a project (null: a new one): with the pointer in the picture or not, the microphone or not. Panthr steps aside until it is stopped. */
-    start(canvas: string | null, sourceId: string, opts: { pointer: boolean; mic: boolean }): Promise<{ id: string; canvas: string }>
+    /** Record one into a project (null: from Home, held for Home's chat box): with the pointer in the picture or not, the microphone or not. Panthr steps aside until it is stopped. */
+    start(canvas: string | null, sourceId: string, opts: { pointer: boolean; mic: boolean }): Promise<{ id: string; canvas: string | null }>
+    /** A held recording, moved onto a project's canvas as a video; its folder. */
+    attach(canvas: string, held: string): Promise<string>
     /** Stop it ('recorder:saving', then 'recorder:done' or 'recorder:failed'). */
     stop(): Promise<void>
   }
@@ -280,7 +282,7 @@ export interface Events {
   /** A screen recording stopped and is being saved. */
   'recorder:saving': { id: string }
   /** It landed: a video on its project's canvas. */
-  'recorder:done': { id: string; canvas: string; dir: string; name: string }
+  'recorder:done': { id: string; canvas: string | null; dir: string; name: string; held?: import('./types').HeldRecording }
   'recorder:failed': { id: string; message: string }
   /** The schedules changed (saved, ran, finished). */
   schedules: import('./types').ScheduleStatus[]

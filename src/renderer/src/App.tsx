@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Engine } from '@shared/types'
+import type { Engine, HeldRecording } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { tr, SETTLE } from '@/lib/motion'
 import { Home } from './home/Home'
@@ -79,8 +79,12 @@ export function App() {
     openProject(await api.canvases.of(dir), dir)
   }
   /** A new project from Home: an empty canvas, its conversation given the idea. */
-  const start = async (idea: string, host: string | null, engine: Engine, model: string): Promise<void> => {
-    const name = idea.split(/\s+/).slice(0, 5).join(' ').replace(/[^\p{L}\p{N}]+$/u, '') || 'Untitled'
+  const start = async (idea0: string, host: string | null, engine: Engine, model: string, held: HeldRecording[] = []): Promise<void> => {
+    // Recordings attached with nothing said: a demo of them.
+    const idea = idea0 || (held.length === 1
+      ? `Turn "${held[0].name}" into a product demo of about 45 seconds: cut the dead time, zoom in on each click, add a short caption for each step, and a title card at the start. Make it its own tile first with \`panthr board new "${held[0].name} demo" --from "${held[0].name}"\` and build it there; leave the recording as it is.`
+      : `Turn these recordings (${held.map((h) => `"${h.name}"`).join(', ')}) into one product demo of about 45 seconds: cut the dead time, zoom in on each click, add a short caption for each step, and a title card at the start. Make it its own tile first with \`panthr board new "Demo"\` and build it there; leave the recordings as they are.`)
+    const name = idea0 ? idea0.split(/\s+/).slice(0, 5).join(' ').replace(/[^\p{L}\p{N}]+$/u, '') || 'Untitled' : held.length ? 'Screen recording' : 'Untitled'
     // On a connection, a project there; on an older host, one video there (made as before).
     const dir = host?.startsWith('conn:') ? (await api.canvases.create(name, host.slice(5))).dir : host ? await api.canvases.of((await api.projects.create(name, host)).dir) : (await api.canvases.create(name)).dir
     const p = await api.projects.load(dir)
@@ -89,7 +93,10 @@ export function App() {
       const chatId = p.meta.chats[0]?.id ?? (await api.chats.create(dir, engine))
       if (engine !== s.agent) await api.chats.setEngine(dir, chatId, engine)
     }
-    openProject(dir, null, idea)
+    // The recordings onto its canvas; the last one active.
+    let active: string | null = null
+    for (const h of held) active = await api.recorder.attach(dir, h.dir)
+    openProject(dir, active, idea)
   }
 
   // A .panthr opened (Finder, a drop, the menu): its project, with a word about what came in.

@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Canvas, ConnectionStatus, Engine, Host, ScheduleStatus, Skill } from '@shared/types'
+import type { Canvas, ConnectionStatus, Engine, HeldRecording, Host, ScheduleStatus, Skill } from '@shared/types'
 import { nextText } from '@/settings/Schedules'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
@@ -19,7 +19,7 @@ import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { addVideos, ReferencesSection } from '@/editor/References'
 import { Assistant } from '@/assistant/Assistant'
-import { openRecorder } from '@/board/Record'
+import { openRecorder, takeHeld, unhold, useHeld } from '@/board/Record'
 import './home.css'
 
 const IDEAS: [string, string][] = [
@@ -34,7 +34,7 @@ const WORD_MS = 2600
 
 export function Home({ onOpen, onStart, onSettings }: {
   onOpen: (dir: string) => void
-  onStart: (idea: string, host: string | null, engine: Engine, model: string) => void
+  onStart: (idea: string, host: string | null, engine: Engine, model: string, held: HeldRecording[]) => void
   onSettings: () => void
 }) {
   const s = useSettings()
@@ -98,8 +98,10 @@ export function Home({ onOpen, onStart, onSettings }: {
   useEffect(() => box.current?.focus(), [])
 
   const chosen = model ?? (engine === 'codex' ? s.codex_model : s.model)
+  const held = useHeld()
   const start = (idea: string): void => {
-    if (idea.trim()) onStart(idea.trim(), host, engine, chosen)
+    // Recordings stay on this Mac: a project with them is made here.
+    if (idea.trim() || held.length) onStart(idea.trim(), held.length ? null : host, engine, chosen, takeHeld())
   }
 
   return (
@@ -136,13 +138,27 @@ export function Home({ onOpen, onStart, onSettings }: {
             </span>
           </motion.h1>
           <motion.div className="home-box" {...rise(14, SETTLE, 0.2)} onClick={() => box.current?.focus()}>
-            <Composer ref={box} mentions={refs} placeholder="Describe a video, then press Return" onSubmit={start} onChange={setText} className="home-input" maxRows={8} />
+            {held.length > 0 && (
+              <div className="home-held" onClick={(e) => e.stopPropagation()}>
+                {held.map((h) => (
+                  <div key={h.dir} className="home-held-item">
+                    <img src={h.poster} alt="" />
+                    <span className="home-held-words">
+                      <b className="ellipsis">{h.name}</b>
+                      <span className="faint mono">{clock(h.duration)}</span>
+                    </span>
+                    <IconButton icon="close" tip="Remove" onClick={() => unhold(h.dir)} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <Composer ref={box} mentions={refs} placeholder={held.length ? 'What should it become? Or just press Return for a demo' : 'Describe a video, then press Return'} onSubmit={start} onChange={setText} allowEmpty={held.length > 0} className="home-input" maxRows={8} />
             <div className="home-box-row" onClick={(e) => e.stopPropagation()}>
               <AddChip onVideo={async () => {
                 await addVideos(await api.app.chooseFiles())
               }} onReferences={() => setRefsOpen(true)} onSkills={openSkills} />
-              <WhereChip host={host} onHost={setHost} />
-              <Tip title="Record your screen" keys="⇧⌘2 stops" body="Record your screen or a window into a new project, then have the agent make a demo of it.">
+              {!held.length && <WhereChip host={host} onHost={setHost} />}
+              <Tip title="Record your screen" keys="⇧⌘2 stops" body="Record your screen or a window. It is attached to your message; send it and the agent makes a demo of it.">
                 <button className="chip" onClick={() => openRecorder(null)}>
                   <Icon name="record" size={15} className="rec-chip-dot" />
                   <span>Record</span>
@@ -154,7 +170,7 @@ export function Home({ onOpen, onStart, onSettings }: {
                 setModel(m)
               }} />
               <Tip title="Start" keys="⏎" body="Make a project from this and send it to the agent.">
-                <button className="send" disabled={!text.trim()} onClick={() => start(box.current?.value() ?? '')}>
+                <button className="send" disabled={!text.trim() && !held.length} onClick={() => start(box.current?.value() ?? '')}>
                   <Icon name="up" size={16} />
                 </button>
               </Tip>
@@ -234,6 +250,8 @@ export function Home({ onOpen, onStart, onSettings }: {
 }
 
 /** The + in the idea box: bring in a video to learn from, or skills. */
+const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
 function AddChip({ onVideo, onReferences, onSkills }: { onVideo(): void; onReferences(): void; onSkills(): void }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)

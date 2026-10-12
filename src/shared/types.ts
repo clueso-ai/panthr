@@ -143,6 +143,16 @@ export interface RecordingSource {
   thumb: string
 }
 
+/** A recording made from Home: held in the data folder, attached to Home's
+ *  chat box, until a project is made with it. */
+export interface HeldRecording {
+  dir: string
+  name: string
+  duration: number
+  /** A still from it (a panthr:// URL). */
+  poster: string
+}
+
 // ── Usage (built from every chat's turns) ─────────────────────────
 
 export interface UsageTotals {

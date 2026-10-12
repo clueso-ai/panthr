@@ -1,7 +1,8 @@
 // Screen recordings: the input helper's points on the video's pixels (a
 // display's frame, or a window's as it moves), the dead time (still and
 // nothing done), and a real take through the pipeline: converted, the dead
-// time found, the clicks noted, landed as a video HyperFrames can play.
+// time found, the clicks noted, landed as a video HyperFrames can play;
+// from Home, held with a still until a project is made with it.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('electron', () => ({ app: undefined, nativeTheme: {}, BrowserWindow: { getAllWindows: () => [] } }))
 vi.mock('../src/main/bus', () => ({ emit: () => {} }))
 
-import { deadTime, land, toVideo } from '../src/main/recorder'
+import { attach, deadTime, hold, land, toVideo } from '../src/main/recorder'
 import { createCanvas, board } from '../src/main/board'
 
 describe('pointer to pixels', () => {
@@ -68,4 +69,29 @@ describe('a take', () => {
     expect(v.ok).toBe(true)
     expect(v.layout.duration).toBeCloseTo(7, 0)
   }, 180000)
+
+  it('from Home: held with a still, then moved onto a canvas', async () => {
+    const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'panthr-rec-')))
+    process.env.PANTHR_ROOT = join(tmp, 'Panthr')
+    process.env.PANTHR_DATA_DIR = join(tmp, 'data')
+    mkdirSync(process.env.PANTHR_ROOT, { recursive: true })
+    const file = join(tmp, 'take.webm')
+    execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=640x400:rate=30:duration=3', '-c:v', 'libvpx-vp9', '-b:v', '1M', file])
+    const h = await hold({ id: 'rec-test', file, events: [], display: { x: 0, y: 0, w: 1280, h: 800 }, startedAt: 1000, helperAt: 1000, source: { name: 'Built-in display' } }, 'Recording · home', false)
+    expect(h).toMatchObject({ name: 'Recording · home' })
+    expect(h.duration).toBeCloseTo(3, 0)
+    expect(existsSync(join(h.dir, 'poster.jpg'))).toBe(true)
+    expect(h.poster.startsWith('panthr://file')).toBe(true)
+    // No project yet.
+    expect(existsSync(join(process.env.PANTHR_ROOT, 'Recording · home'))).toBe(false)
+    const canvas = createCanvas('From home').dir
+    const dir = attach(canvas, h.dir)
+    expect(existsSync(join(dir, 'assets', 'recording.mp4'))).toBe(true)
+    expect(existsSync(join(dir, 'recording.json'))).toBe(true)
+    expect(readFileSync(join(dir, 'index.html'), 'utf8')).toContain('recording.mp4')
+    expect(Object.keys(board(canvas).tiles)).toContain(dir)
+    expect(existsSync(h.dir)).toBe(false)
+    // Only held recordings can be attached.
+    expect(() => attach(canvas, tmp)).toThrow('gone')
+  }, 120000)
 })
