@@ -207,6 +207,12 @@ export interface Api {
     run(id: string): Promise<void>
   }
   recorder: {
+    /** What macOS lets Panthr record: 'granted', 'denied', 'not-determined', 'restricted'. */
+    access(): Promise<{ screen: string; microphone: string }>
+    /** System Settings at Privacy ▸ Screen Recording (or the microphone). */
+    openPrivacy(what: 'screen' | 'microphone'): Promise<void>
+    /** Quit and open again (macOS applies a new Screen Recording permission only then); force: even with an agent working. */
+    relaunch(force?: boolean): Promise<void>
     /** Screens and windows to record (not Panthr's own). */
     sources(): Promise<import('./types').RecordingSource[]>
     /** Get ready to record one into a project; the window's getDisplayMedia then gets it. */

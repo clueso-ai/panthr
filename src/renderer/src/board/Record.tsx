@@ -180,12 +180,22 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
   const [error, setError] = useState<string | null>(null)
   const [pick, setPick] = useState<string | null>(null)
   const [mic, setMic] = useState(false)
+  const [access, setAccess] = useState<{ screen: string; microphone: string } | null>(null)
+  const [relaunchErr, setRelaunchErr] = useState<string | null>(null)
   useEffect(() => {
+    // Asking for the list is what makes macOS ask the first time; then what it said.
     api.recorder.sources().then((l) => {
       setList(l)
       setPick(l.find((s) => s.kind === 'screen')?.id ?? l[0]?.id ?? null)
-    }).catch((e) => setError(`${(e as Error).message}. Panthr needs Screen Recording in System Settings › Privacy & Security.`))
+    }).catch((e) => setError((e as Error).message)).finally(() => api.recorder.access().then(setAccess))
   }, [])
+  // Back from System Settings: look again.
+  useEffect(() => {
+    const f = (): void => void api.recorder.access().then(setAccess)
+    addEventListener('focus', f)
+    return () => removeEventListener('focus', f)
+  }, [])
+  const blocked = access && access.screen !== 'granted'
   useEffect(() => {
     const k = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
@@ -206,6 +216,28 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
           <span className="faint">{fromHome ? 'It goes into a new project; the agent can make a demo of it.' : 'It lands on this canvas; the agent can make a demo of it.'}</span>
           <div className="refs-sheet-close"><IconButton icon="close" tip="Close" keys="esc" onClick={onClose} /></div>
         </div>
+        {blocked ? (
+          <div className="rec-perm">
+            <b>Panthr needs permission to record your screen</b>
+            <ol>
+              <li>
+                Open Screen Recording in System Settings.
+                <button className="btn small" onClick={() => api.recorder.openPrivacy('screen')}>Open Screen Recording</button>
+              </li>
+              <li>Turn Panthr on. If Panthr is listed more than once (an older copy), remove those with − and turn this one on, or add it with +.</li>
+              <li>
+                Relaunch Panthr: macOS only applies it to a fresh start.
+                <button className="btn small primary" onClick={() => api.recorder.relaunch().catch((e) => setRelaunchErr((e as Error).message))}>Relaunch Panthr</button>
+              </li>
+            </ol>
+            {relaunchErr && (
+              <div className="rec-err">
+                {relaunchErr}. <button className="link" onClick={() => api.recorder.relaunch(true)}>Relaunch anyway</button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
         {error && <div className="rec-err">{error}</div>}
         {!list && !error && <div className="faint rec-wait">Looking for screens and windows…</div>}
         <div className="rec-body">
@@ -223,10 +255,15 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
             </section>
           ))}
         </div>
+          </>
+        )}
+        {mic && access?.microphone === 'denied' && (
+          <div className="rec-err">The microphone is off for Panthr. <button className="link" onClick={() => api.recorder.openPrivacy('microphone')}>Turn it on in System Settings</button>, then relaunch Panthr.</div>
+        )}
         <div className="rec-go">
           <label className="rec-mic"><Switch on={mic} onChange={setMic} small /> Record my voice too</label>
           <span className="spacer" />
-          <button className="btn primary" disabled={!chosen} onClick={() => chosen && onStart(chosen, mic)}><Icon name="record" size={13} /> Start recording</button>
+          <button className="btn primary" disabled={!chosen || !!blocked} onClick={() => chosen && onStart(chosen, mic)}><Icon name="record" size={13} /> Start recording</button>
         </div>
       </motion.div>
     </motion.div>

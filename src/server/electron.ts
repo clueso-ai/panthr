@@ -50,6 +50,7 @@ export const protocol = {
 
 /** Recording a screen needs one. */
 export const desktopCapturer = { getSources: notHere }
+export const systemPreferences = { getMediaAccessStatus: (): string => 'unknown' }
 export const globalShortcut = { register: (): boolean => false, unregister: (): void => {} }
 export const nativeImage = { createEmpty: (): null => null }
 export const screen = { getAllDisplays: (): never[] => [], getPrimaryDisplay: notHere }
@@ -59,4 +60,4 @@ export class Tray {
   }
 }
 
-export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol, Notification, desktopCapturer, globalShortcut, nativeImage, screen, Tray }
+export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol, Notification, systemPreferences, desktopCapturer, globalShortcut, nativeImage, screen, Tray }

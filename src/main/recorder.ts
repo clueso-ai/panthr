@@ -13,7 +13,8 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { BrowserWindow, desktopCapturer, globalShortcut, nativeImage, screen, Tray, type DesktopCapturerSource } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, nativeImage, screen, shell, systemPreferences, Tray, type DesktopCapturerSource } from 'electron'
+import { anyWorking } from './chats'
 import type { Api } from '@shared/api'
 import type { RecordingSource } from '@shared/types'
 import { emit } from './bus'
@@ -221,6 +222,28 @@ export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display
 }
 
 export const recorderApi: Api['recorder'] = {
+  async access() {
+    const of = (what: 'screen' | 'microphone'): string => {
+      try {
+        return systemPreferences.getMediaAccessStatus(what)
+      } catch {
+        return 'unknown'
+      }
+    }
+    return { screen: of('screen'), microphone: of('microphone') }
+  },
+  async openPrivacy(what) {
+    // A test run never opens System Settings on the person's screen.
+    if (process.env.PANTHR_SHOT) return
+    await shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${what === 'microphone' ? 'Privacy_Microphone' : 'Privacy_ScreenCapture'}`)
+  },
+  async relaunch(force) {
+    // macOS applies a new Screen Recording permission only to a fresh start.
+    if (!force && (await anyWorking())) throw new Error('An agent is working: relaunching would stop it')
+    if (process.env.PANTHR_SHOT) return
+    app.relaunch()
+    app.exit(0)
+  },
   async sources() {
     const mine = new Set(BrowserWindow.getAllWindows().map((w) => w.getMediaSourceId()))
     const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 360, height: 225 } })
