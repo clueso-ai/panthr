@@ -46,11 +46,22 @@ export function App() {
   // Where we were.
   useEffect(() => {
     api.state.get().then(async (st) => {
-      if (!st.home && st.project && (await api.projects.load(st.project))) {
-        setView({ kind: 'project', canvas: await api.canvases.of(st.project), active: st.project, first: null })
-      } else if (!st.home && st.canvas && (await api.projects.load(st.canvas))) {
-        setView({ kind: 'project', canvas: st.canvas, active: null, first: null })
-      } else setView({ kind: 'home' })
+      // A project on another machine may not be reachable yet: then Home.
+      const load = (dir: string) => api.projects.load(dir).catch(() => null)
+      // On another machine: a moment for its connection to come up first.
+      const far = /^\/@([a-z0-9]{6})\//.exec((!st.home && (st.canvas || st.project)) || '')?.[1]
+      for (let i = 0; far && i < 40; i++) {
+        const c = (await api.connections.list()).find((x) => x.id === far)
+        if (!c || c.phase === 'connected' || c.phase === 'off' || c.phase === 'blocked') break
+        await new Promise((r) => setTimeout(r, 200))
+      }
+      try {
+        if (!st.home && st.project && (await load(st.project))) {
+          return setView({ kind: 'project', canvas: await api.canvases.of(st.project), active: st.project, first: null })
+        }
+        if (!st.home && st.canvas && (await load(st.canvas))) return setView({ kind: 'project', canvas: st.canvas, active: null, first: null })
+      } catch {}
+      setView({ kind: 'home' })
     })
   }, [])
 
@@ -69,8 +80,8 @@ export function App() {
   /** A new project from Home: an empty canvas, its conversation given the idea. */
   const start = async (idea: string, host: string | null, engine: Engine, model: string): Promise<void> => {
     const name = idea.split(/\s+/).slice(0, 5).join(' ').replace(/[^\p{L}\p{N}]+$/u, '') || 'Untitled'
-    // On a host, a project is still one video there (made as before).
-    const dir = host ? await api.canvases.of((await api.projects.create(name, host)).dir) : (await api.canvases.create(name)).dir
+    // On a connection, a project there; on an older host, one video there (made as before).
+    const dir = host?.startsWith('conn:') ? (await api.canvases.create(name, host.slice(5))).dir : host ? await api.canvases.of((await api.projects.create(name, host)).dir) : (await api.canvases.create(name)).dir
     const p = await api.projects.load(dir)
     if (p) {
       await api.projects.saveMeta(dir, { ...p.meta, models: { ...p.meta.models, [engine]: model } })

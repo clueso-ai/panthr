@@ -8,28 +8,19 @@ import { join } from 'node:path'
 import { writeFileSync } from 'node:fs'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, shell } from 'electron'
 import { METHODS } from '@shared/methods'
-import type { Api } from '@shared/api'
 import { handleProtocol, registerScheme } from './preview'
 import { emit } from './bus'
 import { socketPath, startControl } from './control'
 import { dataDir, writeAgentCli } from './paths'
 import { getState as readState } from './state'
-import { settings, getSettings } from './settings'
+import { getSettings } from './settings'
 import { state, getState } from './state'
-import { appApi } from './app'
-import { projects } from './projects'
-import { chats, anyWorking, stopAll } from './chats'
-import { controls } from './controls'
-import { review } from './review'
-import { skills, seedSkills } from './skills'
-import { hosts } from './hosts'
-import { files } from './files'
-import { references, stopAllReferences } from './references'
-import { boardApi, canvasesApi } from './board'
-import { historyApi } from './history'
-import { brandApi } from './brand'
-import { openShare, shareApi } from './share'
-import { assistantApi } from './assistant'
+import { anyWorking, stopAll } from './chats'
+import { seedSkills } from './skills'
+import { stopAllReferences } from './references'
+import { openShare } from './share'
+import { call } from './handlers'
+import { startConnections, stopConnections } from './connections'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -39,13 +30,10 @@ registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
 
-const handlers: Api = { app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references, board: boardApi, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi, assistant: assistantApi }
-
 function registerApi(): void {
   for (const [ns, methods] of Object.entries(METHODS)) {
     for (const m of Object.keys(methods)) {
-      const f = (handlers as any)[ns][m] as (...a: unknown[]) => Promise<unknown>
-      ipcMain.handle(`${ns}:${m}`, (_e, ...args) => f(...args))
+      ipcMain.handle(`${ns}:${m}`, (_e, ...args) => call(`${ns}.${m}`, args))
     }
   }
 }
@@ -284,9 +272,7 @@ async function dispatch(method: string, params: unknown[]): Promise<unknown> {
     }
     throw new Error(`no such command: ${method}`)
   }
-  const methods = (METHODS as Record<string, Record<string, true>>)[ns]
-  if (!methods || !methods[m]) throw new Error(`no such method: ${method}`)
-  return (handlers as any)[ns][m](...params)
+  return call(method, params)
 }
 
 // A .panthr opened from Finder (double-click, or dropped on the Dock icon):
@@ -317,6 +303,8 @@ app.whenReady().then(() => {
   else seedSkills()
   // The command line's way in (not in a test run unless asked).
   if (!HEADLESS || process.env.PANTHR_CONTROL) startControl(socketPath(dataDir()), dispatch)
+  // Other machines (not in a test run unless it has its own).
+  if (!HEADLESS || process.env.PANTHR_CONNECTIONS) startConnections()
   // Files opened before the window was up.
   win.webContents.once('did-finish-load', () => {
     ready = true
@@ -328,6 +316,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopConnections()
   stopAll()
   stopAllReferences()
   app.quit()

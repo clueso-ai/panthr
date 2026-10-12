@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Canvas, Engine, Host, Skill } from '@shared/types'
+import type { Canvas, ConnectionStatus, Engine, Host, Skill } from '@shared/types'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
@@ -78,6 +78,11 @@ export function Home({ onOpen, onStart, onSettings }: {
   useEffect(load, [])
   useEvent('chat:turn', load)
   useEvent('project:renamed', load)
+  // Another machine's projects come and go with its connection.
+  useEvent('connections', load)
+  useEvent('project:changed', (e) => {
+    if (e.dir.startsWith('/@')) load()
+  })
   useEffect(() => setEngine(s.agent), [s.agent])
   useEffect(() => {
     const id = setInterval(() => setWord((w) => w + 1), WORD_MS)
@@ -291,37 +296,48 @@ function Card({ p, i, working, onOpen, onRenamed }: { p: Canvas; i: number; work
   )
 }
 
-/** Where a new project is made: this Mac, or one of the hosts. */
+/** Where a new project is made: this Mac, a connection ("conn:<id>") or an older host (its name). */
 function WhereChip({ host, onHost }: { host: string | null; onHost: (h: string | null) => void }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [hosts, setHosts] = useState<Host[]>([])
+  const [conns, setConns] = useState<ConnectionStatus[]>([])
   useEffect(() => {
+    api.connections.list().then(setConns)
     if (open) api.hosts.list().then(setHosts)
   }, [open])
+  useEvent('connections', setConns)
+  const conn = host?.startsWith('conn:') ? conns.find((c) => `conn:${c.id}` === host) : undefined
+  // A connection that went away: back to this Mac.
+  useEffect(() => {
+    if (host?.startsWith('conn:') && conns.length && !conn) onHost(null)
+  }, [host, conn, conns.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (h: string | null): void => {
     onHost(h)
     setOpen(false)
   }
   return (
     <>
-      <Tip title="Where it runs" body="This Mac, or a remote host you added in Settings: the agent and renders run there.">
+      <Tip title="Where it runs" body="This Mac, or another machine you connected in Settings: the agent, previews and renders run there.">
         <button ref={anchor} className={`chip${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
-          <Icon name={host ? 'cloud' : 'laptop'} size={15} className="faint" />
-          <span>{host ?? 'This Mac'}</span>
+          <Icon name={conn ? 'server' : host ? 'cloud' : 'laptop'} size={15} className="faint" />
+          <span>{conn ? conn.label : host ?? 'This Mac'}</span>
           <Icon name="chevron" size={12} className="faint" />
         </button>
       </Tip>
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="start" width={240}>
         <div className="menu">
           <MenuItem label="This Mac" on={!host} onSelect={() => pick(null)} />
+          {conns.map((c) => (
+            <MenuItem key={c.id} disabled={c.phase !== 'connected'} label={<>{c.label} <span className="faint">· {c.phase === 'connected' ? c.target || 'connected' : c.phase === 'off' ? 'off' : 'not connected'}</span></>} on={host === `conn:${c.id}`} onSelect={() => pick(`conn:${c.id}`)} />
+          ))}
           {hosts.map((h) => (
             <MenuItem key={h.name} label={<>{h.name} <span className="faint">· {h.target}</span></>} on={host === h.name} onSelect={() => pick(h.name)} />
           ))}
           <MenuSep />
-          <MenuItem icon={<Icon name="plus" size={14} />} label="Add a remote host…" onSelect={() => {
+          <MenuItem icon={<Icon name="plus" size={14} />} label="Connect a machine…" onSelect={() => {
             setOpen(false)
-            window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'hosts' }))
+            window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'connections' }))
           }} />
         </div>
       </Popover>

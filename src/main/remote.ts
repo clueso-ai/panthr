@@ -93,7 +93,7 @@ const controlPath = (): string => `${home()}/.ssh/panthr-%C`
 const BASE_OPTS = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10']
 
 /** ssh's options to share one connection; never prompts (no TTY to ask on). */
-function sshOpts(): string[] {
+export function sshOpts(): string[] {
   return [...BASE_OPTS, '-o', 'ServerAliveInterval=15', '-o', 'ControlMaster=auto', '-o', `ControlPath=${controlPath()}`, '-o', 'ControlPersist=10m']
 }
 
@@ -102,7 +102,7 @@ export function sshArgs(host: Host, ...command: string[]): string[] {
 }
 
 /** Run in the user's login shell on the host (their PATH: claude, codex, node). */
-const loginShell = (script: string): string => `exec "$SHELL" -lc ${shQuote(script)}`
+export const loginShell = (script: string): string => `exec "$SHELL" -lc ${shQuote(script)}`
 
 /** How to run `program args` in `dir` on the host: an ssh invocation whose
  *  first stdout line is `PANTHR_PID <pid>` (see pidLine). `exec` keeps the
@@ -127,7 +127,7 @@ interface Out {
 }
 
 /** Run a program to its end (with our PATH: a GUI app has none). */
-function run(cmd: string, args: string[], input?: string | Buffer): Promise<Out> {
+export function run(cmd: string, args: string[], input?: string | Buffer): Promise<Out> {
   return new Promise((res, rej) => {
     const c = spawn(cmd, args, { env: { ...process.env, PATH: pathEnv() }, stdio: ['pipe', 'pipe', 'pipe'] })
     const out: Buffer[] = []
@@ -162,7 +162,7 @@ export function kill(host: Host, pid: number): void {
 const EXCLUDE = ['node_modules/', '.git/', '.studio/versions/', '.claude/skills/', '.agents/skills/']
 
 /** The `-e` rsync takes to ride the same connection. */
-const rsyncSsh = (): string =>
+export const rsyncSsh = (): string =>
   `ssh -o BatchMode=yes -o ConnectTimeout=10 -o ControlMaster=auto -o ControlPath=${controlPath()} -o ControlPersist=10m`
 
 function rsyncArgs(excludes = true): string[] {

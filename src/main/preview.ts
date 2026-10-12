@@ -14,6 +14,7 @@ import { extname, isAbsolute, join, normalize, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { protocol } from 'electron'
 import { dataDir, resource, studioRoot } from './paths'
+import { proxy } from './connections'
 
 export const SCHEME = 'panthr'
 
@@ -155,6 +156,8 @@ async function serveProject(dir: string, path: string, req: Request): Promise<Re
 export function handleProtocol(): void {
   protocol.handle(SCHEME, async (req) => {
     const url = new URL(req.url)
+    // From another machine: through its connection.
+    if (url.hostname.startsWith('x-')) return proxy(url, req)
     const path = url.pathname.replace(/^\/+/, '')
     if (url.hostname === 'file') {
       const full = decodeURIComponent(url.pathname)

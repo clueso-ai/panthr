@@ -4,7 +4,7 @@
 // Calls are `ipcRenderer.invoke('<ns>:<fn>', ...args)`.
 
 import type {
-  AppState, ChatState, Comment, Reference, RefFile, SkillHit, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
+  AppState, ChatState, Connection, ConnectionStatus, Comment, Reference, RefFile, SkillHit, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
   Model, Project, ProjectMeta, Settings, SkillsState, TimingLayer, Version
 } from './types'
 
@@ -156,8 +156,8 @@ export interface Api {
   canvases: {
     /** Every project (a canvas of videos), newest first. */
     list(): Promise<import('./types').Canvas[]>
-    /** A new, empty project. */
-    create(name: string): Promise<import('./types').Canvas>
+    /** A new, empty project (on a connection, given its id). */
+    create(name: string, on?: string | null): Promise<import('./types').Canvas>
     /** The project a video belongs to. */
     of(dir: string): Promise<string>
     /** A project by folder or name. */
@@ -192,6 +192,18 @@ export interface Api {
      *  never over a change someone else made since). */
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
+  connections: {
+    /** This Mac's connections to other machines, with how each is doing. */
+    list(): Promise<ConnectionStatus[]>
+    /** Add one (or change it, by id); it connects at once if enabled. */
+    save(c: Omit<Connection, 'id'> & { id?: string }): Promise<ConnectionStatus>
+    remove(id: string): Promise<void>
+    setEnabled(id: string, on: boolean): Promise<void>
+    /** Try again now (after a failure). */
+    retry(id: string): Promise<void>
+    /** Hosts named in ~/.ssh/config, to pick from. */
+    sshHosts(): Promise<string[]>
+  }
   hosts: {
     list(): Promise<Host[]>
     save(hosts: Host[]): Promise<void>
@@ -220,6 +232,8 @@ export interface Events {
   'board:changed': import('./types').Board
   /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
   'assistant:handoff': { canvas: string; chatId: string; active: string | null }
+  /** The connections changed (added, removed, connecting, connected, failed). */
+  connections: ConnectionStatus[]
   /** Show this tile (fresh: it was just made). */
   'board:focus': { canvas: string; key: string; fresh: boolean }
   'chat:session': { dir: string; chatId: string; sessionId: string }

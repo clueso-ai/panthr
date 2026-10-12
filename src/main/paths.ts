@@ -28,7 +28,8 @@ export const assistantDir = (): string => join(dataDir(), 'assistant')
 
 /** The app's own files (runtime, picker, bridge, editor tool, prompt). */
 export const resourcesDir = (): string =>
-  app?.isPackaged ? join(process.resourcesPath, 'resources') : join(app?.getAppPath?.() ?? process.cwd(), 'resources')
+  process.env.PANTHR_RESOURCES ||
+  (app?.isPackaged ? join(process.resourcesPath, 'resources') : join(app?.getAppPath?.() ?? process.cwd(), 'resources'))
 
 export const resource = (name: string): string => join(resourcesDir(), name)
 

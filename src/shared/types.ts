@@ -304,6 +304,38 @@ export interface Host {
   root: string
 }
 
+// ── Connections (Application Support/Panthr/connections.json) ─────
+// Other machines' Panthr: a server there, reached over SSH, whose projects
+// show here beside this Mac's (their folders as /@<id>/<path there>).
+
+export interface Connection {
+  /** Short and stable: it is in every path from the connection (/@<id>/…). */
+  id: string
+  label: string
+  /** 'ssh': a machine reached with ssh; 'command': a server started here (tests, a second data folder). */
+  kind: 'ssh' | 'command'
+  /** The ssh target (an alias from ~/.ssh/config, or user@host). */
+  target: string
+  /** Where its projects live there. */
+  root: string
+  enabled: boolean
+  /** kind 'command': its data folder here. */
+  dataDir?: string
+}
+
+export type ConnectionPhase = 'off' | 'connecting' | 'connected' | 'backoff' | 'blocked'
+
+export interface ConnectionStatus extends Connection {
+  phase: ConnectionPhase
+  /** What it is doing (installing, starting…), or what went wrong. */
+  step: string | null
+  error: string | null
+  /** The next try (ms since the epoch), while backing off. */
+  retryAt: number | null
+  /** About the machine, once connected. */
+  machine: { hostname: string; platform: string; version: string } | null
+}
+
 export interface HostCheck {
   ok: boolean
   error: string | null

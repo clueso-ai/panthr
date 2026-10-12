@@ -78,3 +78,14 @@
 .skill-added { font-size: 12px; }
 .monogram { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; color: hsl(var(--h) 70% 72%); background: hsl(var(--h) 55% 50% / 0.16); }
 :root[data-theme='day'] .monogram { color: hsl(var(--h) 55% 38%); background: hsl(var(--h) 60% 50% / 0.13); }
+
+/* Connections: a dot and a line saying how each is doing. */
+.conn-line { display: flex; align-items: center; gap: 8px; padding: 0 14px 12px; font-size: 12px; color: var(--t2); overflow-wrap: anywhere; }
+.conn-line i, .conn-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--t3); flex: none; }
+.conn-line.ok i, .conn-state.ok i { background: var(--ok); }
+.conn-line.busy i { background: var(--warn); animation: conn-pulse 1.2s ease-in-out infinite; }
+.conn-line.bad { color: var(--danger); }
+.conn-line.bad i { background: var(--danger); }
+.conn-state { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--t2); }
+@keyframes conn-pulse { 50% { opacity: 0.35; } }
+html[data-motion='reduced'] .conn-line.busy i { animation: none; }

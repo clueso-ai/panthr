@@ -23,5 +23,6 @@ export const METHODS: All = {
   canvases: { list: true, create: true, of: true, find: true },
   board: { notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },
+  connections: { list: true, save: true, remove: true, setEnabled: true, retry: true, sshHosts: true },
   hosts: { list: true, save: true, check: true, refresh: true }
 }

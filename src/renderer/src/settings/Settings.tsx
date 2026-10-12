@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
+import type { ConnectionStatus, Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
@@ -15,11 +15,12 @@ import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
-export type Pane = 'general' | 'agents' | 'skills' | 'hosts' | 'editor' | 'export' | 'about'
+export type Pane = 'general' | 'agents' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
 const PANES: [Pane, string, IconName][] = [
   ['general', 'General', 'settings'],
   ['agents', 'Agents', 'agents'],
   ['skills', 'Skills', 'library'],
+  ['connections', 'Connections', 'server'],
   ['hosts', 'Hosts', 'cloud'],
   ['editor', 'Editor', 'layers'],
   ['export', 'Export', 'export'],
@@ -58,6 +59,7 @@ export function Settings({ open, pane, onPane, onClose }: { open: boolean; pane:
                   {pane === 'general' && <General />}
                   {pane === 'agents' && <Agents />}
                   {pane === 'skills' && <Skills />}
+                  {pane === 'connections' && <Connections />}
                   {pane === 'hosts' && <Hosts />}
                   {pane === 'editor' && <EditorPane />}
                   {pane === 'export' && <ExportPane />}
@@ -445,6 +447,94 @@ function SkillSheet({ name, onClose }: { name: string | null; onClose(): void })
   )
 }
 
+/** What a connection is doing, in a few words. */
+function connectionLine(c: ConnectionStatus, now: number): { text: string; tone: 'ok' | 'busy' | 'bad' | 'off' } {
+  switch (c.phase) {
+    case 'connected':
+      return { text: `Connected${c.machine ? ` · ${c.machine.hostname}` : ''}`, tone: 'ok' }
+    case 'connecting':
+      return { text: c.step ? `${c.step}…` : 'Connecting…', tone: 'busy' }
+    case 'backoff': {
+      const s = c.retryAt ? Math.max(0, Math.ceil((c.retryAt - now) / 1000)) : 0
+      return { text: `${c.error ?? 'Lost'} · trying again ${s ? `in ${s}s` : 'now'}`, tone: 'busy' }
+    }
+    case 'blocked':
+      return { text: c.error ?? 'Needs you', tone: 'bad' }
+    default:
+      return { text: 'Off', tone: 'off' }
+  }
+}
+
+function Connections() {
+  const [list, setList] = useState<ConnectionStatus[]>([])
+  const [ssh, setSsh] = useState<string[]>([])
+  const [draft, setDraft] = useState({ label: '', target: '', root: '~/Panthr' })
+  const [error, setError] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<string | null>(null)
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    api.connections.list().then(setList)
+    api.connections.sshHosts().then(setSsh)
+  }, [])
+  useEvent('connections', setList)
+  // A countdown while one waits to try again.
+  const waiting = list.some((c) => c.phase === 'backoff')
+  useEffect(() => {
+    if (!waiting) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [waiting])
+  const add = async (): Promise<void> => {
+    setError(null)
+    try {
+      await api.connections.save({ label: draft.label.trim() || draft.target.trim(), kind: 'ssh', target: draft.target.trim(), root: draft.root.trim() || '~/Panthr', enabled: true })
+      setDraft({ label: '', target: '', root: '~/Panthr' })
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+  return (
+    <>
+      <p className="pane-lede">Use another machine from here. Its projects show on Home beside this Mac’s, and their agents, previews and exports run there. Panthr installs and starts itself there over SSH: keys must already work without a password, and the machine needs Node 18 or newer.</p>
+      <Card>
+        <Row title="This Mac" body="Here: always on.">
+          <span className="conn-state ok"><i />Here</span>
+        </Row>
+      </Card>
+      {list.map((c) => {
+        const line = connectionLine(c, now)
+        return (
+          <motion.div key={c.id} {...rise(6, MOVE)}>
+            <Card>
+              <Row title={c.label} body={c.kind === 'ssh' ? `ssh ${c.target} · ${c.root}` : `On this Mac · ${c.root}`}>
+                {(c.phase === 'backoff' || c.phase === 'blocked') && <button className="btn small" onClick={() => api.connections.retry(c.id)}>Try again</button>}
+                {confirm === c.id ? (
+                  <button className="btn small danger" onClick={() => { setConfirm(null); api.connections.remove(c.id) }}>Remove it</button>
+                ) : (
+                  <button className="btn small ghost danger" onClick={() => setConfirm(c.id)}>Remove</button>
+                )}
+                <Switch on={c.enabled} onChange={(v) => api.connections.setEnabled(c.id, v)} />
+              </Row>
+              <div className={`conn-line ${line.tone}`}><i />{line.text}</div>
+              {confirm === c.id && <div className="conn-line off">Its projects stay on {c.label}; its Panthr there stops. You can connect again any time.</div>}
+            </Card>
+          </motion.div>
+        )
+      })}
+      <Card title="Connect a machine">
+        <div className="host-form">
+          <input className="text-input" placeholder="Name (Studio box)" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+          <input className="text-input" list="ssh-hosts" placeholder="SSH target (alias or user@host)" value={draft.target} onChange={(e) => setDraft({ ...draft, target: e.target.value })} />
+          <datalist id="ssh-hosts">{ssh.map((h) => <option key={h} value={h} />)}</datalist>
+          <input className="text-input" placeholder="Folder there" value={draft.root} onChange={(e) => setDraft({ ...draft, root: e.target.value })} />
+          <button className="btn primary" disabled={!draft.target.trim()} onClick={add}>Connect</button>
+        </div>
+        {error && <div className="conn-line bad"><i />{error}</div>}
+      </Card>
+    </>
+  )
+}
+
 function Hosts() {
   const [hosts, setHosts] = useState<Host[]>([])
   const [checks, setChecks] = useState<Record<string, HostCheck | 'checking'>>({})
@@ -463,7 +553,7 @@ function Hosts() {
   }
   return (
     <>
-      <p className="pane-lede">A host is another machine where projects live and run: the agent, the page and renders all run there, while you work here. Use an SSH alias from ~/.ssh/config or user@host; keys must already work without a password.</p>
+      <p className="pane-lede">The older way to use another machine (Connections is the newer one). A host is another machine where projects live and run: the agent, the page and renders all run there, while you work here. Use an SSH alias from ~/.ssh/config or user@host; keys must already work without a password.</p>
       {hosts.map((h) => {
         const c = checks[h.name]
         return (

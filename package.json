@@ -7,11 +7,11 @@
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && vite build -c vite.server.config.ts",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --mac --dir",
+    "dist": "electron-vite build && vite build -c vite.server.config.ts && electron-builder --mac --dir",
     "build:ocr": "swiftc -O -target arm64-apple-macos13 build/ocr.swift -o resources/bin/panthr-ocr",
     "dist:mas": "electron-vite build && electron-builder --mac mas --arm64 -c.appId=io.clueso.lightbox"
   },
@@ -61,6 +61,13 @@
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "out/server",
+        "to": "server",
+        "filter": [
+          "**/*"
+        ]
+      },
       {
         "from": "resources",
         "to": "resources",
