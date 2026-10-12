@@ -18,6 +18,7 @@ import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
+import { RecordButton } from './Record'
 import { Compare } from './Compare'
 import { BrandCard } from './Brand'
 import { ArrowLabel, NoteCard, NOTE_W, noteMessage } from './Notes'
@@ -648,6 +649,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
         <Tip title="Share" keys="⇧⌘S" body="This project as one .panthr file, to send however you like. Opened, it becomes their project; sent back, their notes come home.">
           <button className="board-tool" onClick={() => dispatchEvent(new CustomEvent('panthr:share'))}><Icon name="export" size={15} /><span>Share</span></button>
         </Tip>
+        <RecordButton canvas={canvas} onAsk={onAsk} onActivate={onActivate} />
         <Tip title="Import" body="Video folders (or a folder of them), video files and other files. Or drop them on the canvas.">
           <button className="board-tool" onClick={async () => bringIn(await api.app.chooseFiles(true))}><Icon name="import" size={15} /><span>Import</span></button>
         </Tip>

@@ -6,7 +6,7 @@
 
 import { join } from 'node:path'
 import { writeFileSync } from 'node:fs'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, session, shell } from 'electron'
 import { METHODS } from '@shared/methods'
 import { handleProtocol, registerScheme } from './preview'
 import { emit } from './bus'
@@ -22,6 +22,7 @@ import { openShare } from './share'
 import { call } from './handlers'
 import { startConnections, stopConnections } from './connections'
 import { startSchedules, stopSchedules } from './schedules'
+import { displayMediaSource } from './recorder'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -296,6 +297,12 @@ app.whenReady().then(() => {
   applyAppearance()
   handleProtocol()
   registerApi()
+  // Screen recording: the window's getDisplayMedia gets the screen or window picked in Panthr.
+  session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => {
+    const src = displayMediaSource()
+    if (src) cb({ video: src })
+    else cb({})
+  })
   writeAgentCli()
   buildMenu()
   win = createWindow()

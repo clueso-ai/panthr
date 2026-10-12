@@ -134,6 +134,15 @@ export interface ScheduleStatus extends Schedule {
   running: boolean
 }
 
+/** A screen or window to record. */
+export interface RecordingSource {
+  id: string
+  name: string
+  kind: 'screen' | 'window'
+  /** A picture of it (a data URL). */
+  thumb: string
+}
+
 // ── Usage (built from every chat's turns) ─────────────────────────
 
 export interface UsageTotals {

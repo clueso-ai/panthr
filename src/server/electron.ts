@@ -48,4 +48,15 @@ export const protocol = {
   }
 }
 
-export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol, Notification }
+/** Recording a screen needs one. */
+export const desktopCapturer = { getSources: notHere }
+export const globalShortcut = { register: (): boolean => false, unregister: (): void => {} }
+export const nativeImage = { createEmpty: (): null => null }
+export const screen = { getAllDisplays: (): never[] => [], getPrimaryDisplay: notHere }
+export class Tray {
+  constructor() {
+    throw new Error('Not on this machine: it has no screen')
+  }
+}
+
+export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol, Notification, desktopCapturer, globalShortcut, nativeImage, screen, Tray }

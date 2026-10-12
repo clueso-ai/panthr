@@ -206,6 +206,21 @@ export interface Api {
     /** Run it now (as if its time had come). */
     run(id: string): Promise<void>
   }
+  recorder: {
+    /** Screens and windows to record (not Panthr's own). */
+    sources(): Promise<import('./types').RecordingSource[]>
+    /** Get ready to record one into a project; the window's getDisplayMedia then gets it. */
+    begin(canvas: string, sourceId: string): Promise<{ id: string }>
+    /** The window's recorder is running: Panthr steps aside, the menu-bar timer starts. */
+    started(id: string): Promise<void>
+    /** A piece of the recording (webm), in order. */
+    chunk(id: string, data: Uint8Array): Promise<void>
+    /** Stop (the window is told, through 'recorder:stop'). */
+    stop(): Promise<void>
+    /** All of it is here: make it a video on the canvas (returns its folder). */
+    finish(id: string, mic: boolean): Promise<string>
+    cancel(id: string): Promise<void>
+  }
   usage: {
     /** Time, cost and tokens across every project's chats: by day, project, account and turn. */
     report(): Promise<import('./types').UsageReport>
@@ -263,6 +278,8 @@ export interface Events {
   'board:changed': import('./types').Board
   /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
   'assistant:handoff': { canvas: string; chatId: string; active: string | null }
+  /** Stop the screen recording (from the menu-bar timer or ⇧⌘2). */
+  'recorder:stop': { id: string }
   /** The schedules changed (saved, ran, finished). */
   schedules: import('./types').ScheduleStatus[]
   /** The Claude accounts changed (signed in, usage heard). */

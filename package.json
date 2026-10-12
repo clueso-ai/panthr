@@ -13,6 +13,7 @@
     "test": "vitest run",
     "dist": "electron-vite build && vite build -c vite.server.config.ts && electron-builder --mac --dir",
     "build:ocr": "swiftc -O -target arm64-apple-macos13 build/ocr.swift -o resources/bin/panthr-ocr",
+    "build:input": "swiftc -O -target arm64-apple-macos13 build/input.swift -o resources/bin/panthr-input",
     "dist:mas": "electron-vite build && electron-builder --mac mas --arm64 -c.appId=io.clueso.lightbox"
   },
   "dependencies": {
@@ -85,7 +86,8 @@
       "identity": null,
       "darkModeSupport": true,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Panthr does not record audio."
+        "NSMicrophoneUsageDescription": "Panthr records your voice with a screen recording, when you turn the microphone on.",
+        "NSScreenCaptureUsageDescription": "Panthr records your screen when you ask it to, to make demo videos."
       }
     },
     "asar": true,
