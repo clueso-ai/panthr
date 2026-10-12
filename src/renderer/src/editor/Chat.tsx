@@ -205,7 +205,7 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
         })}
         {chat.queued.map((q, i) => (
           <motion.div key={`q${i}`} className="queued" {...rise(6, MOVE)}>
-            <span className="faint">Next</span> {q}
+            <span className="faint">Next</span> {said(q)}
           </motion.div>
         ))}
         </div>
@@ -230,6 +230,12 @@ function withMentions(text: string): React.ReactNode[] {
 /** The line the editor adds for the agent ("(Active video: …)"): shown as a
  *  chip under the message, not as part of it. */
 const ACTIVE = /\n\n\(Active video: "([^"]*)"[\s\S]*$/
+
+/** What was typed, without the line added for the agent. */
+const said = (full: string): string => {
+  const m = ACTIVE.exec(full)
+  return m ? full.slice(0, m.index) : full
+}
 
 function UserMessage({ text: full, long, onMore, fresh }: { text: string; long: boolean; onMore: () => void; fresh: boolean }) {
   const m = ACTIVE.exec(full)
