@@ -4,10 +4,10 @@
 // canvas, with a card offering to make a demo of it. From Home it goes into
 // a new project, opened when it lands.
 //
-// The recorder runs here (getDisplayMedia, MediaRecorder) and streams the
-// file to main in one-second pieces. It and everything around it (the
-// sheet, the 3-2-1, the card) live outside any one screen, in
-// RecordOverlay at the top of the app, so going from Home to the project
+// The recording itself is main's (panthr-capture, with the pointer in the
+// picture or not; panthr-input notes the pointer either way). What is shown
+// about it (the sheet, the 3-2-1, the card) lives outside any one screen,
+// in RecordOverlay at the top of the app, so going from Home to the project
 // loses nothing.
 
 import { useEffect, useState } from 'react'
@@ -40,66 +40,36 @@ const set = (p: Partial<State>): void => {
 /** Open the picker: recording into this project, or (null) into a new one. */
 export const openRecorder = (canvas: string | null): void => set({ sheet: { canvas }, error: null })
 
-let current: { id: string; rec: MediaRecorder } | null = null
+/** The take now (its id and project), from the moment it starts. */
+let current: { id: string; fromHome: boolean } | null = null
 
-api.on('recorder:stop', ({ id }) => {
-  if (current?.id === id && current.rec.state !== 'inactive') {
-    set({ saving: true })
-    current.rec.stop()
-  }
+api.on('recorder:saving', ({ id }) => {
+  if (current?.id === id) set({ saving: true })
+})
+api.on('recorder:done', (d) => {
+  const home = current?.id === d.id && current.fromHome
+  current = null
+  set({ saving: false, done: { canvas: d.canvas, dir: d.dir, name: d.name } })
+  // From Home: its new project opens, with the recording chosen.
+  if (home) dispatchEvent(new CustomEvent('panthr:open-project', { detail: d.dir }))
+})
+api.on('recorder:failed', ({ message }) => {
+  current = null
+  set({ saving: false, error: message })
 })
 
-const day = (): string => new Date().toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-
-async function start(target: string | null, source: RecordingSource, mic: boolean): Promise<void> {
+async function start(target: string | null, source: RecordingSource, opts: { pointer: boolean; mic: boolean }): Promise<void> {
   set({ sheet: null, error: null, done: null })
   for (let n = 3; n > 0; n--) {
     set({ count: n })
     await new Promise((r) => setTimeout(r, 800))
   }
   set({ count: null })
-  const canvas = target ?? (await api.canvases.create(`Screen recording · ${day()}`)).dir
-  const { id } = await api.recorder.begin(canvas, source.id)
-  const streams: MediaStream[] = []
-  const stopAll = (): void => streams.forEach((s) => s.getTracks().forEach((t) => t.stop()))
   try {
-    const screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
-    streams.push(screen)
-    const tracks = [...screen.getVideoTracks()]
-    if (mic) {
-      const voice = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-      streams.push(voice)
-      tracks.push(...voice.getAudioTracks())
-    }
-    const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t))
-    const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: type, videoBitsPerSecond: 10_000_000 })
-    let queue: Promise<unknown> = Promise.resolve()
-    current = { id, rec }
-    rec.ondataavailable = (e) => {
-      if (!e.data.size) return
-      queue = queue.then(async () => api.recorder.chunk(id, new Uint8Array(await e.data.arrayBuffer())))
-    }
-    rec.onstart = () => void api.recorder.started(id)
-    rec.onstop = async () => {
-      stopAll()
-      await queue
-      current = null
-      try {
-        const dir = await api.recorder.finish(id, mic)
-        const p = await api.projects.load(dir)
-        set({ saving: false, done: { canvas, dir, name: p?.meta.name ?? 'Recording' } })
-        // From Home: its new project opens, with the recording chosen.
-        if (!target) dispatchEvent(new CustomEvent('panthr:open-project', { detail: dir }))
-      } catch (e) {
-        set({ saving: false, error: (e as Error).message })
-      }
-    }
-    rec.start(1000)
+    const r = await api.recorder.start(target, source.id, opts)
+    current = { id: r.id, fromHome: !target }
   } catch (e) {
-    stopAll()
-    current = null
-    await api.recorder.cancel(id)
-    set({ error: `Could not record: ${(e as Error).message}. Panthr needs Screen Recording in System Settings › Privacy & Security.` })
+    set({ error: `Could not record: ${(e as Error).message}` })
   }
 }
 
@@ -138,7 +108,7 @@ export function RecordOverlay() {
   const s = useRecordState()
   return (
     <>
-      <AnimatePresence>{s.sheet && <RecordSheet fromHome={!s.sheet.canvas} onClose={() => set({ sheet: null })} onStart={(src, mic) => void start(s.sheet!.canvas, src, mic)} />}</AnimatePresence>
+      <AnimatePresence>{s.sheet && <RecordSheet fromHome={!s.sheet.canvas} onClose={() => set({ sheet: null })} onStart={(src, opts) => void start(s.sheet!.canvas, src, opts)} />}</AnimatePresence>
       <AnimatePresence>
         {s.count != null && (
           <motion.div className="rec-count" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)}>
@@ -175,11 +145,12 @@ export function RecordOverlay() {
   )
 }
 
-function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClose(): void; onStart(s: RecordingSource, mic: boolean): void }) {
+function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClose(): void; onStart(s: RecordingSource, opts: { pointer: boolean; mic: boolean }): void }) {
   const [list, setList] = useState<RecordingSource[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pick, setPick] = useState<string | null>(null)
   const [mic, setMic] = useState(false)
+  const [pointer, setPointer] = useState(true)
   const [access, setAccess] = useState<{ screen: string; microphone: string } | null>(null)
   const [relaunchErr, setRelaunchErr] = useState<string | null>(null)
   useEffect(() => {
@@ -246,7 +217,7 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
               <h4>{title}</h4>
               <div className="rec-grid">
                 {items.map((s) => (
-                  <button key={s.id} className={`rec-src${pick === s.id ? ' on' : ''}`} onClick={() => setPick(s.id)} onDoubleClick={() => onStart(s, mic)}>
+                  <button key={s.id} className={`rec-src${pick === s.id ? ' on' : ''}`} onClick={() => setPick(s.id)} onDoubleClick={() => onStart(s, { pointer, mic })}>
                     <img src={s.thumb} alt="" />
                     <span className="ellipsis">{s.name}</span>
                   </button>
@@ -261,9 +232,12 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
           <div className="rec-err">The microphone is off for Panthr. <button className="link" onClick={() => api.recorder.openPrivacy('microphone')}>Turn it on in System Settings</button>, then relaunch Panthr.</div>
         )}
         <div className="rec-go">
+          <Tip title="Show the pointer" body="Off: the pointer stays out of the picture. Where it went and what it clicked are noted either way, so one can be drawn in later, as large or smooth as you like.">
+            <label className="rec-mic"><Switch on={pointer} onChange={setPointer} small /> Show the pointer</label>
+          </Tip>
           <label className="rec-mic"><Switch on={mic} onChange={setMic} small /> Record my voice too</label>
           <span className="spacer" />
-          <button className="btn primary" disabled={!chosen || !!blocked} onClick={() => chosen && onStart(chosen, mic)}><Icon name="record" size={13} /> Start recording</button>
+          <button className="btn primary" disabled={!chosen || !!blocked} onClick={() => chosen && onStart(chosen, { pointer, mic })}><Icon name="record" size={13} /> Start recording</button>
         </div>
       </motion.div>
     </motion.div>

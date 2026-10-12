@@ -1,16 +1,18 @@
 // Screen recording: a screen or a window recorded into a project, to make
-// a product demo from. The window records (getDisplayMedia, MediaRecorder,
-// the microphone if asked) and streams the file here in pieces; Panthr's
-// own window steps aside meanwhile, and a timer in the menu bar (or ⇧⌘2)
-// stops it. panthr-input notes where the pointer goes and clicks.
+// a product demo from. panthr-capture (ScreenCaptureKit) records it to an
+// MP4, with the pointer in the picture or not, and the microphone if
+// asked; panthr-input notes where the pointer goes and clicks either way,
+// so a pointer can be drawn in later. Panthr's window steps aside
+// meanwhile; a timer in the menu bar (or ⇧⌘2) stops it.
 //
-// Stopped, it becomes a video on the project's canvas: the recording as an
-// MP4 playing full frame, and recording.json beside it with what the agent
+// Stopped, it becomes a video on the project's canvas: the recording
+// playing full frame, and recording.json beside it with what the agent
 // needs to make a demo of it: the clicks and the pointer's path in the
-// video's own pixels, and the dead time (no input, nothing moving).
+// video's own pixels, whether the pointer is in the picture, and the dead
+// time (no input, nothing moving).
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, nativeImage, screen, shell, systemPreferences, Tray, type DesktopCapturerSource } from 'electron'
@@ -18,7 +20,7 @@ import { anyWorking } from './chats'
 import type { Api } from '@shared/api'
 import type { RecordingSource } from '@shared/types'
 import { emit } from './bus'
-import { canvasOf, newVideo, real } from './board'
+import { canvasOf, createCanvas, newVideo, real } from './board'
 import { dataDir, resource, toolEnv } from './paths'
 import { exec } from './review'
 
@@ -35,36 +37,28 @@ interface InputEvent {
 interface Take {
   id: string
   canvas: string
-  source: DesktopCapturerSource
+  source: { id: string; name: string }
   file: string
   /** The display's frame (screen recordings), in points from the main display's top left. */
   display: { x: number; y: number; w: number; h: number } | null
+  capture: ChildProcess | null
   helper: ChildProcess | null
   events: InputEvent[]
-  /** ms (Date.now) when the recording began, and when the helper did. */
+  /** ms (Date.now) when the picture began, and when the input helper did. */
   startedAt: number
   helperAt: number
+  pointer: boolean
+  mic: boolean
   tray: Tray | null
   timer: NodeJS.Timeout | null
 }
 
 let sources = new Map<string, DesktopCapturerSource>()
-let chosen: DesktopCapturerSource | null = null
 let take: Take | null = null
-
-/** For getDisplayMedia in the window: the source picked in Panthr (no system picker). */
-export function displayMediaSource(): DesktopCapturerSource | null {
-  return chosen
-}
 
 const win = (): BrowserWindow | null => BrowserWindow.getAllWindows().find((w) => !w.isDestroyed()) ?? null
 
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-
-function stopInput(t: Take): void {
-  t.helper?.stdin?.end()
-  t.helper = null
-}
 
 function endChrome(t: Take): void {
   if (t.timer) clearInterval(t.timer)
@@ -77,9 +71,15 @@ function endChrome(t: Take): void {
   w?.focus()
 }
 
-/** Ask the window to stop (it stops its recorder, sends what is left, then finishes). */
-function askStop(): void {
-  if (take) emit('recorder:stop', { id: take.id })
+/** Stop: the capture finishes its file, then the take lands on the canvas. */
+function stopTake(): void {
+  const t = take
+  if (!t || !t.capture) return
+  emit('recorder:saving', { id: t.id })
+  t.helper?.stdin?.end()
+  t.helper = null
+  t.capture.stdin?.end()
+  endChrome(t)
 }
 
 // ── From the input helper's points to the video's pixels ──────────────
@@ -94,10 +94,12 @@ export interface RecordingData {
   keys: number[]
   scrolls: { t: number; x: number; y: number }[]
   idle: { from: number; to: number }[]
+  /** Whether the pointer is in the picture (if not, draw one from moves and clicks). */
+  pointer: boolean
 }
 
 /** Points on screen to the video's pixels: by the display's frame, or the window's frame at that moment. */
-export function toVideo(events: InputEvent[], shift: number, frame: { x: number; y: number; w: number; h: number } | null, size: { w: number; h: number }, duration: number): Omit<RecordingData, 'idle' | 'source' | 'duration' | 'width' | 'height'> {
+export function toVideo(events: InputEvent[], shift: number, frame: { x: number; y: number; w: number; h: number } | null, size: { w: number; h: number }, duration: number): Omit<RecordingData, 'idle' | 'source' | 'duration' | 'width' | 'height' | 'pointer'> {
   let f = frame
   const clicks: RecordingData['clicks'] = []
   const moves: RecordingData['moves'] = []
@@ -194,7 +196,7 @@ export function recordingHtml(w: number, h: number, duration: number, hasAudio: 
 }
 
 /** The take, as a video on its canvas. */
-export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display' | 'startedAt' | 'helperAt'> & { source: { name: string } }, name: string, mic: boolean): Promise<string> {
+export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display' | 'startedAt' | 'helperAt'> & { source: { name: string }; pointer?: boolean }, name: string, mic: boolean): Promise<string> {
   const v = newVideo(t.canvas, name)
   const assets = join(v.dir, 'assets')
   mkdirSync(assets, { recursive: true })
@@ -211,6 +213,7 @@ export async function land(t: Pick<Take, 'canvas' | 'file' | 'events' | 'display
   const data: RecordingData = {
     duration: round(duration), width: fw, height: fh, source: t.source.name,
     ...input,
+    pointer: t.pointer !== false,
     idle: deadTime(frozen, [...input.clicks.map((c) => c.t), ...input.keys, ...input.scrolls.map((s) => s.t)])
   }
   writeFileSync(join(v.dir, 'recording.json'), JSON.stringify(data, null, 1))
@@ -252,38 +255,67 @@ export const recorderApi: Api['recorder'] = {
       .filter((s) => !mine.has(s.id) && s.name !== 'Panthr' && !s.thumbnail.isEmpty())
       .map((s): RecordingSource => ({ id: s.id, name: s.name, kind: s.id.startsWith('screen:') ? 'screen' : 'window', thumb: s.thumbnail.toDataURL() }))
   },
-  async begin(canvas0, sourceId) {
+  async start(canvas0, sourceId, opts) {
     if (take) throw new Error('Already recording')
     const source = sources.get(sourceId)
     if (!source) throw new Error('That screen or window is gone: pick again')
-    chosen = source
-    const canvas = canvasOf(real(canvas0))
+    const capture = resource('bin/panthr-capture')
+    if (!existsSync(capture)) throw new Error('The recorder is missing from this build')
+    // Into this project, or (from Home) a new one.
+    const canvas = canvas0 ? canvasOf(real(canvas0)) : createCanvas(`Screen recording · ${new Date().toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`).dir
     const id = `rec-${Date.now().toString(36)}`
     const dir = join(dataDir(), 'recordings')
     mkdirSync(dir, { recursive: true })
-    const file = join(dir, `${id}.webm`)
-    writeFileSync(file, '')
+    const file = join(dir, `${id}.mp4`)
+    const winId = /^window:(\d+):/.exec(source.id)?.[1]
     let display: Take['display'] = null
-    if (source.id.startsWith('screen:')) {
+    if (!winId) {
       const d = screen.getAllDisplays().find((x) => String(x.id) === source.display_id) ?? screen.getPrimaryDisplay()
       display = { x: d.bounds.x, y: d.bounds.y, w: d.bounds.width, h: d.bounds.height }
     }
-    take = { id, canvas, source, file, display, helper: null, events: [], startedAt: 0, helperAt: 0, tray: null, timer: null }
-    return { id }
-  },
-  async started(id) {
-    const t = take
-    if (!t || t.id !== id) return
+    const t: Take = { id, canvas, source: { id: source.id, name: source.name }, file, display, capture: null, helper: null, events: [], startedAt: 0, helperAt: 0, pointer: opts.pointer, mic: opts.mic, tray: null, timer: null }
+    const args = [winId ? '--window' : '--display', winId ?? source.display_id ?? '', '--out', file, ...(opts.pointer ? [] : ['--no-cursor']), ...(opts.mic ? ['--mic'] : [])]
+    const c = spawn(capture, args, { stdio: ['pipe', 'pipe', 'pipe'] })
+    t.capture = c
+    let err = ''
+    c.stderr!.on('data', (b: Buffer) => (err = (err + b.toString('utf8')).slice(-2000)))
+    // Its first word: recording, or why not.
+    const first = await new Promise<{ type: string; message?: string }>((ok) => {
+      const lines = createInterface({ input: c.stdout! })
+      const timer = setTimeout(() => ok({ type: 'error', message: 'The recording did not start (is Screen Recording allowed for Panthr?)' }), 15000)
+      lines.on('line', (l) => {
+        let m: any
+        try {
+          m = JSON.parse(l)
+        } catch {
+          return
+        }
+        if (m.type === 'started' || (m.type === 'error' && !t.startedAt)) {
+          clearTimeout(timer)
+          ok(m)
+        }
+        if (m.type === 'done' || (m.type === 'error' && t.startedAt)) void ended(t, m.type === 'done' ? null : m.message ?? 'The recording failed')
+      })
+      c.on('close', (code) => {
+        clearTimeout(timer)
+        if (!t.startedAt) ok({ type: 'error', message: err.trim().split('\n').pop() || `The recorder stopped (${code})` })
+        else if (take === t) void ended(t, 'The recorder stopped')
+      })
+    })
+    if (first.type !== 'started') {
+      c.kill()
+      throw new Error(first.message ?? 'The recording did not start')
+    }
     t.startedAt = Date.now()
-    // Where the pointer goes and clicks.
-    const helper = resource('bin/panthr-input')
-    if (existsSync(helper)) {
-      const winId = /^window:(\d+):/.exec(t.source.id)?.[1]
-      const c = spawn(helper, winId ? ['--window', winId] : [], { stdio: ['pipe', 'pipe', 'ignore'] })
+    take = t
+    // Where the pointer goes and clicks, in the picture or not.
+    const input = resource('bin/panthr-input')
+    if (existsSync(input)) {
+      const h = spawn(input, winId ? ['--window', winId] : [], { stdio: ['pipe', 'pipe', 'ignore'] })
       t.helperAt = Date.now()
-      t.helper = c
-      c.on('error', () => {})
-      createInterface({ input: c.stdout! }).on('line', (l) => {
+      t.helper = h
+      h.on('error', () => {})
+      createInterface({ input: h.stdout! }).on('line', (l) => {
         try {
           t.events.push(JSON.parse(l))
         } catch {}
@@ -294,34 +326,35 @@ export const recorderApi: Api['recorder'] = {
     const tray = new Tray(nativeImage.createEmpty())
     tray.setTitle('● 0:00')
     tray.setToolTip('Recording: click to stop (⇧⌘2)')
-    tray.on('click', askStop)
+    tray.on('click', stopTake)
     t.tray = tray
     t.timer = setInterval(() => tray.setTitle(`● ${clock((Date.now() - t.startedAt) / 1000)}`), 500)
-    globalShortcut.register('CommandOrControl+Shift+2', askStop)
-  },
-  async chunk(id, data) {
-    if (take?.id === id) appendFileSync(take.file, Buffer.from(data))
+    globalShortcut.register('CommandOrControl+Shift+2', stopTake)
+    return { id, canvas }
   },
   async stop() {
-    askStop()
-  },
-  async finish(id, mic) {
-    const t = take
-    if (!t || t.id !== id) throw new Error('No such recording')
-    take = null
-    chosen = null
-    stopInput(t)
-    endChrome(t)
-    const name = `Recording · ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
-    return land(t, name, mic)
-  },
-  async cancel(id) {
-    const t = take
-    if (!t || t.id !== id) return
-    take = null
-    chosen = null
-    stopInput(t)
-    endChrome(t)
+    stopTake()
+  }
+}
+
+/** The capture finished (or failed): land it, and say so. */
+let landing: string | null = null
+async function ended(t: Take, error: string | null): Promise<void> {
+  if (landing === t.id) return
+  landing = t.id
+  if (take === t) take = null
+  endChrome(t)
+  t.helper?.stdin?.end()
+  if (error) {
+    emit('recorder:failed', { id: t.id, message: error })
     rmSync(t.file, { force: true })
+    return
+  }
+  try {
+    const name = `Recording · ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+    const dir = await land(t, name, t.mic)
+    emit('recorder:done', { id: t.id, canvas: t.canvas, dir, name })
+  } catch (e) {
+    emit('recorder:failed', { id: t.id, message: (e as Error).message })
   }
 }

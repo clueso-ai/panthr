@@ -24,7 +24,7 @@ export const METHODS: All = {
   board: { sizes: true, notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },
   schedules: { list: true, save: true, remove: true, run: true },
-  recorder: { access: true, openPrivacy: true, relaunch: true, sources: true, begin: true, started: true, chunk: true, stop: true, finish: true, cancel: true },
+  recorder: { access: true, openPrivacy: true, relaunch: true, sources: true, start: true, stop: true },
   usage: { report: true },
   accounts: { list: true, add: true, rename: true, remove: true, signIn: true, setDefault: true },
   connections: { list: true, save: true, remove: true, setEnabled: true, retry: true, sshHosts: true },

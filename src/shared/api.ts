@@ -215,17 +215,10 @@ export interface Api {
     relaunch(force?: boolean): Promise<void>
     /** Screens and windows to record (not Panthr's own). */
     sources(): Promise<import('./types').RecordingSource[]>
-    /** Get ready to record one into a project; the window's getDisplayMedia then gets it. */
-    begin(canvas: string, sourceId: string): Promise<{ id: string }>
-    /** The window's recorder is running: Panthr steps aside, the menu-bar timer starts. */
-    started(id: string): Promise<void>
-    /** A piece of the recording (webm), in order. */
-    chunk(id: string, data: Uint8Array): Promise<void>
-    /** Stop (the window is told, through 'recorder:stop'). */
+    /** Record one into a project (null: a new one): with the pointer in the picture or not, the microphone or not. Panthr steps aside until it is stopped. */
+    start(canvas: string | null, sourceId: string, opts: { pointer: boolean; mic: boolean }): Promise<{ id: string; canvas: string }>
+    /** Stop it ('recorder:saving', then 'recorder:done' or 'recorder:failed'). */
     stop(): Promise<void>
-    /** All of it is here: make it a video on the canvas (returns its folder). */
-    finish(id: string, mic: boolean): Promise<string>
-    cancel(id: string): Promise<void>
   }
   usage: {
     /** Time, cost and tokens across every project's chats: by day, project, account and turn. */
@@ -284,8 +277,11 @@ export interface Events {
   'board:changed': import('./types').Board
   /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
   'assistant:handoff': { canvas: string; chatId: string; active: string | null }
-  /** Stop the screen recording (from the menu-bar timer or ⇧⌘2). */
-  'recorder:stop': { id: string }
+  /** A screen recording stopped and is being saved. */
+  'recorder:saving': { id: string }
+  /** It landed: a video on its project's canvas. */
+  'recorder:done': { id: string; canvas: string; dir: string; name: string }
+  'recorder:failed': { id: string; message: string }
   /** The schedules changed (saved, ran, finished). */
   schedules: import('./types').ScheduleStatus[]
   /** The Claude accounts changed (signed in, usage heard). */
