@@ -4,7 +4,7 @@
 // Calls are `ipcRenderer.invoke('<ns>:<fn>', ...args)`.
 
 import type {
-  AppState, ChatState, Connection, ConnectionStatus, Comment, Reference, RefFile, SkillHit, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
+  AccountStatus, AppState, ChatState, Connection, ConnectionStatus, Comment, Reference, RefFile, SkillHit, ControlSet, Engine, Host, HostCheck, Item, LibraryItem,
   Model, Project, ProjectMeta, Settings, SkillsState, TimingLayer, Version
 } from './types'
 
@@ -62,6 +62,8 @@ export interface Api {
     /** Append a note line (e.g. "Moved Title to 1.2 s"). */
     note(dir: string, chatId: string, text: string): Promise<void>
     remove(dir: string, chatId: string): Promise<void>
+    /** Run the chat on another Claude account (its conversation goes along). */
+    setAccount(dir: string, chatId: string, account: string): Promise<void>
     /** Any chat in any project working right now. */
     anyWorking(): Promise<boolean>
     models(engine: Engine): Promise<Model[]>
@@ -192,6 +194,19 @@ export interface Api {
      *  never over a change someone else made since). */
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
+  accounts: {
+    /** Every Claude account: who it is, its plan, how much is used (refresh: ask Claude Code again now). */
+    list(refresh?: boolean): Promise<AccountStatus[]>
+    /** A new account (its own config folder); sign in to it next. */
+    add(label: string): Promise<AccountStatus>
+    rename(id: string, label: string): Promise<void>
+    /** Forget it (its folder and sign-in stay on disk). */
+    remove(id: string): Promise<void>
+    /** Open Terminal to sign in to it (claude auth login). */
+    signIn(id: string): Promise<void>
+    /** The account new chats use. */
+    setDefault(id: string): Promise<void>
+  }
   connections: {
     /** This Mac's connections to other machines, with how each is doing. */
     list(): Promise<ConnectionStatus[]>
@@ -232,6 +247,8 @@ export interface Events {
   'board:changed': import('./types').Board
   /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
   'assistant:handoff': { canvas: string; chatId: string; active: string | null }
+  /** The Claude accounts changed (signed in, usage heard). */
+  accounts: AccountStatus[]
   /** The connections changed (added, removed, connecting, connected, failed). */
   connections: ConnectionStatus[]
   /** Show this tile (fresh: it was just made). */

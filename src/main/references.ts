@@ -26,6 +26,7 @@ import type { Reference, RefFile } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { now, studioRoot, toolEnv } from './paths'
+import { claudeEnv } from './accounts'
 import { getSettings } from './settings'
 import { claudeBin, parse as parseClaude } from './agents/claude'
 import { codexBin, newRun, parse as parseCodex } from './agents/codex'
@@ -278,7 +279,8 @@ function deconstruct(r: Reference): Promise<void> {
   const model = engine === 'codex' ? s.reference_codex_model : s.reference_model
   const { cmd, args } = argsFor(engine, model, deconstructPrompt(r.name), r.dir)
   return new Promise((ok, fail) => {
-    const child = spawn(cmd, args, { cwd: r.dir, env: toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
+    // Claude runs on the account new chats use.
+    const child = spawn(cmd, args, { cwd: r.dir, env: engine === 'claude' ? claudeEnv() : toolEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
     const job = jobs.get(r.id)
     if (job) job.child = child
     const codexState = newRun()

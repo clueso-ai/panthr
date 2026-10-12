@@ -13,6 +13,8 @@ export interface ChatMeta {
   created_at: number
   /** The agent this chat talks to (absent: Claude Code). */
   engine?: Engine | null
+  /** The Claude account it runs on (absent: the default for new chats). */
+  account?: string | null
 }
 
 export interface ProjectMeta {
@@ -55,6 +57,50 @@ export interface Settings {
   reference_model: string
   reference_codex_model: string
   skimming: boolean
+  /** Claude Code accounts besides the default (~/.claude), each its own config folder. */
+  claude_accounts: ClaudeAccount[]
+  /** The account new chats use ('default': ~/.claude). */
+  claude_account: string
+  /** When an account hits its usage limit, carry on with the next one. */
+  claude_failover: boolean
+}
+
+// ── Claude accounts ───────────────────────────────────────────────
+// Several Claude Code subscriptions at once: each signed in to its own
+// config folder (CLAUDE_CONFIG_DIR); a chat runs on one of them.
+
+export interface ClaudeAccount {
+  id: string
+  label: string
+  /** Its config folder ('' for the default: ~/.claude). */
+  dir: string
+  color: string
+}
+
+/** One of an account's usage windows: how much is used (0 to 1) and when it resets (s since the epoch). */
+export interface UsageWindow {
+  utilization: number
+  resetsAt: number | null
+}
+
+export interface AccountUsage {
+  /** 'allowed', 'allowed_warning' or 'rejected' (at its limit). */
+  status: string
+  resetsAt: number | null
+  five_hour: UsageWindow | null
+  seven_day: UsageWindow | null
+  /** When this was heard (ms since the epoch). */
+  at: number
+}
+
+export interface AccountStatus extends ClaudeAccount {
+  /** Null: not checked yet. */
+  signedIn: boolean | null
+  email: string | null
+  /** The plan (Max, Pro, Team…) or how it signs in. */
+  plan: string | null
+  org: string | null
+  usage: AccountUsage | null
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,7 +116,10 @@ export const DEFAULT_SETTINGS: Settings = {
   codex_model: 'default',
   reference_model: 'sonnet',
   reference_codex_model: 'default',
-  skimming: true
+  skimming: true,
+  claude_accounts: [],
+  claude_account: 'default',
+  claude_failover: true
 }
 
 // ── App state (Application Support/Panthr/state.json) ─────────────
@@ -123,6 +172,8 @@ export type AgentEvent =
   | { type: 'result'; cost_usd: number; duration_ms: number; turns: number; error: boolean }
   | { type: 'stderr'; line: string }
   | { type: 'exited'; reason?: string }
+  /** How much of the account is used (Claude Code's rate_limit_event). */
+  | { type: 'limits'; usage: Omit<AccountUsage, 'at'> }
 
 /** A chat as the window shows it. */
 export interface ChatState {
@@ -137,6 +188,8 @@ export interface ChatState {
   /** Messages typed while it works, sent when the turn ends. */
   queued: string[]
   engine: Engine
+  /** The Claude account it runs on. */
+  account: string
 }
 
 // ── Controls (.studio/controls.json) ──────────────────────────────

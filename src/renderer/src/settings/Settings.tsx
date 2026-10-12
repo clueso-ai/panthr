@@ -10,6 +10,7 @@ import { Icon, type IconName } from '@/ui/Icon'
 import { frostAlpha, IconButton, Segmented, Slider, Switch } from '@/ui/Controls'
 import { MenuItem, Popover } from '@/ui/Popover'
 import { Mark } from '@/ui/Mark'
+import { AccountDot, UsageBar, resetsIn, useAccounts } from '@/ui/Accounts'
 import { ByClueso } from '@/ui/CluesoMark'
 import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
@@ -163,6 +164,7 @@ function Agents() {
           <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[{ value: 'claude', label: <span className="seg-mark"><AgentMark engine="claude" size={13} />Claude Code</span> }, { value: 'codex', label: <span className="seg-mark"><AgentMark engine="codex" size={13} />Codex</span> }]} />
         </Row>
       </Card>
+      <ClaudeAccounts />
       <Card title="Default models">
         <Row title="Claude Code" body="Default is what Claude Code is set to." mark="claude"><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
         <Row title="Codex" body="Default is what Codex is set to." mark="codex"><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
@@ -175,6 +177,68 @@ function Agents() {
         <Row title="Helper agents" body="New projects start with them. Better results on big jobs; more time and cost."><Switch on={s.agents_default} onChange={(v) => set({ agents_default: v })} /></Row>
       </Card>
       <p className="pane-note">Each project can pick its own model from the chip in its chat box.</p>
+    </>
+  )
+}
+
+/** Several Claude Code subscriptions: each signed in to its own folder; chats pick one. */
+function ClaudeAccounts() {
+  const s = useSettings()
+  const list = useAccounts(true)
+  const [name, setName] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<string | null>(null)
+  const add = async (): Promise<void> => {
+    const a = await api.accounts.add(name.trim() || `Account ${list.length + 1}`)
+    setName('')
+    api.accounts.signIn(a.id)
+  }
+  return (
+    <>
+      <Card title="Claude accounts">
+        {list.map((a) => (
+          <div key={a.id} className="acct">
+            <div className="acct-head">
+              <AccountDot color={a.color} size={10} />
+              {renaming === a.id ? (
+                <input className="text-input acct-rename" autoFocus defaultValue={a.label} onBlur={(e) => { api.accounts.rename(a.id, e.target.value); setRenaming(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+              ) : (
+                <b onDoubleClick={() => a.id !== 'default' && setRenaming(a.id)}>{a.label}</b>
+              )}
+              <span className="faint ellipsis">
+                {a.signedIn === null ? 'Checking…' : a.signedIn ? [a.email, a.plan, a.org].filter(Boolean).join(' · ') : 'Not signed in'}
+              </span>
+              <span className="spacer" />
+              {s.claude_account === a.id || (a.id === 'default' && !list.some((x) => x.id === s.claude_account)) ? (
+                <span className="acct-default">New chats</span>
+              ) : (
+                a.signedIn && <button className="btn small ghost" onClick={() => api.accounts.setDefault(a.id)}>Use for new chats</button>
+              )}
+              {a.signedIn === false && <button className="btn small primary" onClick={() => api.accounts.signIn(a.id)}>Sign in</button>}
+              {a.id !== 'default' && (confirm === a.id
+                ? <button className="btn small danger" onClick={() => { setConfirm(null); api.accounts.remove(a.id) }}>Remove it</button>
+                : <button className="btn small ghost danger" onClick={() => setConfirm(a.id)}>Remove</button>)}
+            </div>
+            {a.usage && (
+              <div className="acct-usage">
+                {a.usage.status === 'rejected' && <span className="acct-limit">At its limit{a.usage.resetsAt ? ` · resets ${resetsIn(a.usage.resetsAt)}` : ''}</span>}
+                <UsageBar label="5 hours" w={a.usage.five_hour} />
+                <UsageBar label="Week" w={a.usage.seven_day} />
+              </div>
+            )}
+            {confirm === a.id && <div className="acct-note faint">Panthr forgets it; its sign-in stays in {a.dir}. Chats on it move to the account new chats use.</div>}
+          </div>
+        ))}
+        <div className="acct-add">
+          <input className="text-input" placeholder="Name another account (Work, Personal…)" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+          <button className="btn" onClick={add}>Add and sign in</button>
+        </div>
+      </Card>
+      <Card>
+        <Row title="Carry on when one runs out" body="When an account hits its usage limit, the chat moves to the next signed-in account and sends your message again, its conversation brought along.">
+          <Switch on={s.claude_failover} onChange={(v) => set({ claude_failover: v })} />
+        </Row>
+      </Card>
     </>
   )
 }

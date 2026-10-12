@@ -134,6 +134,21 @@ export function parse(line: string): AgentEvent[] {
         if (b?.type === 'tool_result') out.push({ type: 'tool_done', id: str(b.tool_use_id), error: b.is_error === true })
       }
       break
+    case 'rate_limit_event': {
+      // How much of the account is used: per window, and whether it is at its limit.
+      const r = v.rate_limit_info ?? {}
+      const win = (w: any) => (w && typeof w.utilization === 'number' ? { utilization: w.utilization, resetsAt: typeof w.resetsAt === 'number' ? w.resetsAt : null } : null)
+      out.push({
+        type: 'limits',
+        usage: {
+          status: typeof r.status === 'string' ? r.status : 'allowed',
+          resetsAt: typeof r.resetsAt === 'number' ? r.resetsAt : null,
+          five_hour: win(r.unifiedWindows?.five_hour),
+          seven_day: win(r.unifiedWindows?.seven_day)
+        }
+      })
+      break
+    }
     case 'result':
       out.push({
         type: 'result',
@@ -157,6 +172,9 @@ export interface ClaudeOptions {
   model: string | null
   /** The Board's conversation (its own instructions come first), or the assistant's. */
   board?: PromptKind
+  /** The Claude account it runs on, and its environment (CLAUDE_CONFIG_DIR). */
+  account?: string
+  env?: NodeJS.ProcessEnv
 }
 
 /** The command line for a chat's Claude Code (exactly claude.rs's). */
@@ -210,7 +228,7 @@ export class ClaudeChat {
           const r = remote.remoteCommand(where.host, remote.remoteDir(where.host, where.name), 'claude', args)
           return spawn(r.cmd, r.args, { env: toolEnv(), stdio: ['pipe', 'pipe', 'pipe'] })
         })()
-      : spawn(claudeBin(), args, { cwd: o.dir, env: toolEnv(), stdio: ['pipe', 'pipe', 'pipe'] })
+      : spawn(claudeBin(), args, { cwd: o.dir, env: o.env ?? toolEnv(), stdio: ['pipe', 'pipe', 'pipe'] })
     child.on('error', () => {}) // reported below (no pid) or by the exit
     // A failed spawn has no pid right away: say so now, as Rust's spawn does.
     if (child.pid === undefined) throw new Error(`could not run ${where ? 'ssh' : claudeBin()}`)

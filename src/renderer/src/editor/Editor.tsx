@@ -749,7 +749,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
               if (await addVideos(await api.app.chooseFiles())) showSide('library')
             }} />
             <span className="spacer" />
-            <ModelChip engine={engine} model={model} locked={!!chat?.items.length} onPick={pickModel} agents={owner?.meta.agents_enabled} onAgents={setAgents} />
+            <ModelChip engine={engine} model={model} locked={!!chat?.items.length} onPick={pickModel} agents={owner?.meta.agents_enabled} onAgents={setAgents} account={chat?.account} onAccount={(id) => chatId && api.chats.setAccount(canvas, chatId, id).then(() => api.chats.open(canvas, chatId).then(setChat)).catch((e) => setStatus({ text: (e as Error).message, id: Date.now() }))} />
             {chat?.working ? (
               <Tip title="Stop" body="Ends this turn. The chat keeps everything so far.">
                 <button className="send stop" onClick={() => chatId && api.chats.stop(canvas, chatId)}><Icon name="stop" size={12} /></button>

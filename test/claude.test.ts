@@ -84,7 +84,7 @@ describe('parse', () => {
   })
 
   it('garbage and unknown lines are ignored', () => {
-    for (const l of ['', 'not json', '[1,2]', '{"type":"rate_limit_event"}', '{"no":"type"}', 'null', '5']) expect(parse(l)).toEqual([])
+    for (const l of ['', 'not json', '[1,2]', '{"type":"keep_alive"}', '{"no":"type"}', 'null', '5']) expect(parse(l)).toEqual([])
   })
 })
 

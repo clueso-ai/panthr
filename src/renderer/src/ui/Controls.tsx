@@ -9,6 +9,7 @@ import { Icon, type IconName } from './Icon'
 import { MenuItem, MenuSep, MenuTitle, Popover } from './Popover'
 import { Tip } from './Tooltip'
 import { AgentMark } from './AgentMark'
+import { AccountDot, mostUsed, useAccounts } from './Accounts'
 
 /** A square icon button (26-30 pt), tinted when on. */
 export function IconButton({ icon, on, size = 28, onClick, tip, keys, body, disabled, className }: {
@@ -261,7 +262,7 @@ const CLAUDE_FALLBACK: Model[] = [
 /** The agent-and-model chip: a mark for the agent (spark: Claude Code,
  *  prompt: Codex) and the model. Its menu lists one agent's models; the
  *  other agent is one row that swaps the list (crossfading). */
-export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
+export function ModelChip({ engine, model, onPick, locked, agents, onAgents, account, onAccount }: {
   engine: Engine
   model: string
   onPick: (engine: Engine, model: string) => void
@@ -269,7 +270,13 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
   locked?: boolean
   agents?: boolean
   onAgents?: (on: boolean) => void
+  /** The Claude account the chat runs on, and switching it (shown with more than one account). */
+  account?: string
+  onAccount?: (id: string) => void
 }) {
+  const accounts = useAccounts()
+  const acct = accounts.find((a) => a.id === account)
+  const several = !!onAccount && engine === 'claude' && accounts.length > 1
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [shown, setShown] = useState<Engine>(engine)
@@ -293,6 +300,7 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
         <button ref={anchor} className={`chip model-chip${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
           <AgentMark engine={engine} size={15} />
           <span>{label}</span>
+          {several && acct && <span className="chip-acct"><AccountDot color={acct.color} size={7} />{acct.label}</span>}
           <Icon name="chevron" size={12} className="faint" />
         </button>
       </Tip>
@@ -317,6 +325,23 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents }: {
             trailing={off ? <span className="menu-hint">New chat to switch</span> : <Icon name="chevron-right" size={12} className="faint" />}
             onSelect={() => setShown(other)}
           />
+          {shown === 'claude' && several && (
+            <>
+              <MenuSep />
+              <MenuTitle>Account</MenuTitle>
+              {accounts.map((a) => {
+                const used = mostUsed(a)
+                return (
+                  <MenuItem key={a.id} icon={<AccountDot color={a.color} />} label={a.label} on={a.id === account} disabled={a.signedIn === false}
+                    trailing={<span className="menu-hint">{a.signedIn === false ? 'Not signed in' : a.usage?.status === 'rejected' ? 'At its limit' : used != null ? `${Math.round(used * 100)}% used` : ''}</span>}
+                    onSelect={() => {
+                      onAccount!(a.id)
+                      setOpen(false)
+                    }} />
+                )
+              })}
+            </>
+          )}
           {shown === 'claude' && engine === 'claude' && onAgents && (
             <>
               <MenuSep />

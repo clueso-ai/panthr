@@ -37,7 +37,7 @@ export function parseMeta(raw: unknown): ProjectMeta | null {
   const chats: ChatMeta[] = []
   for (const c of m.chats ?? []) {
     if (!c || typeof c.id !== 'string' || typeof c.title !== 'string' || typeof c.created_at !== 'number') return null
-    chats.push({ id: c.id, title: c.title, session_id: c.session_id ?? null, created_at: c.created_at, engine: c.engine ?? null })
+    chats.push({ id: c.id, title: c.title, session_id: c.session_id ?? null, created_at: c.created_at, engine: c.engine ?? null, ...(typeof c.account === 'string' ? { account: c.account } : {}) })
   }
   const models: Partial<Record<Engine, string>> = {}
   if (m.models && typeof m.models === 'object') {
@@ -54,7 +54,7 @@ export function normalMeta(m: ProjectMeta): ProjectMeta {
   return {
     name: m.name,
     created_at: m.created_at,
-    chats: (m.chats ?? []).map((c) => ({ id: c.id, title: c.title, session_id: c.session_id ?? null, created_at: c.created_at, engine: c.engine ?? null })),
+    chats: (m.chats ?? []).map((c) => ({ id: c.id, title: c.title, session_id: c.session_id ?? null, created_at: c.created_at, engine: c.engine ?? null, ...(c.account ? { account: c.account } : {}) })),
     agents_enabled: m.agents_enabled ?? true,
     models,
     ...(m.auto_name ? { auto_name: true } : {})

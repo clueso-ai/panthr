@@ -17,6 +17,8 @@ export function getSettings(): Settings {
   const s = { ...DEFAULT_SETTINGS, ...readJson<Partial<Settings>>(file(), {}) }
   const f = s.frost as unknown
   s.frost = typeof f === 'number' && Number.isFinite(f) ? Math.min(100, Math.max(0, f)) : OLD_FROST[String(f)] ?? DEFAULT_SETTINGS.frost
+  if (!Array.isArray(s.claude_accounts)) s.claude_accounts = []
+  s.claude_accounts = s.claude_accounts.filter((a) => a && typeof a.id === 'string' && typeof a.dir === 'string')
   return s
 }
 

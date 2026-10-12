@@ -21,6 +21,7 @@ import { suggestName } from './namer'
 import { isCanvas } from './board'
 import { record, snap, tracked } from './history'
 import { assistantDir } from './paths'
+import { accountFor, atLimit, claudeEnv, moveSession, nextAccount, noteUsage } from './accounts'
 
 /** The instructions for a chat in this folder: the assistant's, a project's or a video's. */
 const kindOf = (dir: string): boolean | 'assistant' => (resolve(dir) === resolve(assistantDir()) ? 'assistant' : isCanvas(dir))
@@ -121,6 +122,8 @@ export class Transcript {
       case 'stderr':
         if (ev.line.toLowerCase().includes('error')) this.items.push({ Note: ev.line })
         return {}
+      case 'limits':
+        return { none: true }
       case 'exited':
         if (!this.working) return {}
         this.working = false
@@ -140,9 +143,9 @@ export class Transcript {
     return undefined
   }
 
-  /** The user's message goes in; a turn begins. */
-  begin(text: string): void {
-    this.items.push({ User: text })
+  /** The user's message goes in; a turn begins (again: the same message once more, not shown twice). */
+  begin(text: string, again = false): void {
+    if (!again) this.items.push({ User: text })
     this.working = true
     this.streaming = null
     this.startedAt = Date.now()
@@ -198,11 +201,17 @@ class Chat {
   private lastState = 0
   private saveTimer: NodeJS.Timeout | null = null
 
+  /** The Claude account it runs on (null: the one new chats use). */
+  private account: string | null
+  /** The account hit its limit during this turn. */
+  private limited = false
+
   constructor(
     readonly dir: string,
     readonly chatId: string,
     meta: ChatMeta | undefined
   ) {
+    this.account = meta?.account ?? null
     const engine: Engine = meta?.engine ?? getSettings().agent
     this.t = new Transcript(loadTranscript(chatPath(dir, chatId)), engine, meta?.session_id ?? null)
   }
@@ -211,7 +220,7 @@ class Chat {
     const t = this.t
     return {
       dir: this.dir, chatId: this.chatId, items: t.items, working: t.working || this.busy,
-      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine
+      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine, account: accountFor(this.account).id
     }
   }
 
@@ -254,7 +263,7 @@ class Chat {
   }
 
   /** Send a message (typed, or from the editor: controls, edits, comments). */
-  async send(text: string): Promise<void> {
+  async send(text: string, again = false): Promise<void> {
     if (text.trim() === '') return
     // One turn at a time: what is typed meanwhile waits its turn.
     if (this.t.working || this.busy) {
@@ -298,13 +307,14 @@ class Chat {
     } else {
       const agents = loadMeta(this.dir)?.agents_enabled ?? true
       const model = modelFor(this.dir, 'claude')
-      // A new model or Agents switch: the next turn starts a process with them.
+      const account = accountFor(this.account).id
+      // A new model, account or Agents switch: the next turn starts a process with them.
       const s = this.claude.started
-      if (this.claude.running() && s && (s.agents !== agents || s.model !== model)) this.stopProcesses()
+      if (this.claude.running() && s && (s.agents !== agents || s.model !== model || s.account !== account)) this.stopProcesses()
       if (!this.claude.running()) {
         try {
           this.gen++
-          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model, board: kindOf(this.dir) }, this.listener())
+          this.claude.start({ dir: this.dir, resume: this.t.sessionId, agents, model, board: kindOf(this.dir), account, env: claudeEnv(account) }, this.listener())
         } catch (e) {
           this.note(`Could not start Claude Code: ${(e as Error).message}`)
           return this.sendQueued()
@@ -319,11 +329,12 @@ class Chat {
         return this.sendQueued()
       }
     }
-    if (first) {
+    if (first && !again) {
       this.title(titleFrom(text))
       void this.nameFrom(text)
     }
-    this.t.begin(text)
+    this.limited = false
+    this.t.begin(text, again)
     this.save(true)
     this.show(true)
   }
@@ -337,6 +348,12 @@ class Chat {
   }
 
   onEvent(ev: AgentEvent): void {
+    // How much of the account is used; at its limit, the turn may go on elsewhere.
+    if (ev.type === 'limits') {
+      noteUsage(accountFor(this.account).id, ev.usage)
+      if (ev.usage.status === 'rejected') this.limited = true
+      return
+    }
     const r = this.t.apply(ev)
     if (r.none) return
     if (r.session) {
@@ -353,7 +370,8 @@ class Chat {
       this.save(true)
       this.show(true)
       this.turnEnded()
-      this.sendQueued()
+      if (this.limited) void this.carryOn()
+      else this.sendQueued()
       return
     }
     this.save()
@@ -377,6 +395,43 @@ class Chat {
     emit('chat:turn', { dir: this.dir, chatId: this.chatId })
     // On a host: the agent's notes there (controls, comments) come back.
     if (remote.hostOf(this.dir)) void pullKeeping(this.dir)
+  }
+
+  /** The account hit its limit: the same message again on the next account
+   *  (signed in, not at its own limit), its conversation brought along. */
+  private async carryOn(): Promise<void> {
+    this.limited = false
+    const from = accountFor(this.account)
+    const last = [...this.t.items].reverse().find((i): i is { User: string } => 'User' in i)
+    const next = this.t.engine === 'claude' && getSettings().claude_failover ? await nextAccount(from.id) : null
+    if (!next || !last) {
+      if (atLimit(from.id)) this.note(`${from.label === 'Default' ? 'Your Claude account' : from.label} has reached its usage limit.`)
+      return this.sendQueued()
+    }
+    this.useAccount(next.id)
+    this.note(`${from.label} reached its usage limit. Carrying on with ${next.label}.`)
+    await this.send(last.User, true)
+  }
+
+  /** Run on another account from the next turn on (the conversation goes along). */
+  useAccount(id: string): void {
+    const from = accountFor(this.account).id
+    const to = accountFor(id).id
+    if (from === to && this.account) return
+    this.stopProcesses()
+    if (this.t.sessionId && from !== to && !moveSession(this.t.sessionId, from, to)) {
+      // Its conversation could not be found to bring along: a fresh one there.
+      this.t.sessionId = null
+    }
+    this.account = to
+    updateMeta(this.dir, (m) => {
+      const c = m.chats.find((c) => c.id === this.chatId)
+      if (c) {
+        c.account = to
+        c.session_id = this.t.sessionId
+      }
+    })
+    this.show(true)
   }
 
   /** The next queued message, once a turn has ended. */
@@ -543,6 +598,11 @@ export const chats: Api['chats'] = {
   },
   async note(dir, chatId, text) {
     ;(await open(dir, chatId)).addNote(text)
+  },
+  async setAccount(dir, chatId, account) {
+    const c = await open(dir, chatId)
+    if (c.t.working) throw new Error('Wait for this turn to finish')
+    c.useAccount(account)
   },
   async remove(dir, chatId) {
     const k = key(dir, chatId)

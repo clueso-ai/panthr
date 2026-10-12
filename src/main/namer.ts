@@ -11,6 +11,7 @@ import type { Engine } from '@shared/types'
 import { claudeBin } from './agents/claude'
 import { codexBin } from './agents/codex'
 import { home, toolEnv } from './paths'
+import { claudeEnv } from './accounts'
 
 const WAIT_MS = 30_000
 
@@ -39,11 +40,11 @@ export function cheapCodexModel(): string | null {
   }
 }
 
-function run(cmd: string, args: string[]): Promise<string | null> {
+function run(cmd: string, args: string[], env: NodeJS.ProcessEnv = toolEnv()): Promise<string | null> {
   return new Promise((ok) => {
     let out = ''
     // Away from any project, so no project instructions or memory load.
-    const child = spawn(cmd, args, { cwd: tmpdir(), env: toolEnv(), stdio: ['ignore', 'pipe', 'ignore'] })
+    const child = spawn(cmd, args, { cwd: tmpdir(), env, stdio: ['ignore', 'pipe', 'ignore'] })
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
       ok(null)
@@ -75,6 +76,6 @@ export async function suggestName(message: string, engine: Engine): Promise<stri
       return null
     }
   }
-  const reply = await run(claudeBin(), ['-p', prompt, '--model', 'haiku', '--max-turns', '1', '--tools', ''])
+  const reply = await run(claudeBin(), ['-p', prompt, '--model', 'haiku', '--max-turns', '1', '--tools', ''], claudeEnv())
   return reply === null ? null : cleanName(reply)
 }
