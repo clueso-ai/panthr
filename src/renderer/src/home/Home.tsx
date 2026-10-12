@@ -19,6 +19,7 @@ import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
 import { addVideos, ReferencesSection } from '@/editor/References'
 import { Assistant } from '@/assistant/Assistant'
+import { openRecorder } from '@/board/Record'
 import './home.css'
 
 const IDEAS: [string, string][] = [
@@ -141,6 +142,12 @@ export function Home({ onOpen, onStart, onSettings }: {
                 await addVideos(await api.app.chooseFiles())
               }} onReferences={() => setRefsOpen(true)} onSkills={openSkills} />
               <WhereChip host={host} onHost={setHost} />
+              <Tip title="Record your screen" keys="⇧⌘2 stops" body="Record your screen or a window into a new project, then have the agent make a demo of it.">
+                <button className="chip" onClick={() => openRecorder(null)}>
+                  <Icon name="record" size={15} className="rec-chip-dot" />
+                  <span>Record</span>
+                </button>
+              </Tip>
               <span className="spacer" />
               <ModelChip engine={engine} model={chosen} onPick={(e, m) => {
                 setEngine(e)

@@ -16,6 +16,7 @@ import './ui/Activity' // starts listening for background work at once
 import { DropVideos } from './editor/References'
 import { sayOnCanvas } from './board/CanvasStage'
 import { openAssistant, toggleAssistant } from './assistant/Assistant'
+import { RecordOverlay } from './board/Record'
 
 type View =
   | { kind: 'home' }
@@ -179,6 +180,7 @@ export function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <RecordOverlay />
       <DropVideos board={view?.kind === 'project'} onAdded={(n) => n && dispatchEvent(new CustomEvent('panthr:reference-added'))} />
       <Settings open={settings.open} pane={settings.pane} onPane={(pane) => setSettings({ open: true, pane })} onClose={() => setSettings((x) => ({ ...x, open: false }))} />
     </>

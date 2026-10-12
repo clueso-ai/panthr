@@ -1,14 +1,16 @@
 // Recording the screen into a project: pick a screen or a window (and the
 // microphone if you like), a 3-2-1, and Panthr steps aside while it records;
 // the menu-bar timer or ⇧⌘2 stops it. The recording lands as a video on the
-// canvas, with a card offering to make a demo of it.
+// canvas, with a card offering to make a demo of it. From Home it goes into
+// a new project, opened when it lands.
 //
 // The recorder runs here (getDisplayMedia, MediaRecorder) and streams the
-// file to main in one-second pieces; it lives outside any component, so a
-// re-render never loses a take.
+// file to main in one-second pieces. It and everything around it (the
+// sheet, the 3-2-1, the card) live outside any one screen, in
+// RecordOverlay at the top of the app, so going from Home to the project
+// loses nothing.
 
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import type { RecordingSource } from '@shared/types'
 import { api } from '@/lib/api'
@@ -17,18 +19,49 @@ import { Icon } from '@/ui/Icon'
 import { IconButton, Switch } from '@/ui/Controls'
 import { Tip } from '@/ui/Tooltip'
 
-type Done = { dir: string; name: string; seconds: number }
+// ── The take, and what is shown about it ───────────────────────────────
 
-/** The take in progress (module-level: it outlives any component). */
-let current: { id: string; rec: MediaRecorder; streams: MediaStream[]; queue: Promise<unknown>; mic: boolean; onDone: (d: Done | null, err?: string) => void } | null = null
+interface State {
+  /** The picker is open, for this project (null: a new one, from Home). */
+  sheet: { canvas: string | null } | null
+  count: number | null
+  saving: boolean
+  done: { canvas: string; dir: string; name: string } | null
+  error: string | null
+}
+
+let state: State = { sheet: null, count: null, saving: false, done: null, error: null }
+const subs = new Set<(s: State) => void>()
+const set = (p: Partial<State>): void => {
+  state = { ...state, ...p }
+  subs.forEach((f) => f(state))
+}
+
+/** Open the picker: recording into this project, or (null) into a new one. */
+export const openRecorder = (canvas: string | null): void => set({ sheet: { canvas }, error: null })
+
+let current: { id: string; rec: MediaRecorder } | null = null
 
 api.on('recorder:stop', ({ id }) => {
-  if (current?.id === id && current.rec.state !== 'inactive') current.rec.stop()
+  if (current?.id === id && current.rec.state !== 'inactive') {
+    set({ saving: true })
+    current.rec.stop()
+  }
 })
 
-async function record(canvas: string, source: RecordingSource, mic: boolean, onDone: (d: Done | null, err?: string) => void): Promise<void> {
+const day = (): string => new Date().toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+async function start(target: string | null, source: RecordingSource, mic: boolean): Promise<void> {
+  set({ sheet: null, error: null, done: null })
+  for (let n = 3; n > 0; n--) {
+    set({ count: n })
+    await new Promise((r) => setTimeout(r, 800))
+  }
+  set({ count: null })
+  const canvas = target ?? (await api.canvases.create(`Screen recording · ${day()}`)).dir
   const { id } = await api.recorder.begin(canvas, source.id)
   const streams: MediaStream[] = []
+  const stopAll = (): void => streams.forEach((s) => s.getTracks().forEach((t) => t.stop()))
   try {
     const screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
     streams.push(screen)
@@ -40,110 +73,109 @@ async function record(canvas: string, source: RecordingSource, mic: boolean, onD
     }
     const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t))
     const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: type, videoBitsPerSecond: 10_000_000 })
-    const take = { id, rec, streams, queue: Promise.resolve() as Promise<unknown>, mic, onDone }
-    current = take
+    let queue: Promise<unknown> = Promise.resolve()
+    current = { id, rec }
     rec.ondataavailable = (e) => {
       if (!e.data.size) return
-      take.queue = take.queue.then(async () => api.recorder.chunk(id, new Uint8Array(await e.data.arrayBuffer())))
+      queue = queue.then(async () => api.recorder.chunk(id, new Uint8Array(await e.data.arrayBuffer())))
     }
     rec.onstart = () => void api.recorder.started(id)
     rec.onstop = async () => {
-      for (const s of streams) s.getTracks().forEach((t) => t.stop())
-      await take.queue
+      stopAll()
+      await queue
       current = null
       try {
         const dir = await api.recorder.finish(id, mic)
         const p = await api.projects.load(dir)
-        onDone({ dir, name: p?.meta.name ?? 'Recording', seconds: 0 })
+        set({ saving: false, done: { canvas, dir, name: p?.meta.name ?? 'Recording' } })
+        // From Home: its new project opens, with the recording chosen.
+        if (!target) dispatchEvent(new CustomEvent('panthr:open-project', { detail: dir }))
       } catch (e) {
-        onDone(null, (e as Error).message)
+        set({ saving: false, error: (e as Error).message })
       }
     }
     rec.start(1000)
   } catch (e) {
-    for (const s of streams) s.getTracks().forEach((t) => t.stop())
+    stopAll()
     current = null
     await api.recorder.cancel(id)
-    throw e
+    set({ error: `Could not record: ${(e as Error).message}. Panthr needs Screen Recording in System Settings › Privacy & Security.` })
   }
 }
 
-/** The Record button on the canvas, and everything after it. */
-export function RecordButton({ canvas, onAsk, onActivate }: { canvas: string; onAsk(text: string): void; onActivate(dir: string): void }) {
-  const [open, setOpen] = useState(false)
-  const [count, setCount] = useState<number | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState<Done | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const start = async (source: RecordingSource, mic: boolean): Promise<void> => {
-    setOpen(false)
-    setError(null)
-    for (let n = 3; n > 0; n--) {
-      setCount(n)
-      await new Promise((r) => setTimeout(r, 800))
+/** The demo, asked of the project's agent (its newest conversation). */
+async function makeDemo(d: NonNullable<State['done']>): Promise<void> {
+  const p = await api.projects.load(d.canvas)
+  const chatId = p?.meta.chats.at(-1)?.id ?? (await api.chats.create(d.canvas))
+  dispatchEvent(new CustomEvent('panthr:open-project', { detail: d.dir }))
+  await api.chats.send(d.canvas, chatId, `Turn "${d.name}" into a product demo of about 45 seconds: cut the dead time, zoom in on each click, add a short caption for each step, and a title card at the start. Make it its own tile first with \`panthr board new "${d.name} demo" --from "${d.name}"\` and build it there; leave the recording as it is.`)
+}
+
+function useRecordState(): State {
+  const [s, setS] = useState(state)
+  useEffect(() => {
+    subs.add(setS)
+    return () => {
+      subs.delete(setS)
     }
-    setCount(null)
-    try {
-      await record(canvas, source, mic, (d, err) => {
-        setSaving(false)
-        if (d) {
-          setDone(d)
-          onActivate(d.dir)
-        } else setError(err ?? 'The recording could not be saved')
-      })
-    } catch (e) {
-      setError(`Could not record: ${(e as Error).message}. Panthr needs Screen Recording in System Settings › Privacy & Security.`)
-    }
-  }
-  // Once it stops, the saving takes a moment (converting, finding the dead time).
-  useEffect(() => api.on('recorder:stop', () => setSaving(true)), [])
+  }, [])
+  return s
+}
+
+// ── What is shown ──────────────────────────────────────────────────────
+
+/** The Record button on a project's canvas. */
+export function RecordButton({ canvas }: { canvas: string }) {
+  return (
+    <Tip title="Record" keys="⇧⌘2 stops" body="Record your screen or a window into this project, then have the agent make a demo of it.">
+      <button className="board-tool" onClick={() => openRecorder(canvas)}><Icon name="record" size={15} /><span>Record</span></button>
+    </Tip>
+  )
+}
+
+/** The picker, the 3-2-1 and the card: once, at the top of the app. */
+export function RecordOverlay() {
+  const s = useRecordState()
   return (
     <>
-      <Tip title="Record" keys="⇧⌘2 stops" body="Record your screen or a window into this project, then have the agent make a demo of it.">
-        <button className="board-tool" onClick={() => setOpen(true)}><Icon name="record" size={15} /><span>Record</span></button>
-      </Tip>
-      {createPortal(
-        <>
-          <AnimatePresence>{open && <RecordSheet onClose={() => setOpen(false)} onStart={start} />}</AnimatePresence>
-          <AnimatePresence>
-            {count != null && (
-              <motion.div className="rec-count" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)}>
-                <motion.b key={count} initial={{ scale: 1.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={tr(SETTLE)}>{count}</motion.b>
-                <span>Recording starts. Panthr steps aside; stop it from the menu bar or with ⇧⌘2.</span>
-              </motion.div>
+      <AnimatePresence>{s.sheet && <RecordSheet fromHome={!s.sheet.canvas} onClose={() => set({ sheet: null })} onStart={(src, mic) => void start(s.sheet!.canvas, src, mic)} />}</AnimatePresence>
+      <AnimatePresence>
+        {s.count != null && (
+          <motion.div className="rec-count" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)}>
+            <motion.b key={s.count} initial={{ scale: 1.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={tr(SETTLE)}>{s.count}</motion.b>
+            <span>Recording starts. Panthr steps aside; stop it from the menu bar or with ⇧⌘2.</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {(s.saving || s.done || s.error) && (
+          <motion.div className="rec-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={tr(SETTLE)}>
+            {s.saving && !s.done && !s.error && <span className="shine" data-text="Saving the recording…">Saving the recording…</span>}
+            {s.error && (
+              <>
+                <span className="rec-err">{s.error}</span>
+                <IconButton icon="close" tip="Close" onClick={() => set({ error: null })} />
+              </>
             )}
-          </AnimatePresence>
-          <AnimatePresence>
-            {(saving || done || error) && (
-              <motion.div className="rec-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={tr(SETTLE)}>
-                {saving && !done && !error && <span className="shine" data-text="Saving the recording…">Saving the recording…</span>}
-                {error && (
-                  <>
-                    <span className="rec-err">{error}</span>
-                    <IconButton icon="close" tip="Close" onClick={() => setError(null)} />
-                  </>
-                )}
-                {done && (
-                  <>
-                    <div className="rec-words"><b>{done.name}</b><span className="faint">On the canvas. The clicks and the dead time are noted for the agent.</span></div>
-                    <button className="btn small primary" onClick={() => {
-                      onAsk(`Turn "${done.name}" into a product demo of about 45 seconds: cut the dead time, zoom in on each click, add a short caption for each step, and a title card at the start. Make it its own tile first with \`panthr board new "${done.name} demo" --from "${done.name}"\` and build it there; leave the recording as it is.`)
-                      setDone(null)
-                    }}>Make it a demo</button>
-                    <IconButton icon="close" tip="Keep it as it is" onClick={() => setDone(null)} />
-                  </>
-                )}
-              </motion.div>
+            {s.done && (
+              <>
+                <div className="rec-words"><b>{s.done.name}</b><span className="faint">On the canvas. The clicks and the dead time are noted for the agent.</span></div>
+                <button className="btn small primary" onClick={() => {
+                  const d = s.done!
+                  set({ done: null })
+                  void makeDemo(d)
+                }}>Make it a demo</button>
+                <IconButton icon="close" tip="Keep it as it is" onClick={() => set({ done: null })} />
+              </>
             )}
-          </AnimatePresence>
-        </>,
-        document.body
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }
 
-function RecordSheet({ onClose, onStart }: { onClose(): void; onStart(s: RecordingSource, mic: boolean): void }) {
+function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClose(): void; onStart(s: RecordingSource, mic: boolean): void }) {
   const [list, setList] = useState<RecordingSource[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pick, setPick] = useState<string | null>(null)
@@ -171,7 +203,7 @@ function RecordSheet({ onClose, onStart }: { onClose(): void; onStart(s: Recordi
       <motion.div className="rec-sheet" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={tr(SETTLE)} onClick={(e) => e.stopPropagation()}>
         <div className="rec-head">
           <b>Record your screen</b>
-          <span className="faint">It lands on this canvas; the agent can make a demo of it.</span>
+          <span className="faint">{fromHome ? 'It goes into a new project; the agent can make a demo of it.' : 'It lands on this canvas; the agent can make a demo of it.'}</span>
           <div className="refs-sheet-close"><IconButton icon="close" tip="Close" keys="esc" onClick={onClose} /></div>
         </div>
         {error && <div className="rec-err">{error}</div>}
