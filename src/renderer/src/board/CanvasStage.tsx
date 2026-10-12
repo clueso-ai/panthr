@@ -186,9 +186,9 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     const p = at(key)
     if (!p) return null
     const { w, h } = size()
-    // About three fifths of the stage, never past 150%: big enough to work
+    // About three fifths of the stage, never past 100%: big enough to work
     // on, with the videos beside it in view and its words at a sane size.
-    const zoom = clamp(Math.min((w * 0.55) / shot.w, (h * 0.58) / shot.h), ZOOM.min, 1.5)
+    const zoom = clamp(Math.min((w * 0.55) / shot.w, (h * 0.58) / shot.h), ZOOM.min, 1)
     return { x: p.x + PAD + shot.w / 2, y: p.y + PAD + shot.h / 2, zoom }
   }
 
@@ -198,8 +198,8 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     if (!board || placed.current || !stage.current) return
     placed.current = true
     const big = active ? bigView(active) : null
-    // A view kept from before is never brought back past 150%.
-    const kept = board.view && { ...board.view, zoom: clamp(board.view.zoom, ZOOM.min, 1.5) }
+    // A view kept from before is never brought back past 100%.
+    const kept = board.view && { ...board.view, zoom: clamp(board.view.zoom, ZOOM.min, 1) }
     setView(big ?? kept ?? fitView(board, size(), tile))
   }, [board]) // eslint-disable-line react-hooks/exhaustive-deps
   // A video made active (here, or by the agent): bring it up.
