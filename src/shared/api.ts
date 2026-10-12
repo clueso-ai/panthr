@@ -178,6 +178,8 @@ export interface Api {
     import(canvas: string, paths: string[], at?: { x: number; y: number } | null): Promise<import('./types').BoardImport>
     /** The canvas's notes and instruction arrows, all of them. */
     notes(canvas: string, notes: import('./types').CanvasNote[]): Promise<void>
+    /** Every size of videos: a copy per frame (9:16, 1:1, 4:5, 16:9) laid out again by the agent, each exported when it is done. */
+    sizes(canvas: string, dirs: string[], sizes: string[], exportAfter: boolean): Promise<{ dirs: string[]; chatId: string }>
     /** A copy of a video beside it (an arrow from it), to redo from a moment on. */
     branch(canvas: string, dir: string, name: string): Promise<Project>
     /** Exported videos copied into the project's Exports/<when>/ (returns the folder). */

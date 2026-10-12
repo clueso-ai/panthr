@@ -415,7 +415,7 @@ export const canvasesApi: Api['canvases'] = {
   }
 }
 
-export const boardApi: Api['board'] = {
+export const boardApi: Omit<Api['board'], 'sizes'> = {
   async get(canvas) {
     return board(real(canvas))
   },

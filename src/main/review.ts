@@ -668,6 +668,23 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 
 // ── The API ───────────────────────────────────────────────────────
 
+/** Export a video and wait for it (true: done, false: failed or cancelled). One at a time per video. */
+export async function renderAndWait(dir: string): Promise<boolean> {
+  while (renders.has(dir)) await new Promise((r) => setTimeout(r, 500))
+  const r: Render = { child: null, remotePid: null, cancelled: false }
+  renders.set(dir, r)
+  job({ type: 'stage', dir, text: 'Starting' })
+  try {
+    await renderNow(dir, r)
+    return !r.cancelled
+  } catch (e) {
+    job({ type: 'failed', dir, error: errText(e) })
+    return false
+  } finally {
+    renders.delete(dir)
+  }
+}
+
 export const review: Api['review'] = {
   async check(dir) {
     const { checkVideo } = await import('./selfcheck')

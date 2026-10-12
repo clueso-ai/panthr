@@ -27,6 +27,9 @@ import { accountFor, atLimit, claudeEnv, codexEnv, codexUsage, moveSession, next
 /** The instructions for a chat in this folder: the assistant's, a project's or a video's. */
 const kindOf = (dir: string): boolean | 'assistant' => (resolve(dir) === resolve(assistantDir()) ? 'assistant' : isCanvas(dir))
 
+/** Called when a chat's turn is over and nothing else follows it (no self-check fix, no queued message). */
+export const onSettled: ((dir: string, chatId: string) => void)[] = []
+
 /** A chat's title until its first message names it. */
 export const NEW_CHAT = 'New chat'
 
@@ -418,12 +421,12 @@ class Chat {
     const last = this.t.items[this.t.items.length - 1]
     const failed = !last || ('Meta' in last && last.Meta.error) || ('Note' in last && /stopped/i.test(last.Note))
     // Not when off, after a failed turn, when the person has already said what is next, or when nothing changed.
-    if (!getSettings().self_check || failed || this.t.queued.length || !files?.length || this.t.working) return this.sendQueued()
+    if (!getSettings().self_check || failed || this.t.queued.length || !files?.length || this.t.working) return this.settle()
     const videos = [...new Set(files.map((f) => f.split('/')[0]))]
       .map((seg) => (existsSync(join(this.dir, seg, 'index.html')) ? join(this.dir, seg) : null))
       .filter((d): d is string => !!d)
     if (!videos.length && files.some((f) => !f.includes('/')) && existsSync(join(this.dir, 'index.html'))) videos.push(this.dir)
-    if (!videos.length) return this.sendQueued()
+    if (!videos.length) return this.settle()
     const mark = this.t.items.length
     this.checking = videos.map((v) => loadMeta(v)?.name ?? v.split('/').pop()).join(', ')
     this.show(true)
@@ -437,18 +440,24 @@ class Chat {
     this.checking = null
     this.show(true)
     // The person moved on meanwhile: their word wins.
-    if (!checks || this.t.working || this.t.items.length !== mark || this.t.queued.length) return this.sendQueued()
+    if (!checks || this.t.working || this.t.items.length !== mark || this.t.queued.length) return this.settle()
     const problems = checks.reduce((n, c) => n + c.problems.length, 0)
     if (!problems) {
       this.note(`Self-check: no problems found in ${checks.map((c) => c.name).join(', ')}`)
-      return this.sendQueued()
+      return this.settle()
     }
     if (round >= 1) {
       this.note(`Self-check still sees ${problems} problem${problems === 1 ? '' : 's'}: ${checks.flatMap((c) => c.problems).slice(0, 3).join('; ')}`)
-      return this.sendQueued()
+      return this.settle()
     }
     this.checkRound = 1
     await this.send(checkMessage(checks))
+  }
+
+  /** The next queued message; or, with none, the turn is over for good. */
+  private settle(): void {
+    this.sendQueued()
+    if (!this.t.working && !this.busy && !this.t.queued.length) for (const f of onSettled) f(this.dir, this.chatId)
   }
 
   private turnEnded(): Promise<string[] | null> {

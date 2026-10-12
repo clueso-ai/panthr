@@ -21,7 +21,7 @@ export const METHODS: All = {
   share: { save: true, open: true },
   assistant: { open: true, fresh: true, handoff: true },
   canvases: { list: true, create: true, of: true, find: true },
-  board: { notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
+  board: { sizes: true, notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },
   usage: { report: true },
   accounts: { list: true, add: true, rename: true, remove: true, signIn: true, setDefault: true },

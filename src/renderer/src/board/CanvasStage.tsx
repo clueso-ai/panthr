@@ -21,7 +21,7 @@ import { ReferencesSection, RefSheet } from '@/editor/References'
 import { Compare } from './Compare'
 import { BrandCard } from './Brand'
 import { ArrowLabel, NoteCard, NOTE_W, noteMessage } from './Notes'
-import { MenuItem, Popover } from '@/ui/Popover'
+import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import './board.css'
 
 /** A line for the canvas to show (from outside it: a .panthr opened, a share saved). */
@@ -682,9 +682,8 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
             <span><b>{picked.length}</b> picked</span>
             <button className="btn small" disabled={picked.length < 2} onClick={() => setComparing(picked.slice(0, 6))}><Icon name="layers" size={13} /> Compare</button>
             <button className="btn small" disabled={exportRun.current} onClick={() => exportAll(picked)}><Icon name="export" size={13} /> Export</button>
-            <SizesMenu onPick={(sizes) => {
-              const names = picked.map((k) => `"${videos.get(k)?.meta.name ?? k}"`).join(', ')
-              onAsk(`Make ${sizes.join(', ')} versions of ${names}: each its own tile, made with \`panthr board new\` --from the video it adapts, laid out again for that frame (not just cropped).`)
+            <SizesMenu onPick={(sizes, exportAfter) => {
+              api.board.sizes(canvas, picked.filter((k) => !k.startsWith('ref:')), sizes, exportAfter).catch((e) => sayOnCanvas(`Couldn't make the sizes: ${(e as Error).message}`))
               setPicked([])
             }} />
             <button className="link" onClick={() => setPicked([])}>Clear</button>
@@ -875,20 +874,24 @@ function LiveMark() {
 
 
 /** Other frame sizes for the picked videos: the agent lays each out again. */
-function SizesMenu({ onPick }: { onPick(sizes: string[]): void }) {
+/** Every size of a video: which frames, and whether to export them when the agent is done. */
+export function SizesMenu({ onPick, label = 'Make sizes…', side = 'top' }: { onPick(sizes: string[], exportAfter: boolean): void; label?: string; side?: 'top' | 'bottom' }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const [on, setOn] = useState<string[]>(['9:16'])
+  const [on, setOn] = useState<string[]>(['9:16', '1:1', '4:5'])
+  const [exp, setExp] = useState(true)
   const SIZES: [string, string][] = [['9:16', 'Vertical (Reels, Shorts, TikTok)'], ['1:1', 'Square'], ['4:5', 'Portrait (feed)'], ['16:9', 'Wide']]
   return (
     <>
-      <button ref={anchor} className="btn small" onClick={() => setOpen((o) => !o)}>Make sizes…</button>
-      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="center" width={260}>
+      <button ref={anchor} className="btn small" onClick={() => setOpen((o) => !o)}>{label}</button>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side={side} align="center" width={270}>
         <div className="menu sizes-menu">
           {SIZES.map(([k, label]) => (
             <MenuItem key={k} label={<>{k} <span className="faint">· {label}</span></>} on={on.includes(k)} onSelect={() => setOn((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]))} />
           ))}
-          <div className="sizes-go"><button className="btn small primary" disabled={!on.length} onClick={() => { setOpen(false); onPick(on) }}>Ask the agent</button></div>
+          <MenuSep />
+          <MenuItem label="Export them when done" on={exp} onSelect={() => setExp((x) => !x)} />
+          <div className="sizes-go"><button className="btn small primary" disabled={!on.length} onClick={() => { setOpen(false); onPick(on, exp) }}>Make {on.length} size{on.length === 1 ? '' : 's'}</button></div>
         </div>
       </Popover>
     </>

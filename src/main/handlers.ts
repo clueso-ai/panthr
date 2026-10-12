@@ -24,10 +24,11 @@ import { assistantApi } from './assistant'
 import { connectionsApi, route } from './connections'
 import { accountsApi } from './accounts'
 import { usageApi } from './usage'
+import { sizesApi } from './sizes'
 
 export const handlers: Api = {
   app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references,
-  board: boardApi, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi, assistant: assistantApi,
+  board: { ...boardApi, ...sizesApi }, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi, assistant: assistantApi,
   connections: connectionsApi, accounts: accountsApi, usage: usageApi
 }
 

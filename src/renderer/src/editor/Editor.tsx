@@ -22,7 +22,7 @@ import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, type Edit } from './Timeline'
 import { PreviewFrames, usePreview } from './usePreview'
 import { addVideos } from './References'
-import { CanvasStage } from '../board/CanvasStage'
+import { CanvasStage, SizesMenu } from '../board/CanvasStage'
 import './editor.css'
 import '../home/home.css'
 
@@ -826,6 +826,10 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
               } catch (e) {
                 say(`Couldn't branch it: ${(e as Error).message}`)
               }
+            }} />
+            <SizesMenu label="Every size" side="bottom" onPick={(sizes, exportAfter) => {
+              if (!dir) return
+              api.board.sizes(canvas, [dir], sizes, exportAfter).then(() => say(`Making ${sizes.join(', ')}: the agent lays each out again${exportAfter ? ', then each is exported' : ''}`)).catch((e) => say(`Couldn't make the sizes: ${(e as Error).message}`))
             }} />
             <Tip title="Versions" body="Every export, to play or compare.">
               <button className="btn" onClick={() => showSide('versions')}><Icon name="history" size={15} /><span className="btn-label">{versions.length ? `v${versions.length}` : 'Versions'}</span></button>
