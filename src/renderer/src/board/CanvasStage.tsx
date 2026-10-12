@@ -198,7 +198,9 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     if (!board || placed.current || !stage.current) return
     placed.current = true
     const big = active ? bigView(active) : null
-    setView(big ?? board.view ?? fitView(board, size(), tile))
+    // A view kept from before is never brought back past 150%.
+    const kept = board.view && { ...board.view, zoom: clamp(board.view.zoom, ZOOM.min, 1.5) }
+    setView(big ?? kept ?? fitView(board, size(), tile))
   }, [board]) // eslint-disable-line react-hooks/exhaustive-deps
   // A video made active (here, or by the agent): bring it up.
   const lastActive = useRef<string | null>(active)
