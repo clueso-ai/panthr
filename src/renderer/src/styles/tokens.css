@@ -1,6 +1,7 @@
 /* The theme's colours are registered so a theme change eases them all at
    once (base.css), instead of the window snapping from one look to the other. */
 @property --acc { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --acc-deep { syntax: '<color>'; inherits: true; initial-value: transparent; }
 @property --acc-sel { syntax: '<color>'; inherits: true; initial-value: transparent; }
 @property --acc-soft { syntax: '<color>'; inherits: true; initial-value: transparent; }
 @property --acc-text { syntax: '<color>'; inherits: true; initial-value: transparent; }
@@ -33,7 +34,7 @@
 /* Registered so a Frost change eases instead of snapping. */
 @property --frost { syntax: '<number>'; inherits: true; initial-value: 0.78; }
 
-/* Panthr's look: neutral greys, Host Grotesk, one rose accent (the refined
+/* Panthr's look: neutral greys, Host Grotesk, one ember accent (the refined
    editor direction). Night is the default; Day mirrors it. Every colour
    comes from here. */
 
@@ -151,17 +152,18 @@
   --t3: #6b6b71;
   --primary: #ededed;
   --on-primary: #161617;
-  --acc: #e5487f;
-  --acc-soft: rgba(229, 72, 127, 0.16);
-  --acc-text: #ff8fb5;
-  --acc-sel: rgba(229, 72, 127, 0.45);
+  --acc: #ff5b23;
+  --acc-deep: #b8340b;
+  --acc-soft: rgba(255, 91, 35, 0.16);
+  --acc-text: #ff9a6e;
+  --acc-sel: rgba(255, 91, 35, 0.42);
   --ok: #3fb98a;
   --ok-soft: rgba(63, 185, 138, 0.15);
   --warn: #e7a93b;
   --warn-soft: rgba(231, 169, 59, 0.14);
   --warn-text: #ffe2a8;
-  --danger: #ff6a3d;
-  --danger-soft: rgba(255, 106, 61, 0.15);
+  --danger: #f2505c;
+  --danger-soft: rgba(242, 80, 92, 0.15);
   --track: #1d1a26;
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.35);
@@ -186,17 +188,18 @@
   --t3: #96969e;
   --primary: #141416;
   --on-primary: #ffffff;
-  --acc: #d63a72;
-  --acc-soft: rgba(214, 58, 114, 0.1);
-  --acc-text: #b8295e;
-  --acc-sel: rgba(214, 58, 114, 0.35);
+  --acc: #ec4a12;
+  --acc-deep: #a8300a;
+  --acc-soft: rgba(236, 74, 18, 0.1);
+  --acc-text: #b8340b;
+  --acc-sel: rgba(236, 74, 18, 0.3);
   --ok: #1e8a5f;
   --ok-soft: rgba(30, 138, 95, 0.1);
   --warn: #a86a00;
   --warn-soft: rgba(168, 106, 0, 0.12);
   --warn-text: #7a4e00;
-  --danger: #c23a28;
-  --danger-soft: rgba(194, 58, 40, 0.1);
+  --danger: #c42b3a;
+  --danger-soft: rgba(196, 43, 58, 0.1);
   --track: #2a2733;
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.08);
   --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.12);

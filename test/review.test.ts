@@ -269,7 +269,7 @@ describe('the pen', () => {
   it('paints a pink disc', () => {
     const img = filled(40, 40, [0, 0, 0, 255])
     R.dot(img, 40, 40, 20, 20, 5)
-    expect(px(img, 40, 20, 20)).toEqual([0xff, 0x4f, 0x9a, 255])
+    expect(px(img, 40, 20, 20)).toEqual([0xff, 0x5b, 0x23, 255])
     expect(px(img, 40, 0, 0)).toEqual([0, 0, 0, 255])
     expect(px(img, 40, 20, 30)).toEqual([0, 0, 0, 255])
     let painted = 0
@@ -286,7 +286,7 @@ describe('the pen', () => {
     expect(px(img, 40, 25, 20)).toEqual([0, 0, 0, 0])
     const bgra = filled(10, 10, [0, 0, 0, 0])
     R.dot(bgra, 10, 10, 5, 5, 3, 'bgra')
-    expect(px(bgra, 10, 5, 5)).toEqual([0x9a, 0x4f, 0xff, 255])
+    expect(px(bgra, 10, 5, 5)).toEqual([0x23, 0x5b, 0xff, 255])
     const small = filled(10, 10, [0, 0, 0, 0])
     R.dot(small, 10, 10, -50, -50, 3)
     R.dot(small, 10, 10, 500, 500, 3)
@@ -301,7 +301,7 @@ describe('the pen', () => {
     const img = filled(100, 100, [0, 0, 0, 255])
     // A stroke across a 200-wide composition lands at half scale.
     R.drawStrokes(img, 100, 100, [[[20, 100], [180, 100]], [[5, 5]]], 0.5, 0.5)
-    expect(px(img, 100, 50, 50)).toEqual([0xff, 0x4f, 0x9a, 255])
+    expect(px(img, 100, 50, 50)).toEqual([0xff, 0x5b, 0x23, 255])
     expect(px(img, 100, 50, 80)).toEqual([0, 0, 0, 255])
     // A single point draws nothing (no segment).
     expect(px(img, 100, 2, 2)).toEqual([0, 0, 0, 255])

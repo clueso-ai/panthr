@@ -25,7 +25,7 @@ const TTY = process.stdout.isTTY
 const c = (code, s) => (TTY ? `\x1b[${code}m${s}\x1b[0m` : s)
 const dim = (s) => c(2, s)
 const bold = (s) => c(1, s)
-const rose = (s) => c('38;5;204', s)
+const rose = (s) => c('38;5;202', s)
 const green = (s) => c(32, s)
 const red = (s) => c(31, s)
 

@@ -510,7 +510,7 @@ async function makeFrames(dir: string, duration: number, count: number): Promise
 // ── Drawing on a frame ────────────────────────────────────────────
 
 /** The pen's colour. */
-export const PEN: [number, number, number] = [0xff, 0x4f, 0x9a]
+export const PEN: [number, number, number] = [0xff, 0x5b, 0x23]
 
 /** A filled, soft-edged disc in the pen's colour on a 4-byte-per-pixel
  *  bitmap (`bgra`: Electron's native order on macOS). */

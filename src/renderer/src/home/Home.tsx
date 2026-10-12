@@ -8,7 +8,7 @@ import type { Canvas, Engine, Host, Skill } from '@shared/types'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
-import { LiveEye, EyeMark } from '@/ui/Eye'
+import { LiveMark, Mark } from '@/ui/Mark'
 import { ByClueso } from '@/ui/CluesoMark'
 import { Icon } from '@/ui/Icon'
 import { Composer, IconButton, ModelChip, type ComposerHandle } from '@/ui/Controls'
@@ -93,7 +93,7 @@ export function Home({ onOpen, onStart, onSettings }: {
   return (
     <div className="home">
       <div className="home-top drag">
-        <EyeMark width={30} />
+        <Mark size={24} />
         <span className="wordmark">Panthr</span>
         <ByClueso height={12} />
         <span className="spacer" />
@@ -105,7 +105,7 @@ export function Home({ onOpen, onStart, onSettings }: {
       <div className="home-scroll">
         <div className="home-col">
           <motion.div className="home-eye" {...rise(10, SETTLE, 0)}>
-            <LiveEye width={84} pulse={0} />
+            <LiveMark size={76} />
           </motion.div>
           <motion.h1 className="home-head" {...rise(14, SETTLE, 0.1)}>
             <span>What are we</span>

@@ -96,7 +96,7 @@ function BrandSheet({ dir, brand, onClose, onRestyle }: { dir: string; brand: Br
                 <button className="link danger" onClick={() => setB({ ...b, colors: b.colors.filter((_, k) => k !== i) })}>Remove</button>
               </div>
             ))}
-            <button className="btn small" onClick={() => setB({ ...b, colors: [...b.colors, { name: '', hex: '#e5487f' }] })}><Icon name="plus" size={13} /> Colour</button>
+            <button className="btn small" onClick={() => setB({ ...b, colors: [...b.colors, { name: '', hex: '#ff5b23' }] })}><Icon name="plus" size={13} /> Colour</button>
           </div>
         </section>
 

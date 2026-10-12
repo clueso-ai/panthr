@@ -571,7 +571,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
       const rel = file.startsWith(dir) ? file.slice(dir.length + 1) : file
       const note = composer.current?.value().trim() ?? ''
       composer.current?.set('')
-      ask(`I drew on the frame at ${clock(t)} — look at ${rel} (my marks are the pink strokes).${note ? ` ${note}` : ''}`)
+      ask(`I drew on the frame at ${clock(t)} — look at ${rel} (my marks are the orange strokes).${note ? ` ${note}` : ''}`)
       setTool('select')
       preview.pen(false)
       setStrokes([])

@@ -12,7 +12,7 @@ import { api, settingsNow, useEvent, useReferences } from '@/lib/api'
 import { EASE, rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
-import { EyeMark } from '@/ui/Eye'
+import { Mark } from '@/ui/Mark'
 import { IconButton } from '@/ui/Controls'
 import { ThemeToggle } from '@/ui/ThemeToggle'
 import { ActivityStatus, useActivity } from '@/ui/Activity'
@@ -870,7 +870,7 @@ function RefTile({ r, h }: { r: Reference; h: number }) {
 }
 
 function LiveMark() {
-  return <span className="board-empty-mark"><EyeMark width={44} /></span>
+  return <span className="board-empty-mark"><Mark size={40} /></span>
 }
 
 

@@ -9,7 +9,7 @@ import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
 import { frostAlpha, IconButton, Segmented, Slider, Switch } from '@/ui/Controls'
 import { MenuItem, Popover } from '@/ui/Popover'
-import { EyeMark } from '@/ui/Eye'
+import { Mark } from '@/ui/Mark'
 import { ByClueso } from '@/ui/CluesoMark'
 import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
@@ -555,7 +555,7 @@ function About() {
   }, [])
   return (
     <>
-      <div className="about-mark"><EyeMark width={64} /><div><div className="wordmark">Panthr</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
+      <div className="about-mark"><Mark size={56} cut="var(--pane)" /><div><div className="wordmark">Panthr</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
       <Card title="On this Mac">
         {missing === null ? <Row title="Checking tools…"><span /></Row> : missing.length === 0 ? (
           <Row title="Everything is installed" body="Claude Code or Codex, Node, npx and ffmpeg were found."><span className="ok">✓</span></Row>

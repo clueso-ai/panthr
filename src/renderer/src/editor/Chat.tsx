@@ -8,7 +8,7 @@ import { createContext, memo, useContext, useEffect, useLayoutEffect, useRef, us
 import { AnimatePresence, motion } from 'motion/react'
 import type { ChatState, Item, Step, Checkpoint } from '@shared/types'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
-import { EyeMark } from '@/ui/Eye'
+import { LiveMark } from '@/ui/Mark'
 import { Block, blocks } from './Markdown'
 
 type Kind = 'command' | 'edit' | 'read' | 'search' | 'web' | 'agent' | 'plan' | 'other'
@@ -197,7 +197,7 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
                 )
               })()}
               {active && !steps.length && !texts.length && (
-                <div className="thinking"><EyeMark width={18} watch={0.7} /> <Shine text="Thinking" /></div>
+                <div className="thinking"><LiveMark size={16} busy cut="var(--pane)" shots={false} /> <Shine text="Thinking" /></div>
               )}
             </div>
             </TurnSteps.Provider>

@@ -11,7 +11,7 @@ import { api, useEvent } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Chat } from '@/editor/Chat'
 import { Composer, IconButton, type ComposerHandle } from '@/ui/Controls'
-import { EyeMark } from '@/ui/Eye'
+import { LiveMark, Mark } from '@/ui/Mark'
 import { Icon } from '@/ui/Icon'
 import { Tip } from '@/ui/Tooltip'
 import './assistant.css'
@@ -115,7 +115,7 @@ export function Assistant() {
             style={{ transformOrigin: 'bottom right' }}
           >
             <div className="assistant-head">
-              <EyeMark width={22} watch={working ? 0.7 : 0} />
+              {working ? <LiveMark size={20} busy cut="var(--pane)" shots={false} /> : <Mark size={20} cut="var(--pane)" />}
               <b>Assistant</b>
               <span className="faint ellipsis">Settings, skills, and anything for your projects</span>
               <span className="spacer" />
@@ -168,7 +168,7 @@ export function Assistant() {
           <motion.div className="assistant-fab-wrap" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={tr(QUICK)}>
             <Tip side="top" title={open ? "Close the assistant" : "Assistant"} keys="⌘J" body={open ? undefined : 'Change settings, add skills, or send work to a project.'}>
               <button className={`assistant-fab${open ? ' on' : ''}`} onClick={toggleAssistant} aria-label="Assistant">
-                {open ? <Icon name="close" size={16} /> : <EyeMark width={24} watch={working ? 0.7 : 0} />}
+                {open ? <Icon name="close" size={16} /> : working ? <LiveMark size={24} busy cut="var(--raised)" shots={false} /> : <Mark size={24} cut="var(--raised)" />}
                 {working && !open && <i className="assistant-dot" />}
               </button>
             </Tip>
