@@ -121,7 +121,7 @@ export function nextVersion(dir: string): number {
 }
 
 /** Run a program; resolves with its exit code and output (never rejects). */
-function exec(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+export function exec(cmd: string, args: string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     let stdout = ''
     let stderr = ''
@@ -180,7 +180,7 @@ export function posters(dir: string): void {
 // ── Renderer output ───────────────────────────────────────────────
 
 /** `npx --yes hyperframes …`: what every render and snapshot runs. */
-function npx(args: string[]): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
+export function npx(args: string[]): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
   const env: NodeJS.ProcessEnv = { ...toolEnv(), HYPERFRAMES_NO_UPDATE_CHECK: '1' }
   delete env.GEMINI_API_KEY
   return { cmd: 'npx', args: ['--yes', 'hyperframes', ...args], env }
@@ -461,7 +461,7 @@ export function frameTimes(duration: number, count: number): string[] {
 
 /** Snapshot frames at `at` (comma-separated seconds) into `rel` under the
  *  project: on its host when it has one (and brought here). */
-async function snapshot(dir: string, at: string, rel: string): Promise<boolean> {
+export async function snapshot(dir: string, at: string, rel: string): Promise<boolean> {
   if (remote.hostOf(dir)) {
     try {
       await remote.snapshot(dir, at, rel)
@@ -669,6 +669,10 @@ const errText = (e: unknown): string => (e instanceof Error ? e.message : String
 // ── The API ───────────────────────────────────────────────────────
 
 export const review: Api['review'] = {
+  async check(dir) {
+    const { checkVideo } = await import('./selfcheck')
+    return checkVideo(dir)
+  },
   async comments(dir) {
     return loadComments(dir)
   },

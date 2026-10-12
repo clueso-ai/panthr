@@ -177,6 +177,7 @@ function Agents() {
       </Card>
       <Card>
         <Row title="Helper agents" body="New projects start with them. Better results on big jobs; more time and cost."><Switch on={s.agents_default} onChange={(v) => set({ agents_default: v })} /></Row>
+        <Row title="Self-check" body="After a turn that changed a video, Panthr checks it (text off the frame, errors, flashes, the picture going blank) and has the agent fix what it finds, once."><Switch on={s.self_check} onChange={(v) => set({ self_check: v })} /></Row>
       </Card>
       <p className="pane-note">Each project can pick its own model from the chip in its chat box.</p>
     </>

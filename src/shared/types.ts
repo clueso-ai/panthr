@@ -67,6 +67,8 @@ export interface Settings {
   codex_account: string
   /** When an account hits its usage limit, carry on with the next one (of the same agent). */
   claude_failover: boolean
+  /** After a turn that changed a video, check it (and have the agent fix what is found). */
+  self_check: boolean
 }
 
 // ── Agent accounts ────────────────────────────────────────────────
@@ -99,6 +101,15 @@ export interface AccountUsage {
   at: number
 }
 
+/** A video's self-check: what is wrong, and frames to look at. */
+export interface VideoCheck {
+  dir: string
+  name: string
+  duration: number
+  problems: string[]
+  frames: string[]
+}
+
 export interface AccountStatus extends AgentAccount {
   /** Null: not checked yet. */
   signedIn: boolean | null
@@ -127,6 +138,7 @@ export const DEFAULT_SETTINGS: Settings = {
   claude_account: 'default',
   codex_accounts: [],
   codex_account: 'codex',
+  self_check: true,
   claude_failover: true
 }
 
@@ -196,8 +208,10 @@ export interface ChatState {
   /** Messages typed while it works, sent when the turn ends. */
   queued: string[]
   engine: Engine
-  /** The Claude account it runs on. */
+  /** The account it runs on (of its agent). */
   account: string
+  /** Videos being self-checked after the turn (their names), or null. */
+  checking: string | null
 }
 
 // ── Controls (.studio/controls.json) ──────────────────────────────

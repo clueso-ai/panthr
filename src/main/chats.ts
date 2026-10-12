@@ -5,8 +5,8 @@
 // studio-mac/src/chat.rs, with studio.rs's on_chat (session, title and
 // engine into project.json).
 
-import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import type { Api } from '@shared/api'
 import type { AgentEvent, ChatMeta, ChatState, Engine, Item, Model, Step } from '@shared/types'
 import { emit } from './bus'
@@ -19,7 +19,8 @@ import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
 import { suggestName } from './namer'
 import { isCanvas } from './board'
-import { record, snap, tracked } from './history'
+import { checkpoints, record, snap, tracked } from './history'
+import { checkMessage, checkVideo } from './selfcheck'
 import { assistantDir } from './paths'
 import { accountFor, atLimit, claudeEnv, codexEnv, codexUsage, moveSession, nextAccount, noteUsage } from './accounts'
 
@@ -220,7 +221,7 @@ class Chat {
     const t = this.t
     return {
       dir: this.dir, chatId: this.chatId, items: t.items, working: t.working || this.busy,
-      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine, account: accountFor(this.account, t.engine).id
+      startedAt: t.startedAt, streaming: t.streaming, queued: [...t.queued], engine: t.engine, account: accountFor(this.account, t.engine).id, checking: this.checking
     }
   }
 
@@ -369,7 +370,7 @@ class Chat {
     if (r.turnEnded) {
       this.save(true)
       this.show(true)
-      this.turnEnded()
+      const changes = this.turnEnded()
       // Codex says how much is used in its session file: read once the run is over.
       if (this.t.engine === 'codex' && this.t.sessionId) {
         const id = accountFor(this.account, 'codex').id
@@ -380,7 +381,7 @@ class Chat {
         }
       }
       if (this.limited) void this.carryOn()
-      else this.sendQueued()
+      else void this.afterTurn(changes)
       return
     }
     this.save()
@@ -390,20 +391,69 @@ class Chat {
   /** The turn's starting checkpoint, until it ends. */
   private pending: { turn: number; before: string | null; label: string } | null = null
 
-  /** The turn's closing checkpoint, and what it changed. */
-  private async checkpoint(): Promise<void> {
+  /** The turn's closing checkpoint, and the files it changed (null: not known). */
+  private async checkpoint(): Promise<string[] | null> {
     const p = this.pending
     this.pending = null
-    if (!p?.before) return
+    if (!p?.before) return null
     const after = await snap(this.dir, `after: ${p.label}`)
-    if (after) await record(this.dir, { chatId: this.chatId, turn: p.turn, label: p.label, before: p.before, after })
+    if (!after) return null
+    await record(this.dir, { chatId: this.chatId, turn: p.turn, label: p.label, before: p.before, after })
+    return checkpoints(this.dir).find((c) => c.chatId === this.chatId && c.turn === p.turn)?.files ?? []
   }
 
-  private turnEnded(): void {
-    void this.checkpoint()
+  /** Videos being self-checked now (their names), shown under the chat. */
+  private checking: string | null = null
+  /** This turn was the self-check's follow-up (one round only). */
+  private checkRound = 0
+
+  /** After a turn: check the videos it changed; what is wrong goes back to the agent, once. */
+  private async afterTurn(changes: Promise<string[] | null>): Promise<void> {
+    const round = this.checkRound
+    this.checkRound = 0
+    const files = await changes
+    const last = this.t.items[this.t.items.length - 1]
+    const failed = !last || ('Meta' in last && last.Meta.error) || ('Note' in last && /stopped/i.test(last.Note))
+    // Not when off, after a failed turn, when the person has already said what is next, or when nothing changed.
+    if (!getSettings().self_check || failed || this.t.queued.length || !files?.length || this.t.working) return this.sendQueued()
+    const videos = [...new Set(files.map((f) => f.split('/')[0]))]
+      .map((seg) => (existsSync(join(this.dir, seg, 'index.html')) ? join(this.dir, seg) : null))
+      .filter((d): d is string => !!d)
+    if (!videos.length && files.some((f) => !f.includes('/')) && existsSync(join(this.dir, 'index.html'))) videos.push(this.dir)
+    if (!videos.length) return this.sendQueued()
+    const mark = this.t.items.length
+    this.checking = videos.map((v) => loadMeta(v)?.name ?? v.split('/').pop()).join(', ')
+    this.show(true)
+    let checks
+    try {
+      checks = await Promise.all(videos.slice(0, 4).map((v) => checkVideo(v)))
+    } catch (e) {
+      checks = null
+      console.error('self-check:', (e as Error).message)
+    }
+    this.checking = null
+    this.show(true)
+    // The person moved on meanwhile: their word wins.
+    if (!checks || this.t.working || this.t.items.length !== mark || this.t.queued.length) return this.sendQueued()
+    const problems = checks.reduce((n, c) => n + c.problems.length, 0)
+    if (!problems) {
+      this.note(`Self-check: no problems found in ${checks.map((c) => c.name).join(', ')}`)
+      return this.sendQueued()
+    }
+    if (round >= 1) {
+      this.note(`Self-check still sees ${problems} problem${problems === 1 ? '' : 's'}: ${checks.flatMap((c) => c.problems).slice(0, 3).join('; ')}`)
+      return this.sendQueued()
+    }
+    this.checkRound = 1
+    await this.send(checkMessage(checks))
+  }
+
+  private turnEnded(): Promise<string[] | null> {
+    const changes = this.checkpoint()
     emit('chat:turn', { dir: this.dir, chatId: this.chatId })
     // On a host: the agent's notes there (controls, comments) come back.
     if (remote.hostOf(this.dir)) void pullKeeping(this.dir)
+    return changes
   }
 
   /** The account hit its limit: the same message again on the next account

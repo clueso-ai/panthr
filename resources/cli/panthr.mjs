@@ -268,6 +268,32 @@ const commands = {
     } else out(opt, { dir: p.dir, chat: chatId }, () => console.log(dim('The agent is on it. Follow along: panthr log -p ' + JSON.stringify(p.meta.name) + ' --wait')))
   },
 
+  async check(a, { pos, opt }) {
+    // Which videos: the folders given; else this folder, if it is a video; else every video on this project's canvas.
+    let dirs = pos.map((p) => resolve(p))
+    if (!dirs.length && typeof opt.project === 'string') dirs = [await project(a, opt.project)]
+    if (!dirs.length && existsSync(join(process.cwd(), 'index.html'))) dirs = [process.cwd()]
+    if (!dirs.length) {
+      const b = await a.call('board.get', await canvasFor(a, opt))
+      dirs = Object.keys(b.tiles).filter((k) => !k.startsWith('ref:'))
+    }
+    const results = []
+    for (const d of dirs) {
+      if (!existsSync(join(d, 'index.html'))) throw new Error(`${d} is not a video (it has no index.html)`)
+      if (!opt.json) console.log(dim(`Checking ${basename(d)}…`))
+      results.push(await a.call('review.check', d))
+    }
+    out(opt, results, () => {
+      for (const c of results) {
+        console.log(`\n${c.problems.length ? red('●') : green('✓')} ${bold(c.name)}  ${dim(`${c.duration ? c.duration.toFixed(1) + 's' : ''}  ${c.dir}`)}`)
+        for (const p of c.problems) console.log(`  - ${p}`)
+        if (!c.problems.length) console.log(dim('  No problems found.'))
+        if (c.frames.length) console.log(dim(`  Frames to look at:\n${c.frames.map((f) => `    ${f}`).join('\n')}`))
+      }
+    })
+    if (results.some((c) => c.problems.length)) process.exitCode = 1
+  },
+
   async canvases(a, { opt }) {
     // The projects as Home shows them: each a canvas of videos with its own conversation.
     const all = await a.call('canvases.list')
@@ -590,6 +616,8 @@ ${bold("A project's canvas")} (the project: --canvas, else the folder you are in
   board link <from> <to> Draw an arrow: this one came from that one
 
 ${bold('Review and ship')}
+  check [<video folder>...]    Check a video before calling it done: HyperFrames' check (layout,
+                         errors, contrast), flashes and blank stretches, and frames to look at
   notes                  Notes pinned to moments of the video
   note "<text>" --at 2.5[-4]   Pin a note to a moment (or a span)
   resolve <id>... [--reopen]

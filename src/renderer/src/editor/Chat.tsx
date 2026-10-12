@@ -203,6 +203,9 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
             </TurnSteps.Provider>
           )
         })}
+        {chat.checking && !chat.working && (
+          <div className="thinking"><LiveMark size={16} busy cut="var(--pane)" shots={false} /> <Shine text={`Checking ${chat.checking}`} /></div>
+        )}
         {chat.queued.map((q, i) => (
           <motion.div key={`q${i}`} className="queued" {...rise(6, MOVE)}>
             <span className="faint">Next</span> {said(q)}
@@ -230,16 +233,19 @@ function withMentions(text: string): React.ReactNode[] {
 /** The line the editor adds for the agent ("(Active video: …)"): shown as a
  *  chip under the message, not as part of it. */
 const ACTIVE = /\n\n\(Active video: "([^"]*)"[\s\S]*$/
+/** The details the self-check sends the agent: shown as a chip, not as text. */
+const SELF = /\n\n\(Self-check: [\s\S]*$/
 
 /** What was typed, without the line added for the agent. */
 const said = (full: string): string => {
-  const m = ACTIVE.exec(full)
+  const m = ACTIVE.exec(full) ?? SELF.exec(full)
   return m ? full.slice(0, m.index) : full
 }
 
 function UserMessage({ text: full, long, onMore, fresh }: { text: string; long: boolean; onMore: () => void; fresh: boolean }) {
   const m = ACTIVE.exec(full)
-  const text = m ? full.slice(0, m.index) : full
+  const self = !m && SELF.test(full)
+  const text = said(full)
   const clip = long && text.length > 420
   return (
     <motion.div className="um-wrap" {...(fresh ? rise(8, MOVE) : {})}>
@@ -248,6 +254,7 @@ function UserMessage({ text: full, long, onMore, fresh }: { text: string; long: 
         {clip && <button className="um-more" onClick={onMore}>Show all</button>}
       </div>
       {m && m[1] && <div className="um-about" title="The video that was active">◎ {m[1]}</div>}
+      {self && <div className="um-about" title="Panthr checked the video and sent what it found">◎ Self-check</div>}
     </motion.div>
   )
 }

@@ -89,6 +89,8 @@ export interface Api {
     annotate(dir: string, t: number, strokes: [number, number][][]): Promise<string>
     library(): Promise<LibraryItem[]>
     addToLibrary(files: string[]): Promise<number>
+    /** Check a video: HyperFrames' check, flashes and blank stretches, a few frames to look at. */
+    check(dir: string): Promise<import('./types').VideoCheck>
     /** Write a file into the project (dropped/pasted images). */
     importFiles(dir: string, files: string[]): Promise<string[]>
   }
