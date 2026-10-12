@@ -21,6 +21,7 @@ import { stopAllReferences } from './references'
 import { openShare } from './share'
 import { call } from './handlers'
 import { startConnections, stopConnections } from './connections'
+import { startSchedules, stopSchedules } from './schedules'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
 if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
@@ -305,6 +306,8 @@ app.whenReady().then(() => {
   if (!HEADLESS || process.env.PANTHR_CONTROL) startControl(socketPath(dataDir()), dispatch)
   // Other machines (not in a test run unless it has its own).
   if (!HEADLESS || process.env.PANTHR_CONNECTIONS) startConnections()
+  // Videos on a timetable (not in a test run unless asked).
+  if (!HEADLESS || process.env.PANTHR_SCHEDULES) startSchedules()
   // Files opened before the window was up.
   win.webContents.once('did-finish-load', () => {
     ready = true
@@ -317,6 +320,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopConnections()
+  stopSchedules()
   stopAll()
   stopAllReferences()
   app.quit()

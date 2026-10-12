@@ -142,6 +142,7 @@ export function parse(line: string): AgentEvent[] {
         type: 'limits',
         usage: {
           status: typeof r.status === 'string' ? r.status : 'allowed',
+          overage: r.isUsingOverage === true || r.overageInUse === true,
           resetsAt: typeof r.resetsAt === 'number' ? r.resetsAt : null,
           five_hour: win(r.unifiedWindows?.five_hour),
           seven_day: win(r.unifiedWindows?.seven_day)

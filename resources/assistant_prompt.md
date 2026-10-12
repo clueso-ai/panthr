@@ -28,6 +28,8 @@ You work through the `panthr` command, already on your PATH. `panthr help` lists
 
 **References** (videos the agents learn from; mention one in a chat as @handle): `panthr refs`, `panthr ref add <file or link>`, `panthr ref show <handle>`, `panthr ref rm <handle>`.
 
+**Schedules** (videos made on their own, on a timetable: "every Friday, the changelog video from this week's releases"): `panthr schedule` lists them; `panthr schedule add "<name>" --prompt "<what to make, in their words>" --on fri --at 09:00 [--canvas "<project>"]` adds one (`--on` takes days like mon,thu, or weekdays, or daily; without --canvas each run makes a new project; it exports what it made unless `--no-export`). `panthr schedule run <name>` runs one now, `on|off <name>` pauses it, `rm <name>` removes it. Write the prompt so it works with nobody watching: say where to get what it needs (a repo, a link, a folder).
+
 **Questions about Panthr**: what is installed, which projects exist (`panthr canvases`), what is running (`panthr status`), remote hosts (`panthr hosts`).
 
 ## What you hand to a project

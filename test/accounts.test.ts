@@ -87,7 +87,7 @@ beforeEach(() => Object.assign(fake, { starts: [], sent: [], out: null, alive: f
 describe('the stream', () => {
   it('reads how much of the account is used', () => {
     const line = '{"type":"rate_limit_event","rate_limit_info":{"status":"allowed_warning","resetsAt":1793491200,"unifiedWindows":{"five_hour":{"utilization":0.34,"resetsAt":1791816000},"seven_day":{"utilization":0.27,"resetsAt":1792242000}}}}'
-    expect(parse(line)).toEqual([{ type: 'limits', usage: { status: 'allowed_warning', resetsAt: 1793491200, five_hour: { utilization: 0.34, resetsAt: 1791816000 }, seven_day: { utilization: 0.27, resetsAt: 1792242000 } } }])
+    expect(parse(line)).toEqual([{ type: 'limits', usage: { status: 'allowed_warning', overage: false, resetsAt: 1793491200, five_hour: { utilization: 0.34, resetsAt: 1791816000 }, seven_day: { utilization: 0.27, resetsAt: 1792242000 } } }])
   })
 })
 
@@ -161,6 +161,24 @@ describe('a chat at its limit', () => {
     expect(loadMeta(dir)!.chats[0].account).toBe('work')
     // That turn ends on Work.
     fake.out!({ type: 'result', cost_usd: 0, duration_ms: 10, turns: 1, error: false })
+  })
+
+  it('on extra usage: the turn stands, the next ones go to a free account', async () => {
+    const dir = join(tmp, 'oproj')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'index.html'), 'x')
+    saveMetaFile(dir, { name: 'P', created_at: 1, chats: [{ id: 'o1', title: 'x', session_id: null, created_at: 1, engine: 'claude' }], agents_enabled: true, models: {} })
+    noteUsage('work', { status: 'allowed', resetsAt: null, five_hour: { utilization: 0.1, resetsAt: null }, seven_day: null })
+    await chats.send(dir, 'o1', 'Make it green')
+    fake.out!({ type: 'limits', usage: { status: 'rejected', overage: true, resetsAt: Date.now() / 1000 + 3600, five_hour: { utilization: 1.01, resetsAt: null }, seven_day: null } })
+    fake.out!({ type: 'text', text: 'Green now.', agent: false })
+    fake.out!({ type: 'result', cost_usd: 0.1, duration_ms: 10, turns: 1, error: false })
+    await new Promise((r) => setTimeout(r, 50))
+    // Not sent again.
+    expect(fake.sent).toEqual(['Make it green'])
+    const st = await chats.open(dir, 'o1')
+    expect(st.account).toBe('work')
+    expect(st.items.some((i) => 'Note' in i && /Default is past its usage limit and was using extra usage\. Next messages go to Work/.test(i.Note))).toBe(true)
   })
 
   it('switches by hand too, only between turns', async () => {

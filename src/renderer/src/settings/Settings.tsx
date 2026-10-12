@@ -12,16 +12,18 @@ import { MenuItem, Popover } from '@/ui/Popover'
 import { Mark } from '@/ui/Mark'
 import { AccountDot, UsageBar, resetsIn, useAccounts } from '@/ui/Accounts'
 import { UsagePane } from './Usage'
+import { SchedulesPane } from './Schedules'
 import { ByClueso } from '@/ui/CluesoMark'
 import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
-export type Pane = 'general' | 'agents' | 'usage' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
+export type Pane = 'general' | 'agents' | 'usage' | 'schedules' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
 const PANES: [Pane, string, IconName][] = [
   ['general', 'General', 'settings'],
   ['agents', 'Agents', 'agents'],
   ['usage', 'Usage', 'history'],
+  ['schedules', 'Schedules', 'clock'],
   ['skills', 'Skills', 'library'],
   ['connections', 'Connections', 'server'],
   ['hosts', 'Hosts', 'cloud'],
@@ -62,6 +64,7 @@ export function Settings({ open, pane, onPane, onClose }: { open: boolean; pane:
                   {pane === 'general' && <General />}
                   {pane === 'agents' && <Agents />}
                   {pane === 'usage' && <UsagePane />}
+                  {pane === 'schedules' && <SchedulesPane />}
                   {pane === 'skills' && <Skills />}
                   {pane === 'connections' && <Connections />}
                   {pane === 'hosts' && <Hosts />}
@@ -230,7 +233,7 @@ function AgentAccounts({ engine }: { engine: Engine }) {
             </div>
             {a.usage && (
               <div className="acct-usage">
-                {a.usage.status === 'rejected' && <span className="acct-limit">At its limit{a.usage.resetsAt ? ` · resets ${resetsIn(a.usage.resetsAt)}` : ''}</span>}
+                {a.usage.status === 'rejected' && <span className="acct-limit">{a.usage.overage ? 'Over its limit · using extra usage' : 'At its limit'}{a.usage.resetsAt ? ` · resets ${resetsIn(a.usage.resetsAt)}` : ''}</span>}
                 <UsageBar label="5 hours" w={a.usage.five_hour} />
                 <UsageBar label="Week" w={a.usage.seven_day} />
               </div>

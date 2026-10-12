@@ -198,6 +198,14 @@ export interface Api {
      *  never over a change someone else made since). */
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
+  schedules: {
+    list(): Promise<import('./types').ScheduleStatus[]>
+    /** Add one, or change it (by id). */
+    save(s: Omit<import('./types').Schedule, 'id' | 'created_at' | 'lastRun' | 'last'> & { id?: string }): Promise<import('./types').ScheduleStatus>
+    remove(id: string): Promise<void>
+    /** Run it now (as if its time had come). */
+    run(id: string): Promise<void>
+  }
   usage: {
     /** Time, cost and tokens across every project's chats: by day, project, account and turn. */
     report(): Promise<import('./types').UsageReport>
@@ -255,6 +263,8 @@ export interface Events {
   'board:changed': import('./types').Board
   /** The assistant sent a message to a project's conversation: go there (with this video active, if one). */
   'assistant:handoff': { canvas: string; chatId: string; active: string | null }
+  /** The schedules changed (saved, ran, finished). */
+  schedules: import('./types').ScheduleStatus[]
   /** The Claude accounts changed (signed in, usage heard). */
   accounts: AccountStatus[]
   /** The connections changed (added, removed, connecting, connected, failed). */

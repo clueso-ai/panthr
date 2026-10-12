@@ -94,11 +94,44 @@ export interface UsageWindow {
 export interface AccountUsage {
   /** 'allowed', 'allowed_warning' or 'rejected' (at its limit). */
   status: string
+  /** Past its limit but still working, on extra usage (paid beyond the plan). */
+  overage?: boolean
   resetsAt: number | null
   five_hour: UsageWindow | null
   seven_day: UsageWindow | null
   /** When this was heard (ms since the epoch). */
   at: number
+}
+
+// ── Schedules (Application Support/Panthr/schedules.json) ─────────
+// Videos made on their own, on a timetable: a message for a project's agent
+// (or a new project each time), sent at a time on chosen days.
+
+export interface Schedule {
+  id: string
+  name: string
+  /** What to make: the message for the agent. */
+  prompt: string
+  /** The project it works in (null: a new project each run). */
+  project: string | null
+  /** Days of the week it runs (0 Sunday … 6 Saturday); all seven: every day. */
+  days: number[]
+  /** When, local time ("09:00"). */
+  time: string
+  /** Export the videos it changed when the agent is done. */
+  exportAfter: boolean
+  enabled: boolean
+  created_at: number
+  /** When it last ran (s since the epoch). */
+  lastRun: number | null
+  last: { at: number; dir: string; ok: boolean; note: string } | null
+}
+
+export interface ScheduleStatus extends Schedule {
+  /** When it runs next (s since the epoch), null when off. */
+  next: number | null
+  /** Running now. */
+  running: boolean
 }
 
 // ── Usage (built from every chat's turns) ─────────────────────────

@@ -23,6 +23,7 @@ export const METHODS: All = {
   canvases: { list: true, create: true, of: true, find: true },
   board: { sizes: true, notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },
+  schedules: { list: true, save: true, remove: true, run: true },
   usage: { report: true },
   accounts: { list: true, add: true, rename: true, remove: true, signIn: true, setDefault: true },
   connections: { list: true, save: true, remove: true, setEnabled: true, retry: true, sshHosts: true },

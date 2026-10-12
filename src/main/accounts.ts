@@ -137,12 +137,15 @@ export function noteUsage(id: string, u: Omit<AccountUsage, 'at'>): void {
   changed()
 }
 
-/** At its limit, and not reset since. */
-export function atLimit(id: string): boolean {
+/** Past its limit (blocked, or on extra usage), and not reset since. */
+export function overLimit(id: string): boolean {
   const u = usages()[id]
   if (!u || u.status !== 'rejected') return false
   return !u.resetsAt || u.resetsAt * 1000 > Date.now()
 }
+
+/** At its limit with nothing to carry on with: its turns fail. */
+export const atLimit = (id: string): boolean => overLimit(id) && !usages()[id]?.overage
 
 /** The account to carry on with after `from` hits its limit: the same agent, signed in, not at its own limit. */
 export async function nextAccount(engine: Engine, from: string): Promise<AgentAccount | null> {
@@ -150,7 +153,8 @@ export async function nextAccount(engine: Engine, from: string): Promise<AgentAc
   const i = Math.max(0, all.findIndex((a) => a.id === accountFor(from, engine).id))
   for (let k = 1; k < all.length; k++) {
     const a = all[(i + k) % all.length]
-    if (atLimit(a.id)) continue
+    // Another account past its limit (blocked or paying extra) is no better.
+    if (overLimit(a.id)) continue
     const w = who.get(a.id) && Date.now() - who.get(a.id)!.at < CHECK_MS ? who.get(a.id)! : await authStatus(a)
     who.set(a.id, w)
     if (w.signedIn) return a

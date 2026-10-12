@@ -207,8 +207,10 @@ class Chat {
 
   /** The Claude account it runs on (null: the one new chats use). */
   private account: string | null
-  /** The account hit its limit during this turn. */
+  /** The account hit its limit during this turn (blocked). */
   private limited = false
+  /** The account went past its limit during this turn, on extra usage. */
+  private overage = false
 
   constructor(
     readonly dir: string,
@@ -338,6 +340,7 @@ class Chat {
       void this.nameFrom(text)
     }
     this.limited = false
+    this.overage = false
     this.t.begin(text, again)
     this.save(true)
     this.show(true)
@@ -355,7 +358,12 @@ class Chat {
     // How much of the account is used; at its limit, the turn may go on elsewhere.
     if (ev.type === 'limits') {
       noteUsage(accountFor(this.account, this.t.engine).id, ev.usage)
-      if (ev.usage.status === 'rejected') this.limited = true
+      // Blocked: the turn fails, so it goes again elsewhere. On extra usage
+      // it goes on; the next turns move to a free account, if there is one.
+      if (ev.usage.status === 'rejected') {
+        if (ev.usage.overage) this.overage = true
+        else this.limited = true
+      }
       return
     }
     const r = this.t.apply(ev)
@@ -387,7 +395,10 @@ class Chat {
         }
       }
       if (this.limited) void this.carryOn()
-      else void this.afterTurn(changes)
+      else {
+        if (this.overage) void this.moveOffOverage()
+        void this.afterTurn(changes)
+      }
       return
     }
     this.save()
@@ -483,6 +494,18 @@ class Chat {
     this.useAccount(next.id)
     this.note(`${from.label} reached its usage limit. Carrying on with ${next.label}.`)
     await this.send(last.User, true)
+  }
+
+  /** Past its limit but carrying on on extra usage: the next turns go to a free account instead. */
+  private async moveOffOverage(): Promise<void> {
+    this.overage = false
+    if (!getSettings().claude_failover) return
+    const engine = this.t.engine
+    const from = accountFor(this.account, engine)
+    const next = await nextAccount(engine, from.id)
+    if (!next || this.t.working) return
+    this.useAccount(next.id)
+    this.note(`${from.label} is past its usage limit and was using extra usage. Next messages go to ${next.label}.`)
   }
 
   /** Run on another account from the next turn on (the conversation goes along). */

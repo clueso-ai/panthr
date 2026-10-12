@@ -4,7 +4,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Canvas, ConnectionStatus, Engine, Host, Skill } from '@shared/types'
+import type { Canvas, ConnectionStatus, Engine, Host, ScheduleStatus, Skill } from '@shared/types'
+import { nextText } from '@/settings/Schedules'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
 import { ago } from '@/lib/format'
@@ -53,6 +54,11 @@ export function Home({ onOpen, onStart, onSettings }: {
     api.skills.state().then((st) => setSkills(st.skills))
   }, [])
   useEvent('skills:state', (st) => setSkills(st.skills))
+  const [schedules, setSchedules] = useState<ScheduleStatus[]>([])
+  useEffect(() => {
+    api.schedules.list().then(setSchedules)
+  }, [])
+  useEvent('schedules', setSchedules)
   const openSkills = (): void => {
     window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'skills' }))
   }
@@ -162,6 +168,20 @@ export function Home({ onOpen, onStart, onSettings }: {
                 ) : (
                   <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to learn from'}</span>
                 )}
+              </span>
+              <Icon name="chevron-right" size={14} className="faint" />
+            </button>
+            <button className="kit-tile" onClick={() => window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'schedules' }))}>
+              <span className="kit-icon"><Icon name="clock" size={16} /></span>
+              <span className="kit-words">
+                <b>Schedules</b>
+                {(() => {
+                  const on = schedules.filter((x) => x.enabled && x.next)
+                  const next = on.sort((a, b) => a.next! - b.next!)[0]
+                  const run = schedules.find((x) => x.running)
+                  return run ? <span className="shine ellipsis" data-text={`Making ${run.name}…`}>Making {run.name}…</span>
+                    : <span className="faint">{next ? `${next.name} · ${nextText(next.next)}` : 'Videos made on their own'}</span>
+                })()}
               </span>
               <Icon name="chevron-right" size={14} className="faint" />
             </button>

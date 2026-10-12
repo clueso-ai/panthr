@@ -33,6 +33,14 @@ const notHere = async (): Promise<never> => {
 export const dialog = { showOpenDialog: notHere, showSaveDialog: notHere, showMessageBox: notHere }
 export const shell = { showItemInFolder: (): void => {}, openPath: async (): Promise<string> => '', openExternal: async (): Promise<void> => {} }
 export const nativeTheme = { themeSource: 'system' }
+/** No screen to show a notification on. */
+export class Notification {
+  static isSupported(): boolean {
+    return false
+  }
+  on(): void {}
+  show(): void {}
+}
 export const protocol = {
   registerSchemesAsPrivileged: (): void => {},
   handle: (_scheme: string, f: Handler): void => {
@@ -40,4 +48,4 @@ export const protocol = {
   }
 }
 
-export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol }
+export default { app, BrowserWindow, dialog, shell, nativeTheme, protocol, Notification }

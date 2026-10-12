@@ -333,7 +333,7 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
                 const used = mostUsed(a)
                 return (
                   <MenuItem key={a.id} icon={<AccountDot color={a.color} />} label={a.label} on={a.id === account} disabled={a.signedIn === false}
-                    trailing={<span className="menu-hint">{a.signedIn === false ? 'Not signed in' : a.usage?.status === 'rejected' ? 'At its limit' : used != null ? `${Math.round(used * 100)}% used` : ''}</span>}
+                    trailing={<span className="menu-hint">{a.signedIn === false ? 'Not signed in' : a.usage?.status === 'rejected' ? (a.usage.overage ? 'Extra usage' : 'At its limit') : used != null ? `${Math.round(used * 100)}% used` : ''}</span>}
                     onSelect={() => {
                       onAccount!(a.id)
                       setOpen(false)
