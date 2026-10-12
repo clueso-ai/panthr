@@ -155,7 +155,12 @@ export function parse(line: string): AgentEvent[] {
         cost_usd: typeof v.total_cost_usd === 'number' ? v.total_cost_usd : 0,
         duration_ms: uint(v.duration_ms),
         turns: uint(v.num_turns),
-        error: v.is_error === true
+        error: v.is_error === true,
+        ...(() => {
+          const u = v.usage ?? {}
+          const tokens = uint(u.input_tokens) + uint(u.output_tokens) + uint(u.cache_read_input_tokens) + uint(u.cache_creation_input_tokens)
+          return tokens ? { tokens } : {}
+        })()
       })
       break
   }

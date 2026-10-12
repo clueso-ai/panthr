@@ -118,7 +118,7 @@ export class Transcript {
       case 'result':
         this.working = false
         this.streaming = null
-        this.items.push({ Meta: { cost_usd: ev.cost_usd, seconds: ev.duration_ms / 1000, error: ev.error } })
+        this.items.push({ Meta: { cost_usd: ev.cost_usd, seconds: ev.duration_ms / 1000, error: ev.error, at: Math.floor(Date.now() / 1000), engine: this.engine, ...(ev.tokens ? { tokens: ev.tokens } : {}) } })
         return { turnEnded: true }
       case 'stderr':
         if (ev.line.toLowerCase().includes('error')) this.items.push({ Note: ev.line })
@@ -368,6 +368,9 @@ class Chat {
     }
     if (r.streamed) return this.show()
     if (r.turnEnded) {
+      // Which account the turn ran on, for the usage view.
+      const last = this.t.items[this.t.items.length - 1]
+      if (last && 'Meta' in last) last.Meta.account = accountFor(this.account, this.t.engine).id
       this.save(true)
       this.show(true)
       const changes = this.turnEnded()

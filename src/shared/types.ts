@@ -101,6 +101,50 @@ export interface AccountUsage {
   at: number
 }
 
+// ── Usage (built from every chat's turns) ─────────────────────────
+
+export interface UsageTotals {
+  /** Claude Code's cost in API dollars (a subscription pays none of it; Codex reports none). */
+  cost: number
+  seconds: number
+  turns: number
+  tokens: number
+}
+
+export interface UsageTurn extends UsageTotals {
+  /** What was asked (the message's first line). */
+  label: string
+  chat: string
+  at: number | null
+  engine: Engine
+  account: string
+  error: boolean
+  /** Its time is a guess (from before Panthr noted when turns end). */
+  estimated?: boolean
+}
+
+export interface UsageProject extends UsageTotals {
+  dir: string
+  name: string
+  lastAt: number | null
+  /** By account id. */
+  accounts: Record<string, UsageTotals>
+  /** Its newest turns, newest first. */
+  recent: UsageTurn[]
+}
+
+export interface UsageReport {
+  all: UsageTotals
+  week: UsageTotals
+  month: UsageTotals
+  /** The last 30 days, oldest first (YYYY-MM-DD, local). */
+  days: (UsageTotals & { day: string })[]
+  projects: UsageProject[]
+  accounts: (UsageTotals & { id: string; label: string; engine: Engine; color: string })[]
+  /** Turns from before Panthr noted when each happened: their days are estimated. */
+  undated: number
+}
+
 /** A video's self-check: what is wrong, and frames to look at. */
 export interface VideoCheck {
   dir: string
@@ -178,7 +222,7 @@ export type Item =
   | { User: string }
   | { Text: string }
   | { Steps: Step[] }
-  | { Meta: { cost_usd: number; seconds: number; error: boolean } }
+  | { Meta: TurnMeta }
   | { Note: string }
 
 /** What an agent process reports (Claude Code's stream-json, Codex's
@@ -189,11 +233,24 @@ export type AgentEvent =
   | { type: 'delta'; text: string; agent: boolean }
   | { type: 'tool'; id: string; name: string; summary: string; agent: boolean; parent?: string; brief?: string }
   | { type: 'tool_done'; id: string; error: boolean }
-  | { type: 'result'; cost_usd: number; duration_ms: number; turns: number; error: boolean }
+  | { type: 'result'; cost_usd: number; duration_ms: number; turns: number; error: boolean; tokens?: number }
   | { type: 'stderr'; line: string }
   | { type: 'exited'; reason?: string }
   /** How much of the account is used (Claude Code's rate_limit_event). */
   | { type: 'limits'; usage: Omit<AccountUsage, 'at'> }
+
+/** How a turn ended: its cost (Claude Code's, in API dollars; Codex reports none) and time,
+ *  and (newer turns) when, on which agent and account, and how many tokens. */
+export interface TurnMeta {
+  cost_usd: number
+  seconds: number
+  error: boolean
+  /** When it ended (s since the epoch). */
+  at?: number
+  engine?: Engine
+  account?: string
+  tokens?: number
+}
 
 /** A chat as the window shows it. */
 export interface ChatState {

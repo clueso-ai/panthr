@@ -125,7 +125,7 @@ describe('Transcript', () => {
         { id: 't3', name: 'Bash', summary: 'ls', agent: true, done: true, error: true, parent: 't2' }
       ] },
       { Text: 'Done: blue now.' },
-      { Meta: { cost_usd: 0.12, seconds: 4.5, error: false } }
+      { Meta: expect.objectContaining({ cost_usd: 0.12, seconds: 4.5, error: false, engine: 'claude' }) }
     ])
     expect(t.working).toBe(false)
     expect(t.streaming).toBeNull()
@@ -232,7 +232,7 @@ describe('chats', () => {
     expect(emitted.some(([n]) => n === 'chat:turn')).toBe(true)
     const last = emitted.filter(([n]) => n === 'chat:state').at(-1)![1]
     expect(last.working).toBe(false)
-    expect(last.items.at(-1)).toEqual({ Meta: { cost_usd: 0.12, seconds: 4.5, error: false } })
+    expect(last.items.at(-1)).toMatchObject({ Meta: { cost_usd: 0.12, seconds: 4.5, error: false, account: 'default', engine: 'claude' } })
     // Saved compactly, as Rust's to_vec.
     const text = readFileSync(chatPath(dir, id), 'utf8')
     expect(text).not.toContain('\n')

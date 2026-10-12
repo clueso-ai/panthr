@@ -196,6 +196,10 @@ export interface Api {
      *  never over a change someone else made since). */
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
+  usage: {
+    /** Time, cost and tokens across every project's chats: by day, project, account and turn. */
+    report(): Promise<import('./types').UsageReport>
+  }
   accounts: {
     /** Every account of both agents: who it is, its plan, how much is used (refresh: ask the agents again now). */
     list(refresh?: boolean): Promise<AccountStatus[]>

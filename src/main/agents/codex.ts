@@ -129,10 +129,13 @@ export function parse(line: string, st: RunState): AgentEvent[] {
       }
       break
     }
-    case 'turn.completed':
+    case 'turn.completed': {
       // Codex reports tokens, not dollars.
-      out.push({ type: 'result', cost_usd: 0, duration_ms: elapsed(), turns: 1, error: false })
+      const u = v.usage ?? {}
+      const tokens = (Number(u.input_tokens) || 0) + (Number(u.output_tokens) || 0)
+      out.push({ type: 'result', cost_usd: 0, duration_ms: elapsed(), turns: 1, error: false, ...(tokens ? { tokens } : {}) })
       break
+    }
     case 'turn.failed':
     case 'error': {
       st.failed = true

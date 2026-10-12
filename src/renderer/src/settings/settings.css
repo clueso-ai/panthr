@@ -102,3 +102,26 @@ html[data-motion='reduced'] .conn-line.busy i { animation: none; }
 .acct-note { font-size: 12px; padding: 6px 0 0 19px; }
 .acct-add { display: flex; gap: 8px; padding: 12px 14px; }
 .acct-add .text-input { flex: 1; }
+
+/* Usage: totals, the last 30 days, accounts and projects. */
+.use-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.use-tile { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--raised); border: 1px solid var(--hair); font-size: 12px; }
+.use-tile b { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.use-chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.use-chart { display: flex; align-items: flex-end; gap: 3px; height: 110px; padding: 8px; border-radius: var(--r-lg); background: var(--raised); border: 1px solid var(--hair); }
+.use-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.use-bar i { display: block; width: 100%; border-radius: 3px 3px 1px 1px; background: var(--acc); opacity: 0.85; transition: height var(--move) var(--ease); }
+.use-bar:hover i { opacity: 1; }
+.use-axis { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 2px 0; }
+.use-h { font-size: 13px; font-weight: 600; margin: 22px 0 8px; }
+.use-table { border-radius: var(--r-lg); background: var(--raised); border: 1px solid var(--hair); overflow: hidden; }
+.use-row { display: grid; grid-template-columns: minmax(0, 1.6fr) 80px 70px minmax(0, 1fr); align-items: center; gap: 10px; padding: 9px 14px; font-size: 12.5px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--hair); width: 100%; text-align: left; }
+.use-proj:last-child .use-row, .use-table > .use-row:last-child { border-bottom: none; }
+.use-click:hover { background: var(--hover); }
+.use-name { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.use-live { grid-column: 1 / -1; display: flex; gap: 18px; padding-left: 15px; }
+.use-turns { overflow: hidden; background: var(--pane); border-bottom: 1px solid var(--hair); }
+.use-turn { display: grid; grid-template-columns: minmax(0, 1fr) 80px 110px 70px 60px; gap: 10px; padding: 6px 14px 6px 34px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.use-label { color: var(--t1); }
+.use-acct { display: flex; align-items: center; gap: 5px; color: var(--t2); overflow: hidden; white-space: nowrap; }
+.use-err { color: var(--danger); }

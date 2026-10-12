@@ -11,15 +11,17 @@ import { frostAlpha, IconButton, Segmented, Slider, Switch } from '@/ui/Controls
 import { MenuItem, Popover } from '@/ui/Popover'
 import { Mark } from '@/ui/Mark'
 import { AccountDot, UsageBar, resetsIn, useAccounts } from '@/ui/Accounts'
+import { UsagePane } from './Usage'
 import { ByClueso } from '@/ui/CluesoMark'
 import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
-export type Pane = 'general' | 'agents' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
+export type Pane = 'general' | 'agents' | 'usage' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
 const PANES: [Pane, string, IconName][] = [
   ['general', 'General', 'settings'],
   ['agents', 'Agents', 'agents'],
+  ['usage', 'Usage', 'history'],
   ['skills', 'Skills', 'library'],
   ['connections', 'Connections', 'server'],
   ['hosts', 'Hosts', 'cloud'],
@@ -59,6 +61,7 @@ export function Settings({ open, pane, onPane, onClose }: { open: boolean; pane:
                   <h2>{PANES.find((x) => x[0] === pane)![1]}</h2>
                   {pane === 'general' && <General />}
                   {pane === 'agents' && <Agents />}
+                  {pane === 'usage' && <UsagePane />}
                   {pane === 'skills' && <Skills />}
                   {pane === 'connections' && <Connections />}
                   {pane === 'hosts' && <Hosts />}
