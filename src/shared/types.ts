@@ -469,6 +469,40 @@ export interface ClipSound {
   silent: boolean
 }
 
+// ── Storyboard (STORYBOARD.md and storyboard.html) ──────────────────
+
+export interface StoryboardFrame {
+  n: number
+  title: string
+  /** outline: planned; built: sketched (its layout confirmed); animated: built with motion. */
+  status: 'outline' | 'built' | 'animated'
+  duration: string | null
+  scene: string | null
+  voiceover: string | null
+  transition: string | null
+  narrative: string
+  /** A still of its sketch (a panthr:// URL), when storyboard.html has its cell. */
+  still: string | null
+}
+
+export interface StoryboardReview {
+  /** Frame numbers the person approved. */
+  approved: number[]
+  /** The person's notes, by frame number. */
+  notes: Record<number, string>
+}
+
+export interface Storyboard {
+  dir: string
+  message: string | null
+  format: string | null
+  duration: string | null
+  /** storyboard.html is there (the stills come from it). */
+  sheet: boolean
+  frames: StoryboardFrame[]
+  review: StoryboardReview
+}
+
 // ── The page (what the preview reports) ───────────────────────────
 
 export interface Layer {

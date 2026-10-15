@@ -76,6 +76,12 @@ export interface Api {
     /** inspect, parsed into timing per layer id. */
     timing(dir: string): Promise<Record<string, TimingLayer>>
   }
+  storyboard: {
+    /** A folder's storyboard (null: it has none), with stills of its sketches. */
+    get(dir: string): Promise<import('./types').Storyboard | null>
+    /** Keep the person's notes and approvals. */
+    review(dir: string, review: import('./types').StoryboardReview): Promise<void>
+  }
   clips: {
     /** The video's clips (HyperFrames' timeline). */
     list(dir: string): Promise<import('./types').Clip[]>

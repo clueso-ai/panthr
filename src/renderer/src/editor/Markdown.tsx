@@ -1,15 +1,16 @@
 // A small Markdown reader for replies: paragraphs, headings, lists, quotes,
-// code, bold/italic/code/links inline. Built as React elements (never raw
+// code, bold/italic/code/links inline. A ```pitches block (concepts the
+// agent pitches) shows as cards to pick from. Built as React elements (never raw
 // HTML), so nothing in a reply can run.
 
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { api } from '@/lib/api'
 
 type Block =
   | { k: 'p'; text: string }
   | { k: 'h'; level: number; text: string }
   | { k: 'ul' | 'ol'; items: string[] }
-  | { k: 'code'; text: string }
+  | { k: 'code'; text: string; lang: string }
   | { k: 'quote'; text: string }
   | { k: 'table'; head: string[]; rows: string[][] }
 
@@ -20,11 +21,12 @@ export function blocks(src: string): Block[] {
   while (i < lines.length) {
     const l = lines[i]
     if (/^```/.test(l)) {
+      const lang = l.slice(3).trim().toLowerCase()
       const body: string[] = []
       i++
       while (i < lines.length && !/^```/.test(lines[i])) body.push(lines[i++])
       i++
-      out.push({ k: 'code', text: body.join('\n') })
+      out.push({ k: 'code', text: body.join('\n'), lang })
       continue
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(l)
@@ -105,7 +107,7 @@ export function Block({ b }: { b: Block }) {
     case 'h': return b.level <= 2 ? <h3>{inline(b.text)}</h3> : <h4>{inline(b.text)}</h4>
     case 'ul': return <ul>{b.items.map((t, i) => <li key={i}>{inline(t)}</li>)}</ul>
     case 'ol': return <ol>{b.items.map((t, i) => <li key={i}>{inline(t)}</li>)}</ol>
-    case 'code': return <pre><code>{b.text}</code></pre>
+    case 'code': return b.lang === 'pitches' ? <Pitches text={b.text} /> : <pre><code>{b.text}</code></pre>
     case 'quote': return <blockquote>{inline(b.text)}</blockquote>
     case 'table':
       return (
@@ -117,4 +119,56 @@ export function Block({ b }: { b: Block }) {
         </div>
       )
   }
+}
+
+interface Pitch { title: string; concept?: string; world?: string; hook?: string; recommended?: boolean }
+
+/** The agent's pitches as cards: go with one, or tick two and mix them. */
+function Pitches({ text }: { text: string }) {
+  const [mix, setMix] = useState<number[]>([])
+  const [chosen, setChosen] = useState<string | null>(null)
+  let list: Pitch[] | null = null
+  try {
+    const v = JSON.parse(text)
+    list = Array.isArray(v) ? v.filter((p) => p && typeof p.title === 'string') : null
+  } catch {
+    list = null
+  }
+  // Still arriving (or not readable): a quiet placeholder, not raw JSON.
+  if (!list?.length) return <div className="pitches-wait faint"><span className="shine" data-text="Pitching directions…">Pitching directions…</span></div>
+  const send = (msg: string, label: string): void => {
+    setChosen(label)
+    dispatchEvent(new CustomEvent('panthr:send', { detail: msg }))
+  }
+  return (
+    <div className="pitches">
+      {list.map((p, i) => {
+        const n = i + 1
+        const ticked = mix.includes(n)
+        return (
+          <div key={i} className={`pitch${p.recommended ? ' rec' : ''}${ticked ? ' ticked' : ''}`}>
+            <div className="pitch-head">
+              <span className="pitch-n mono">{n}</span>
+              <b>{p.title}</b>
+              {p.recommended && <span className="pitch-tag">Recommended</span>}
+            </div>
+            {p.concept && <div className="pitch-concept">{inline(p.concept)}</div>}
+            {p.world && <div className="pitch-line"><span className="faint">World</span> {inline(p.world)}</div>}
+            {p.hook && <div className="pitch-line"><span className="faint">Opens on</span> {inline(p.hook)}</div>}
+            <div className="pitch-go">
+              <button className="btn small primary" disabled={!!chosen} onClick={() => send(`Pitch ${n}: ${p.title}. Go with this one.`, p.title)}>Go with this</button>
+              <label className="pitch-mix"><input type="checkbox" checked={ticked} disabled={!!chosen || (!ticked && mix.length >= 2)} onChange={() => setMix((m) => (ticked ? m.filter((x) => x !== n) : [...m, n]))} /> Mix</label>
+            </div>
+          </div>
+        )
+      })}
+      {!chosen && mix.length === 2 && (
+        <button className="btn primary pitch-mix-go" onClick={() => {
+          const [a, b] = mix.map((n) => list![n - 1])
+          send(`Mix pitch ${mix[0]} (${a.title}) and pitch ${mix[1]} (${b.title}): take the best of both and say how you'd combine them before building.`, `${a.title} + ${b.title}`)
+        }}>Mix {mix[0]} and {mix[1]}</button>
+      )}
+      {chosen && <div className="pitch-chosen faint">Chose {chosen}</div>}
+    </div>
+  )
 }

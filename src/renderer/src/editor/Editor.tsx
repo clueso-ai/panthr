@@ -24,6 +24,7 @@ import { ClipMenu, ClipMenuAt } from './ClipMenu'
 import { PreviewFrames, usePreview } from './usePreview'
 import { addVideos } from './References'
 import { CanvasStage, SizesMenu } from '../board/CanvasStage'
+import { StoryboardSheet } from '../board/Storyboard'
 import './editor.css'
 import '../home/home.css'
 
@@ -72,6 +73,10 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const [loop, setLoop] = useState<[number, number] | null>(null)
   const [menu, setMenu] = useState<{ ix: number; x: number; y: number; t: number } | null>(null)
   const copied = useRef<string | null>(null)
+  /** The storyboard here (the active video's, else the project's): its folder and frames; open or not; new to review. */
+  const [board, setBoard] = useState<{ dir: string; frames: number; key: string } | null>(null)
+  const [boardOpen, setBoardOpen] = useState(false)
+  const [boardNew, setBoardNew] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [selComment, setSelComment] = useState<string | null>(null)
   const [range, setRange] = useState<[number, number] | null>(null)
@@ -211,6 +216,30 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   useEvent('chat:titled', (e) => {
     if (e.dir === canvas) api.projects.load(canvas).then((p) => p && setOwner(p))
   }, [canvas])
+
+  // ── The storyboard ─────────────────────────────────────────
+  const lookForBoard = useCallback(async (): Promise<void> => {
+    for (const d of dir ? [dir, canvas] : [canvas]) {
+      const sb = await api.storyboard.get(d).catch(() => null)
+      if (sb) {
+        const key = `${d}|${sb.frames.map((f) => `${f.n}${f.status}${f.still ?? ''}`).join(',')}`
+        setBoard((b) => {
+          if (b && b.key !== key && b.dir === d) setBoardNew(true)
+          return { dir: d, frames: sb.frames.length, key }
+        })
+        return
+      }
+    }
+    setBoard(null)
+  }, [dir, canvas])
+  useEffect(() => {
+    setBoard(null)
+    setBoardNew(false)
+    lookForBoard()
+  }, [lookForBoard])
+  useEvent('chat:turn', (e) => {
+    if (e.dir === canvas) lookForBoard()
+  }, [canvas, lookForBoard])
 
   // ── The picture ────────────────────────────────────────────
   const preview = usePreview(url, {
@@ -537,6 +566,12 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     api.chats.send(canvas, chatId, withVideo(msg))
     showSide('chat')
   }
+  // A pick from the agent's pitch cards (or anything else in the chat that answers it).
+  useEffect(() => {
+    const f = (e: Event): void => send((e as CustomEvent<string>).detail)
+    addEventListener('panthr:send', f)
+    return () => removeEventListener('panthr:send', f)
+  })
   const ask = (text: string): void => {
     if (!chatId) return
     api.chats.send(canvas, chatId, withVideo(text))
@@ -930,6 +965,10 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
           </div>
           {size && <span className="fit mono faint">Fit · {size[0]}×{size[1]}</span>}
           <div className="no-drag stagebar-right">
+            {board && <StoryboardButton frames={board.frames} fresh={boardNew} onOpen={() => {
+              setBoardOpen(true)
+              setBoardNew(false)
+            }} />}
             <BranchButton at={preview.state.time} onBranch={async (note) => {
               if (!dir || !project) return
               const t = preview.now()
@@ -959,9 +998,13 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
               </button>
             </Tip>
           </div>
-          </>) : (
+          </>) : (<>
             <span className="stage-hint faint">Choose a video on the canvas to edit it, or ask for one on the left.</span>
-          )}
+            {board && <div className="no-drag stagebar-right"><StoryboardButton frames={board.frames} fresh={boardNew} onOpen={() => {
+              setBoardOpen(true)
+              setBoardNew(false)
+            }} /></div>}
+          </>)}
         </div>
         <div className="stage canvas-mode">
           <CanvasStage
@@ -1097,6 +1140,12 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
         </div>
       </motion.aside>
 
+      <AnimatePresence>
+        {boardOpen && board && <StoryboardSheet dir={board.dir} onClose={() => setBoardOpen(false)} onSend={(t) => {
+          if (chatId) api.chats.send(canvas, chatId, dir && board.dir === dir ? withVideo(t) : t)
+          showSide('chat')
+        }} />}
+      </AnimatePresence>
       {/* A line about what just happened */}
       <AnimatePresence>
         {status && (
@@ -1240,5 +1289,14 @@ function ClipButton({ children }: { children: (close: () => void) => React.React
       </Tip>
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="start" width={260}>{children(() => setOpen(false))}</Popover>
     </>
+  )
+}
+
+/** The storyboard, from the bar over the picture: lit when there is something new to review. */
+function StoryboardButton({ frames, fresh, onOpen }: { frames: number; fresh: boolean; onOpen(): void }) {
+  return (
+    <Tip title="Storyboard" body="Every frame's sketch, to approve or change before it is built.">
+      <button className={`btn${fresh ? ' sb-fresh' : ''}`} onClick={onOpen}><Icon name="grid" size={15} /><span className="btn-label">Storyboard · {frames}</span></button>
+    </Tip>
   )
 }
