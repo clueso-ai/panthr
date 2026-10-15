@@ -1071,7 +1071,7 @@ function PlusMenu({ video, onDraw, onNote, onLibrary, onReference }: { video: bo
             <MenuItem icon={<Icon name="pin" size={15} />} label="Note at this moment" hint="⇧⌘K" onSelect={pick(onNote)} />
             <MenuSep />
           </>}
-          <MenuItem icon={<Icon name="play" size={15} />} label="Reference a video…" hint="@" onSelect={pick(onReference)} />
+          <MenuItem icon={<Icon name="play" size={15} />} label="Add a recipe video…" hint="@" onSelect={pick(onReference)} />
           <MenuItem icon={<Icon name="library" size={15} />} label="From the library" onSelect={pick(onLibrary)} />
           <MenuSep />
           <MenuItem icon={<Icon name="spark" size={15} />} label="Skills…" onSelect={pick(() => window.dispatchEvent(new CustomEvent('panthr:settings', { detail: 'skills' })))} />

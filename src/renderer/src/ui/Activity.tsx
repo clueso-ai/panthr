@@ -145,7 +145,7 @@ export function ActivityButton({ except }: { except?: string } = {}) {
   }, [open])
   return (
     <>
-      <Tip title="Activity" body="Agents working, exports, references and skills, wherever they are.">
+      <Tip title="Activity" body="Agents working, exports, recipes and skills, wherever they are.">
         <button ref={anchor} className={`activity-btn${n ? ' busy' : ''}${open ? ' open' : ''}`} aria-label={`Activity: ${n} running`} onClick={() => setOpen((o) => !o)}>
           <span className="activity-ring" />
           <span className="activity-summary ellipsis">{n ? summary(a) : 'Nothing running'}</span>
@@ -154,7 +154,7 @@ export function ActivityButton({ except }: { except?: string } = {}) {
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="start" width={320}>
         <div className="activity">
           <div className="activity-head">{n ? `${n} running` : 'Nothing running'}</div>
-          {n === 0 && <div className="activity-empty faint">Agent turns, exports, references being taken apart and skills installing show here while they run.</div>}
+          {n === 0 && <div className="activity-empty faint">Agent turns, exports, recipes being taken apart and skills installing show here while they run.</div>}
           <AnimatePresence initial={false}>
             {[...a.turns].map(([dir, t]) => (
               <Row key={`t${dir}`} icon="spark" title={a.names.get(dir) ?? dir} detail={`${t.engine === 'codex' ? 'Codex' : 'Claude'} is working · ${since(t.startedAt, at)}`}

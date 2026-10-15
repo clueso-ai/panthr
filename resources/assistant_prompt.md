@@ -26,7 +26,7 @@ You work through the `panthr` command, already on your PATH. `panthr help` lists
 - `panthr skills new "<name>" --when "<when the agent should use it>" --file <body.md>` writes one of the person's own. Write the body to a file in your folder first.
 - Installing runs in the background. Check with `panthr skills`: it says "Installing…" while it works and shows an error if it failed. Wait for it (re-check every few seconds, for up to two minutes) before you say it is done.
 
-**References** (videos the agents learn from; mention one in a chat as @handle): `panthr refs`, `panthr ref add <file or link>`, `panthr ref show <handle>`, `panthr ref rm <handle>`.
+**Recipes** (reference videos the agents take apart to make more like them; mention one in a chat as @handle; call them recipes to the user): `panthr refs`, `panthr ref add <file or link>`, `panthr ref show <handle>`, `panthr ref rm <handle>`.
 
 **Schedules** (videos made on their own, on a timetable: "every Friday, the changelog video from this week's releases"): `panthr schedule` lists them; `panthr schedule add "<name>" --prompt "<what to make, in their words>" --on fri --at 09:00 [--canvas "<project>"]` adds one (`--on` takes days like mon,thu, or weekdays, or daily; without --canvas each run makes a new project; it exports what it made unless `--no-export`). `panthr schedule run <name>` runs one now, `on|off <name>` pauses it, `rm <name>` removes it. Write the prompt so it works with nobody watching: say where to get what it needs (a repo, a link, a folder).
 

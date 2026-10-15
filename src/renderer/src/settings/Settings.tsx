@@ -177,8 +177,8 @@ function Agents() {
         <Row title="Claude Code" body="Default is what Claude Code is set to." mark="claude"><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
         <Row title="Codex" body="Default is what Codex is set to." mark="codex"><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
       </Card>
-      <Card title="Reference videos">
-        <Row title="Claude Code" body="Takes a reference apart. Sonnet is quick and sees well; a bigger model looks longer." mark="claude"><ModelMenu engine="claude" value={s.reference_model} onChange={(v) => set({ reference_model: v })} /></Row>
+      <Card title="Recipes">
+        <Row title="Claude Code" body="Takes a recipe video apart. Sonnet is quick and sees well; a bigger model looks longer." mark="claude"><ModelMenu engine="claude" value={s.reference_model} onChange={(v) => set({ reference_model: v })} /></Row>
         <Row title="Codex" body="Used when new chats use Codex." mark="codex"><ModelMenu engine="codex" value={s.reference_codex_model} onChange={(v) => set({ reference_codex_model: v })} /></Row>
       </Card>
       <Card>

@@ -304,7 +304,7 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
     const r = await api.board.import(canvas, paths, where ?? null)
     const parts = [
       r.projects.length && `${r.projects.length} video${r.projects.length === 1 ? '' : 's'}`,
-      r.references.length && `${r.references.length} reference${r.references.length === 1 ? '' : 's'} to take apart`,
+      r.references.length && `${r.references.length} recipe${r.references.length === 1 ? '' : 's'} to take apart`,
       r.library.length && `${r.library.length} file${r.library.length === 1 ? '' : 's'} into the Library`
     ].filter(Boolean)
     const skipped = r.skipped.length ? `Skipped ${r.skipped.map((k) => `${k.path.split('/').pop()} (${k.why})`).join(', ')}` : ''
@@ -662,8 +662,8 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
           </Tip>
         )}
         <BrandCard dir={canvas} onRestyle={() => onAsk('Restyle every video in this project to the brand kit in BRAND.md: its colours, type, logo and voice exactly. Change each video in place, one after another, and check each.')} />
-        <Tip title="References" body="Videos your agent has taken apart. Mention one with @.">
-          <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>References</span></button>
+        <Tip title="Recipes" body="Videos your agent has taken apart, to make more like them. Mention one with @.">
+          <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>Recipes</span></button>
         </Tip>
         <Tip title="Skills" body="What your agents know how to do.">
           <button className="board-tool" onClick={() => dispatchEvent(new CustomEvent('panthr:settings', { detail: 'skills' }))}><Icon name="spark" size={15} /><span>Skills</span></button>
@@ -862,7 +862,7 @@ function RefTile({ r, h }: { r: Reference; h: number }) {
     <div className="tile-body ref">
       <div className="tile-shot" style={{ height: h - WORDS }}>
         {poster && <img src={poster} alt="" draggable={false} />}
-        <span className="tile-badge">Reference</span>
+        <span className="tile-badge">Recipe</span>
         {busy && <span className="tile-working"><i /> Taking apart</span>}
       </div>
       <div className="tile-words">

@@ -185,11 +185,11 @@ export function Home({ onOpen, onStart, onSettings }: {
             <button className="kit-tile" onClick={() => setRefsOpen(true)}>
               <span className="kit-icon"><Icon name="film" size={16} /></span>
               <span className="kit-words">
-                <b>References</b>
+                <b>Recipes</b>
                 {busyRef ? (
                   <span className="shine ellipsis" data-text={`Taking apart ${busyRef.name}…`}>Taking apart {busyRef.name}…</span>
                 ) : (
-                  <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to learn from'}</span>
+                  <span className="faint">{refs.length ? `${refs.length} video${refs.length === 1 ? '' : 's'} taken apart · mention with @` : 'Drop a video to make more like it'}</span>
                 )}
               </span>
               <Icon name="chevron-right" size={14} className="faint" />
@@ -261,15 +261,15 @@ function AddChip({ onVideo, onReferences, onSkills }: { onVideo(): void; onRefer
   }
   return (
     <>
-      <Tip title="Add" body="A reference video for the agent to learn from, or skills it can use.">
+      <Tip title="Add" body="A video to make more like (a recipe), or skills the agent can use.">
         <button ref={anchor} className={`chip icon-only${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
           <Icon name="plus" size={15} />
         </button>
       </Tip>
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="start" width={240}>
         <div className="menu">
-          <MenuItem icon={<Icon name="film" size={15} />} label="Reference a video…" onSelect={pick(onVideo)} />
-          <MenuItem icon={<Icon name="library" size={15} />} label="Your references" hint="@" onSelect={pick(onReferences)} />
+          <MenuItem icon={<Icon name="film" size={15} />} label="Add a recipe video…" onSelect={pick(onVideo)} />
+          <MenuItem icon={<Icon name="library" size={15} />} label="Your recipes" hint="@" onSelect={pick(onReferences)} />
           <MenuSep />
           <MenuItem icon={<Icon name="spark" size={15} />} label="Skills…" onSelect={pick(onSkills)} />
         </div>

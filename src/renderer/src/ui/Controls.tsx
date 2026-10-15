@@ -228,8 +228,8 @@ export const Composer = forwardRef<ComposerHandle, {
       />
       <Popover anchor={el} open={open} onClose={() => setQ(null)} side="top" align="start" width={320} gap={10}>
         <div className="menu mention-menu">
-          <MenuTitle>Reference videos</MenuTitle>
-          {options.length === 0 && <div className="mention-empty">{mentions?.length ? 'No reference by that name' : 'No references yet. Add one in Library \u203a References, or drop a video on the window.'}</div>}
+          <MenuTitle>Recipes</MenuTitle>
+          {options.length === 0 && <div className="mention-empty">{mentions?.length ? 'No recipe by that name' : 'No recipes yet. Add one from Recipes, or drop a video on the window.'}</div>}
           {options.map((r, i) => (
             <button key={r.id} className={`mention-row${i === sel ? ' on' : ''}${r.status !== 'ready' ? ' busy' : ''}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setSel(i)} onClick={() => choose(r)}>
               <RefThumb r={r} />

@@ -46,7 +46,7 @@ export function ReferencesSection({ onMention, onAdded }: { onMention(handle: st
   return (
     <div className="refs">
       <div className="refs-head">
-        <b>References</b>
+        <b>Recipes</b>
         <span className="faint">Videos your agent has taken apart. Mention one in chat with @.</span>
       </div>
       <div className="refs-add">
@@ -157,7 +157,7 @@ function RefBody({ r, onClose, onMention }: { r: Reference; onClose(): void; onM
             <button className="btn small ghost" onClick={() => setConfirm(false)}>Keep</button>
           </span>
         ) : (
-          <IconButton icon="trash" tip="Delete this reference" onClick={() => setConfirm(true)} />
+          <IconButton icon="trash" tip="Delete this recipe" onClick={() => setConfirm(true)} />
         )}
         <IconButton icon="close" tip="Close" keys="Esc" onClick={onClose} />
       </div>
@@ -269,8 +269,8 @@ export function DropVideos({ onAdded, board }: { onAdded?(n: number): void; boar
         <motion.div className="drop-zone" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(QUICK)}>
           <div className="drop-card">
             <Icon name={board ? 'layers' : 'play'} size={20} />
-            <b>{board ? 'Drop to put it on the board' : 'Drop to add as a reference video'}</b>
-            <span className="faint">{board ? 'Project folders become tiles, videos become references, other files go to the Library.' : 'Your agent takes it apart, then you can mention it in chat with @.'}</span>
+            <b>{board ? 'Drop to put it on the board' : 'Drop to add it as a recipe'}</b>
+            <span className="faint">{board ? 'Project folders become tiles, videos become recipes, other files go to the Library.' : 'Your agent takes it apart, then you can mention it in chat with @.'}</span>
           </div>
         </motion.div>
       )}
