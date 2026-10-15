@@ -396,6 +396,9 @@ export interface Tween {
   editable: boolean
   method: string
   why?: string | null
+  /** The values it animates to (and, for from/fromTo, from). */
+  to?: Record<string, unknown>
+  from?: Record<string, unknown> | null
 }
 
 export interface TimingLayer {

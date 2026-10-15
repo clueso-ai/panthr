@@ -10,6 +10,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Layer, Picked, Scene } from '@shared/types'
 
+/** Where things are on the picture (composition px), for the handles. */
+export interface Geom {
+  w: number
+  h: number
+  items: { id: string; file: string; hasId: boolean; box: Box; translate: string; scale: string; rotate: string; x: number; y: number }[]
+  others: { id: string; box: Box }[]
+}
+export interface Box { x: number; y: number; w: number; h: number }
+
 export interface PreviewState {
   time: number
   playing: boolean
@@ -36,6 +45,8 @@ export interface PreviewApi {
   seek(t: number): void
   /** A command for the picker (pick, highlight, describe, set, ...). */
   post(msg: Record<string, unknown>): void
+  /** A command for the bridge (geom, style, ...). */
+  op(msg: Record<string, unknown>): void
   pen(on: boolean): void
   penClear(): void
   penUndo(): void
@@ -52,6 +63,7 @@ const EMPTY: PreviewState = { time: 0, playing: false, duration: 0, scenes: [], 
 export function usePreview(url: string | null, handlers: {
   onPicked?: (p: Picked) => void
   onPen?: (strokes: [number, number][][]) => void
+  onGeom?: (g: Geom) => void
   /** The shown page is ready for commands (a new page, or one just swapped in). */
   onReady?: () => void
 }): PreviewApi {
@@ -112,6 +124,7 @@ export function usePreview(url: string | null, handlers: {
           case 'size': setState((s) => ({ ...s, size: [m.w, m.h] })); break
           case 'error': setState((s) => ({ ...s, error: m.message })); break
           case 'pen': h.current.onPen?.(m.strokes); break
+          case 'geom': h.current.onGeom?.(m); break
           case 'editor': if (m.data?.type === 'picked') h.current.onPicked?.(m.data); break
         }
         return
@@ -178,6 +191,7 @@ export function usePreview(url: string | null, handlers: {
       send({ op: 'seek', t })
     },
     post,
+    op: send,
     skim: (t: number | null) => {
       const sk = skimming.current
       if (t === null) {

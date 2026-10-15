@@ -21,7 +21,8 @@ import { Inspector, describe, whereLine, type ControlChange } from './Inspector'
 import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, windowFor, type Edit } from './Timeline'
 import { ClipMenu, ClipMenuAt } from './ClipMenu'
-import { PreviewFrames, usePreview } from './usePreview'
+import { PreviewFrames, usePreview, type Geom } from './usePreview'
+import { Handles, NO_GUIDES, type Change, type Guides, type MotionStep } from './Handles'
 import { addVideos } from './References'
 import { CanvasStage, SizesMenu } from '../board/CanvasStage'
 import { StoryboardSheet } from '../board/Storyboard'
@@ -77,6 +78,17 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const [board, setBoard] = useState<{ dir: string; frames: number; key: string } | null>(null)
   const [boardOpen, setBoardOpen] = useState(false)
   const [boardNew, setBoardNew] = useState(false)
+  /** Editing on the picture: where the chosen things are, more of them (⇧-click, ⌥-drag), the guides shown. */
+  const [geom, setGeom] = useState<Geom | null>(null)
+  const [multi, setMulti] = useState<string[]>([])
+  const [guides, setGuides] = useState<Guides>(() => {
+    try {
+      return { ...NO_GUIDES, ...JSON.parse(localStorage.getItem('panthr.guides') ?? '{}') }
+    } catch {
+      return NO_GUIDES
+    }
+  })
+  useEffect(() => localStorage.setItem('panthr.guides', JSON.stringify(guides)), [guides])
   const [comments, setComments] = useState<Comment[]>([])
   const [selComment, setSelComment] = useState<string | null>(null)
   const [range, setRange] = useState<[number, number] | null>(null)
@@ -245,6 +257,12 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const preview = usePreview(url, {
     onPicked: (p) => {
       if (tool !== 'select') return
+      // ⇧-click: one more chosen, beside what is.
+      if ((p as Picked & { shift?: boolean }).shift && pickedRef.current && p.id !== pickedRef.current.id) {
+        setMulti((m) => (m.includes(p.id) ? m.filter((x) => x !== p.id) : [...m, p.id]))
+        return
+      }
+      setMulti([])
       setPicked(p)
       const lid = p.layer || p.id
       const ix = layersRef.current.findIndex((l) => !!lid && (l.id === lid || l.sel === lid))
@@ -254,6 +272,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
       }
     },
     onPen: setStrokes,
+    onGeom: setGeom,
     onReady: () => {
       // A new page (or one just swapped in): pick mode and the outline again.
       preview.post({ type: 'pick', on: toolRef.current === 'select' })
@@ -406,6 +425,8 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
 
   // ── Selection ──────────────────────────────────────────────
   const deselect = (): void => {
+    setMulti([])
+    setGeom(null)
     setPicked(null)
     setSel(null)
     setTween(null)
@@ -789,14 +810,55 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   }
 
   const showInspector = !!dir && !!picked && tool === 'select'
+  const layer = sel != null ? layers[sel] ?? null : null
+  // ── Editing on the picture ─────────────────────────────────
+  const chosen = useMemo(() => (picked && picked.id ? [picked.id, ...multi.filter((m) => m !== picked.id)] : []), [picked, multi])
+  const editable = !!dir && tool === 'select' && !preview.state.playing && chosen.length > 0
+  // Where the chosen things are: asked when the choice, the moment or the page changes (paused).
+  useEffect(() => {
+    if (!editable) {
+      setGeom(null)
+      return
+    }
+    const id = window.setTimeout(() => preview.op({ op: 'geom', ids: chosen }), 90)
+    return () => window.clearTimeout(id)
+  }, [editable, chosen, preview.state.time, preview.front, preview.state.ready]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The chosen step, when it moves in x or y: its end point is dragged on the picture.
+  const motionStep: MotionStep | null = useMemo(() => {
+    const w = windowOf(sel)
+    const t = w && tween != null ? w.tweens[tween] : null
+    if (!w || !t || !t.editable || chosen.length !== 1) return null
+    const to = (t.method === 'from' ? t.from ?? t.to : t.to) ?? {}
+    const x = typeof to.x === 'number' ? to.x : undefined
+    const y = typeof to.y === 'number' ? to.y : undefined
+    return x === undefined && y === undefined ? null : { id: t.id, label: layer?.label ?? 'it', to: { x, y }, file: w.file }
+  }, [sel, tween, timing, chosen, layer]) // eslint-disable-line react-hooks/exhaustive-deps
+  const commitPicture = async (changes: Change[]): Promise<void> => {
+    const what = changes[0]?.prop === 'translate' ? 'the position' : changes[0]?.prop === 'scale' ? 'the size' : 'the angle'
+    for (const c of changes) await runEdit({ op: 'set', file: c.file, target: c.id, write: `style:${c.prop}`, value: c.value }, `${what} of ${c.id}`)
+  }
+  const moveStep = (step: MotionStep, to: { x?: number; y?: number }): void => {
+    const props: Record<string, number> = {}
+    if (to.x !== undefined) props.x = to.x
+    if (to.y !== undefined) props.y = to.y
+    runEdit({ op: 'tween', file: step.file, animation: step.id, updates: { properties: props } }, `where ${step.label} moves to`)
+  }
   // The active video's frames, rebuilt only when what they show changes (not on each playback tick).
   const liveVideo = useMemo(() => (
     <div className="video-card">
       {url && <PreviewFrames preview={preview} />}
+      {url && preview.state.ready && <Handles geom={geom} guides={guides} editable={editable} motion={motionStep}
+        live={(id, prop, value) => preview.op({ op: 'style', id, prop, value })}
+        onCommit={(c) => void commitPicture(c)}
+        onMotion={moveStep}
+        onMarquee={(ids) => {
+          if (!ids.length) return
+          setPicked({ id: ids[0], layer: null, hasId: true, file: 'index.html', tag: 'div', text: ids[0], path: [] })
+          setMulti(ids.slice(1))
+        }} />}
       {!preview.state.ready && url && <div className="video-wait"><span className="shine" data-text="Loading the video">Loading the video</span></div>}
     </div>
-  ), [url, preview.srcs[0], preview.srcs[1], preview.front, preview.state.ready]) // eslint-disable-line react-hooks/exhaustive-deps
-  const layer = sel != null ? layers[sel] ?? null : null
+  ), [url, preview.srcs[0], preview.srcs[1], preview.front, preview.state.ready, geom, guides, editable, motionStep]) // eslint-disable-line react-hooks/exhaustive-deps
   /** The chosen layer's clip, when it is one. */
   const selClip = layer?.id ? clips[layer.id] ?? null : null
   const size = preview.state.size
@@ -947,6 +1009,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
             }} />
             <ToolButton icon="pen" on={tool === 'draw'} onHint={setHint} hint={['Draw on the frame and say what to change there', '⇧⌘D']} onClick={toggleDraw} />
             <ToolButton icon="pin" on={false} onHint={setHint} hint={['A note pinned to this moment', '⇧⌘K']} onClick={() => showSide('notes')} />
+            <GuidesButton guides={guides} onChange={setGuides} onHint={setHint} />
           </div>
           {tool === 'draw' && (
             <div className="no-drag draw-tools">
@@ -1298,5 +1361,30 @@ function StoryboardButton({ frames, fresh, onOpen }: { frames: number; fresh: bo
     <Tip title="Storyboard" body="Every frame's sketch, to approve or change before it is built.">
       <button className={`btn${fresh ? ' sb-fresh' : ''}`} onClick={onOpen}><Icon name="grid" size={15} /><span className="btn-label">Storyboard · {frames}</span></button>
     </Tip>
+  )
+}
+
+/** Guides over the picture: safe margins, thirds, the centre, rulers. */
+function GuidesButton({ guides, onChange, onHint }: { guides: Guides; onChange(g: Guides): void; onHint(h: [string, string] | null): void }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const any = Object.values(guides).some(Boolean)
+  const item = (k: keyof Guides, label: string, hint: string) => <MenuItem label={label} hint={hint} on={guides[k]} onSelect={() => onChange({ ...guides, [k]: !guides[k] })} />
+  return (
+    <>
+      <button ref={anchor} className={`icon-btn tool${any || open ? ' on' : ''}`} onMouseEnter={() => onHint(['Guides over the picture: safe margins, thirds, centre, rulers', ''])} onMouseLeave={() => onHint(null)} onClick={() => setOpen((o) => !o)}>
+        <Icon name="guides" size={16} />
+      </button>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="bottom" align="start" width={230}>
+        <div className="menu">
+          {item('safe', 'Safe margins', '5% · 10%')}
+          {item('thirds', 'Thirds', '')}
+          {item('center', 'Centre lines', '')}
+          {item('rulers', 'Rulers', 'px')}
+          <MenuSep />
+          <div className="menu-note faint">Drag what you chose to move it; corners resize, the knob rotates. ⇧-click adds to the choice; ⌥-drag chooses everything it touches.</div>
+        </div>
+      </Popover>
+    </>
   )
 }

@@ -134,7 +134,9 @@ export function parseInspect(v: any): Record<string, TimingLayer> {
           ease: typeof t.ease === 'string' ? t.ease : null,
           editable: t.editable === true,
           method: typeof t.method === 'string' ? t.method : 'to',
-          why: typeof t.why === 'string' ? t.why : null
+          why: typeof t.why === 'string' ? t.why : null,
+          to: t.to && typeof t.to === 'object' ? t.to : {},
+          from: t.from && typeof t.from === 'object' ? t.from : null
         })
       }
       out[l.id] = {

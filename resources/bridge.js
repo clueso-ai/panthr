@@ -223,6 +223,40 @@
   size();
 })(); };
   const PEN_OFF = function(){ (function(){ const c = document.getElementById('__studio_pen'); if (c) c.remove(); window.__pen = null; })(); };
+  function find(ref) {
+    if (!ref) return null;
+    let el = document.getElementById(ref);
+    if (!el) { try { el = document.querySelector(ref); } catch (e) {} }
+    return el;
+  }
+  // Where things are, for the handles on the picture: the chosen elements'
+  // boxes (composition px) and their own translate / scale / rotate, GSAP's
+  // x and y now, and every layer's box to snap to.
+  function geom(d) {
+    const root = document.querySelector('[data-composition-id]');
+    if (!root) return;
+    const rb = root.getBoundingClientRect();
+    const W = +root.getAttribute('data-width') || rb.width, H = +root.getAttribute('data-height') || rb.height;
+    const k = W / (rb.width || 1);
+    const boxOf = (el) => { const b = el.getBoundingClientRect(); return { x: (b.left - rb.left) * k, y: (b.top - rb.top) * k, w: b.width * k, h: b.height * k }; };
+    const seen = (el) => { const b = el.getBoundingClientRect(); if (b.width < 1 || b.height < 1) return false; const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden' && parseFloat(cs.opacity) > 0.02; };
+    const g = window.gsap;
+    const items = (d.ids || []).map((id) => {
+      const el = find(id);
+      if (!el) return null;
+      const st = el.style;
+      const src = el.closest('[data-composition-src]');
+      return { id, file: src ? src.getAttribute('data-composition-src') : 'index.html', hasId: !!el.id, box: boxOf(el), translate: st.getPropertyValue('translate') || '', scale: st.getPropertyValue('scale') || '', rotate: st.getPropertyValue('rotate') || '',
+        x: g && g.getProperty ? Number(g.getProperty(el, 'x')) || 0 : 0, y: g && g.getProperty ? Number(g.getProperty(el, 'y')) || 0 : 0 };
+    }).filter(Boolean);
+    const others = [];
+    document.querySelectorAll('[data-composition-id] [id]').forEach((el) => {
+      if (others.length > 300 || el.hasAttribute('data-composition-id') || /^(SCRIPT|STYLE|AUDIO|SOURCE|TEMPLATE)$/.test(el.tagName) || !seen(el)) return;
+      if ((d.ids || []).indexOf(el.id) >= 0) return;
+      others.push({ id: el.id, box: boxOf(el) });
+    });
+    try { parent.postMessage({ __panthr: { kind: 'geom', w: W, h: H, items, others } }, '*'); } catch (e) {}
+  }
   // Commands from the app.
   window.addEventListener('message', (e) => {
     const d = e.data;
@@ -236,6 +270,8 @@
       case 'pen': if (d.on) PEN_ON(); else PEN_OFF(); break;
       case 'pen-clear': if (window.__pen) window.__pen.clear(); break;
       case 'pen-undo': if (window.__pen) window.__pen.undo(); break;
+      case 'geom': geom(d); break;
+      case 'style': { const el = find(d.id); if (el) { if (d.value == null || d.value === '') el.style.removeProperty(d.prop); else el.style.setProperty(d.prop, String(d.value)); } break; }
     }
   });
 })();
