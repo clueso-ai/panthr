@@ -158,8 +158,8 @@ describe('parseInspect', () => {
     expect(t.title).toEqual({
       id: 'title', file: 'index.html', label: 'Title', start: 0.5, end: 3, movable: true, why: null,
       tweens: [
-        { id: 't1', start: 0.5, duration: 0.6, ease: 'power2.out', editable: true, method: 'from', why: null },
-        { id: 't2', start: 1, duration: 0, ease: null, editable: false, method: 'to', why: 'built in a loop or helper' }
+        { id: 't1', start: 0.5, duration: 0.6, ease: 'power2.out', editable: true, method: 'from', why: null, to: {}, from: null },
+        { id: 't2', start: 1, duration: 0, ease: null, editable: false, method: 'to', why: 'built in a loop or helper', to: {}, from: null }
       ]
     })
     expect(t.logo).toMatchObject({ file: 'compositions/outro.html', label: 'logo', movable: false, why: 'its target is computed', tweens: [] })
