@@ -11,7 +11,7 @@
 .sheet-body { position: relative; overflow-y: auto; }
 .sheet-close { position: absolute; top: 12px; right: 12px; z-index: 2; }
 .sheet-pane { padding: 22px 28px 28px; display: flex; flex-direction: column; gap: 18px; }
-.sheet-pane h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; letter-spacing: -0.01em; }
+.sheet-pane h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 24px; letter-spacing: -0.02em; }
 .pane-lede, .pane-note { margin: 0; color: var(--t2); font-size: 13px; line-height: 1.55; max-width: 62ch; }
 .pane-note { color: var(--t3); font-size: 12px; }
 .card-group { display: flex; flex-direction: column; gap: 8px; }
@@ -37,7 +37,7 @@
 .check-line { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 12px; font-size: 12px; }
 .check-line .tool { font-family: var(--mono); font-size: 11.5px; }
 .about-mark { display: flex; align-items: center; gap: 16px; }
-.about-mark .wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 24px; letter-spacing: -0.02em; font-variation-settings: 'opsz' 96; }
+.about-mark .wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 24px; letter-spacing: -0.02em; }
 .seg-mark { display: inline-flex; align-items: center; gap: 6px; }
 .row-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--field); display: grid; place-items: center; flex: none; }
 .cli-example { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--hair); font-family: var(--mono); font-size: 11.5px; color: var(--t2); line-height: 1.7; user-select: text; white-space: pre-wrap; }
