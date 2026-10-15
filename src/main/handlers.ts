@@ -27,11 +27,12 @@ import { usageApi } from './usage'
 import { sizesApi } from './sizes'
 import { schedulesApi } from './schedules'
 import { recorderApi } from './recorder'
+import { clipsApi } from './clips'
 
 export const handlers: Api = {
   app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references,
   board: { ...boardApi, ...sizesApi }, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi, assistant: assistantApi,
-  connections: connectionsApi, accounts: accountsApi, usage: usageApi, schedules: schedulesApi, recorder: recorderApi
+  connections: connectionsApi, accounts: accountsApi, usage: usageApi, schedules: schedulesApi, recorder: recorderApi, clips: clipsApi
 }
 
 /** A method on this machine's handlers. */

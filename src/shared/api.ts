@@ -76,6 +76,16 @@ export interface Api {
     /** inspect, parsed into timing per layer id. */
     timing(dir: string): Promise<Record<string, TimingLayer>>
   }
+  clips: {
+    /** The video's clips (HyperFrames' timeline). */
+    list(dir: string): Promise<import('./types').Clip[]>
+    /** Split, delete, duplicate, volume, speed, fades, ducking, loudness, a freeze frame. */
+    edit(dir: string, e: import('./types').ClipEdit): Promise<import('./types').ClipEditResult>
+    /** A clip's waveform, peak and loudness. */
+    sound(dir: string, ref: string): Promise<import('./types').ClipSound | null>
+    /** The music's beats, on the video's clock. */
+    beats(dir: string): Promise<number[]>
+  }
   review: {
     comments(dir: string): Promise<Comment[]>
     saveComments(dir: string, comments: Comment[]): Promise<void>

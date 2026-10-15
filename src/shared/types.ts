@@ -410,6 +410,63 @@ export interface TimingLayer {
   tweens: Tween[]
 }
 
+// ── Clips (HyperFrames' timeline: media and timed elements) ──────────
+
+export interface Clip {
+  id: string
+  /** How HyperFrames' timeline tool names it (#id). */
+  ref: string
+  /** What it is: video, audio, img, h1, div... */
+  kind: string
+  /** HyperFrames' track kind: video, graphics, audio... */
+  track: string
+  trackIndex: number
+  file: string
+  start: number
+  end: number
+  src: string | null
+  mediaStart: number
+  /** data-volume (null: 1). */
+  volume: number | null
+  /** data-playback-rate (null: 1). */
+  rate: number | null
+  /** data-automation lanes. */
+  lanes: { target: string; points: { t: number; v: number }[] }[]
+  /** It has sound (an audio, or a video with a file). */
+  audible: boolean
+  linked: string | null
+  /** Panthr's fades and ducking on it (seconds; duck: the voices, how far down). */
+  mix: { in?: number; out?: number; duck?: { under: string[]; depth: number } } | null
+}
+
+export type ClipEdit =
+  | { op: 'split'; ref: string; at: number }
+  | { op: 'delete'; ref: string; close?: boolean }
+  | { op: 'duplicate'; ref: string; at?: number }
+  | { op: 'set'; ref: string; volume?: number; rate?: number; track?: number }
+  | { op: 'fade'; ref: string; in?: number; out?: number }
+  | { op: 'duck'; ref: string; under: string[]; depth?: number }
+  | { op: 'normalize'; ref: string; target?: number }
+  | { op: 'freeze'; ref: string; at: number; len?: number }
+
+export interface ClipEditResult {
+  file: string
+  before: string
+  after: string
+  changed: boolean
+  label: string
+}
+
+/** A clip's sound as it plays: its waveform (`per` peaks a second, 0..1),
+ *  its loudest moment (dBFS) and loudness (LUFS), at its volume. */
+export interface ClipSound {
+  peaks: number[]
+  per: number
+  peakDb: number | null
+  lufs: number | null
+  silent: boolean
+}
+
 // ── The page (what the preview reports) ───────────────────────────
 
 export interface Layer {
