@@ -466,3 +466,22 @@
 .hd-path-end { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--acc); border: 2px solid #fff; pointer-events: auto; cursor: grab; touch-action: none; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
 .hd-marquee { position: absolute; border: 1px solid var(--acc); background: color-mix(in srgb, var(--acc) 12%, transparent); pointer-events: none; }
 .menu-note { padding: 6px 10px 8px; font-size: 11.5px; line-height: 1.45; }
+
+/* Captions: the transcript word by word */
+.cap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.cap-head { display: flex; flex-direction: column; gap: 3px; padding: 12px 16px 8px; font-size: 12px; }
+.cap-file { font-size: 11.5px; align-self: flex-start; max-width: 100%; }
+select.cap-file { background: var(--raised); color: var(--t1); border: 1px solid var(--hair-2); border-radius: 6px; padding: 3px 6px; }
+.cap-lines { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.cap-line { display: grid; grid-template-columns: 52px 1fr; gap: 6px; align-items: baseline; }
+.cap-at { font-size: 10.5px; text-align: left; padding: 2px 0; }
+.cap-at:hover { color: var(--t1); }
+.cap-words { display: flex; flex-wrap: wrap; gap: 2px 3px; font-size: 13.5px; line-height: 1.5; }
+.cap-word { padding: 0 3px; border-radius: 4px; cursor: pointer; transition: background var(--quick) var(--ease), color var(--quick) var(--ease); }
+.cap-word:hover { background: var(--hover); }
+.cap-word.on { background: var(--acc); color: #fff; }
+.cap-edit { font: inherit; font-size: 13.5px; padding: 0 3px; border-radius: 4px; border: 1px solid var(--acc); background: var(--raised); color: var(--t1); outline: none; }
+.cap-foot { padding: 10px 16px; border-top: 1px solid var(--hair); }
+.cap-empty { display: flex; flex-direction: column; gap: 8px; padding: 18px 16px; font-size: 12.5px; line-height: 1.45; }
+.cap-empty .btn { align-self: flex-start; }
+.cap-wait { font-size: 11.5px; }

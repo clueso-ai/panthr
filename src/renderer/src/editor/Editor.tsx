@@ -21,6 +21,7 @@ import { Inspector, describe, whereLine, type ControlChange } from './Inspector'
 import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
 import { LayerBar, Timeline, windowFor, type Edit } from './Timeline'
 import { ClipMenu, ClipMenuAt } from './ClipMenu'
+import { CaptionsPanel } from './Captions'
 import { PreviewFrames, usePreview, type Geom } from './usePreview'
 import { Handles, NO_GUIDES, type Change, type Guides, type MotionStep } from './Handles'
 import { addVideos } from './References'
@@ -29,7 +30,7 @@ import { StoryboardSheet } from '../board/Storyboard'
 import './editor.css'
 import '../home/home.css'
 
-type Side = 'chat' | 'notes' | 'versions' | 'library'
+type Side = 'chat' | 'notes' | 'versions' | 'library' | 'captions'
 type Tool = 'select' | 'draw'
 type Op =
   | { kind: 'file'; rel: string; before: string; after: string; label: string }
@@ -187,7 +188,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
       setUrl(null)
       setComments([])
       setVersions([])
-      if (side === 'notes' || side === 'versions') setSide('chat')
+      if (side === 'notes' || side === 'versions' || side === 'captions') setSide('chat')
       return
     }
     let alive = true
@@ -898,9 +899,9 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
           </div>
         </div>
         <div className="tabs">
-          {(['chat', 'notes', 'versions', 'library'] as Side[]).map((s) => (
-            <button key={s} className={side === s ? 'on' : ''} disabled={!dir && (s === 'notes' || s === 'versions')} title={!dir && (s === 'notes' || s === 'versions') ? 'Choose a video on the canvas' : undefined} onClick={() => showSide(s)}>
-              {s === 'chat' ? 'Chat' : s === 'notes' ? 'Notes' : s === 'versions' ? 'Versions' : 'Library'}
+          {(['chat', 'notes', 'versions', 'captions', 'library'] as Side[]).map((s) => (
+            <button key={s} className={side === s ? 'on' : ''} disabled={!dir && (s === 'notes' || s === 'versions' || s === 'captions')} title={!dir && (s === 'notes' || s === 'versions' || s === 'captions') ? 'Choose a video on the canvas' : undefined} onClick={() => showSide(s)}>
+              {s === 'chat' ? 'Chat' : s === 'notes' ? 'Notes' : s === 'versions' ? 'Versions' : s === 'captions' ? 'Captions' : 'Library'}
               {s === 'notes' && openNotes > 0 && <span className="tab-count">{openNotes}</span>}
               {side === s && <motion.i layoutId="tab-line" className="tab-line" transition={tr(MOVE)} />}
             </button>
@@ -929,6 +930,15 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
               )}
               {side === 'versions' && (
                 <VersionsPanel dir={dir} versions={versions} exporting={exporting} stage={stage} onExport={exportNow} onCancel={() => api.review.cancelRender(dir)} />
+              )}
+              {side === 'captions' && dir && (
+                <CaptionsPanel dir={dir} time={preview.state.time} clips={Object.values(clips)} onSeek={(t) => preview.seek(t)}
+                  onSaved={(file, before, after, label) => {
+                    push({ kind: 'file', rel: file, before, after, label })
+                    say(`Changed ${label}`)
+                    reloadNow()
+                  }}
+                  onAsk={ask} say={say} />
               )}
               {side === 'library' && <LibraryPanel
                 onUse={(it: LibraryItem) => {

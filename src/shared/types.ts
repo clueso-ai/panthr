@@ -472,6 +472,11 @@ export interface ClipSound {
   silent: boolean
 }
 
+// ── Captions (a transcript of timed words) ───────────────────────────
+
+export interface Word { id: string; text: string; start: number; end: number }
+export interface Transcript { file: string; words: Word[] }
+
 // ── Storyboard (STORYBOARD.md and storyboard.html) ──────────────────
 
 export interface StoryboardFrame {

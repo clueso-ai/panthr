@@ -24,6 +24,7 @@ export const METHODS: All = {
   board: { sizes: true, notes: true, branch: true, collect: true, get: true, move: true, setView: true, create: true, import: true, link: true, unlink: true, focus: true, open: true },
   files: { read: true, replace: true },
   schedules: { list: true, save: true, remove: true, run: true },
+  captions: { list: true, save: true, transcribe: true },
   storyboard: { get: true, review: true },
   clips: { list: true, edit: true, sound: true, beats: true },
   recorder: { access: true, openPrivacy: true, relaunch: true, sources: true, start: true, stop: true, attach: true },

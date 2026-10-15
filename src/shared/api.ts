@@ -76,6 +76,14 @@ export interface Api {
     /** inspect, parsed into timing per layer id. */
     timing(dir: string): Promise<Record<string, TimingLayer>>
   }
+  captions: {
+    /** The video's transcripts (timed words), transcript.json first. */
+    list(dir: string): Promise<import('./types').Transcript[]>
+    /** Words fixed by hand, written back; the file before and after, for undo. */
+    save(dir: string, file: string, words: import('./types').Word[]): Promise<{ file: string; before: string; after: string }>
+    /** Transcribe a clip's file into transcript.json. */
+    transcribe(dir: string, src: string): Promise<import('./types').Transcript>
+  }
   storyboard: {
     /** A folder's storyboard (null: it has none), with stills of its sketches. */
     get(dir: string): Promise<import('./types').Storyboard | null>
