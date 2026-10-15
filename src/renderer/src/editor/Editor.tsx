@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ChatState, Checkpoint, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
+import type { ChatState, Checkpoint, Clip, ClipEdit, ClipSound, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
 import { setRequest } from '@shared/controls'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
@@ -19,7 +19,8 @@ import { Tip } from '@/ui/Tooltip'
 import { Chat } from './Chat'
 import { Inspector, describe, whereLine, type ControlChange } from './Inspector'
 import { LibraryPanel, NotesPanel, VersionsPanel } from './Panels'
-import { LayerBar, Timeline, type Edit } from './Timeline'
+import { LayerBar, Timeline, windowFor, type Edit } from './Timeline'
+import { ClipMenu, ClipMenuAt } from './ClipMenu'
 import { PreviewFrames, usePreview } from './usePreview'
 import { addVideos } from './References'
 import { CanvasStage, SizesMenu } from '../board/CanvasStage'
@@ -64,6 +65,13 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const [sel, setSel] = useState<number | null>(null)
   const [tween, setTween] = useState<number | null>(null)
   const [timing, setTiming] = useState<Record<string, TimingLayer>>({})
+  /** The video's clips by element id (HyperFrames' timeline), their sound, the beats, a range to loop. */
+  const [clips, setClips] = useState<Record<string, Clip>>({})
+  const [sounds, setSounds] = useState<Record<string, ClipSound>>({})
+  const [beats, setBeats] = useState<number[] | null>(null)
+  const [loop, setLoop] = useState<[number, number] | null>(null)
+  const [menu, setMenu] = useState<{ ix: number; x: number; y: number; t: number } | null>(null)
+  const copied = useRef<string | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [selComment, setSelComment] = useState<string | null>(null)
   const [range, setRange] = useState<[number, number] | null>(null)
@@ -151,6 +159,10 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     setScope(false)
     setRange(null)
     setFrames([])
+    setClips({})
+    setSounds({})
+    setBeats(null)
+    setLoop(null)
     undo.current = []
     redo.current = []
     if (!dir) {
@@ -263,7 +275,30 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   const refreshTiming = useCallback(() => {
     if (!dir) return
     api.controls.timing(dir).then(setTiming).catch((e) => say(`Couldn't read the timeline's timing: ${String(e.message ?? e).split('\n')[0]}`))
+    api.clips.list(dir).then((all) => setClips(Object.fromEntries(all.map((c) => [c.id, c])))).catch(() => {})
   }, [dir, say])
+  // Each clip with sound: its waveform and peak, as it plays now.
+  useEffect(() => {
+    if (!dir) return
+    let alive = true
+    for (const c of Object.values(clips)) {
+      if (!c.audible) continue
+      api.clips.sound(dir, c.ref).then((s) => alive && s && setSounds((x) => ({ ...x, [c.id]: s }))).catch(() => {})
+    }
+    return () => {
+      alive = false
+    }
+  }, [dir, clips])
+  // The beats, once asked for, follow the music as it changes.
+  useEffect(() => {
+    if (dir && beats !== null) api.clips.beats(dir).then(setBeats).catch(() => setBeats([]))
+  }, [dir, clips]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A range to loop: playing past its end goes back to its start.
+  useEffect(() => {
+    if (!loop || !preview.state.playing) return
+    const t = preview.state.time
+    if (t >= loop[1] - 0.03 || t < loop[0] - 0.25) preview.seek(loop[0])
+  }, [loop, preview.state.time, preview.state.playing]) // eslint-disable-line react-hooks/exhaustive-deps
   const layersKey = layers.map((l) => l.id + l.sel).join('|')
   useEffect(() => {
     if (layers.length) refreshTiming()
@@ -357,6 +392,13 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     const l = layers[ix]
     if (!l) return
     if (tool !== 'select') setTool('select')
+    // A sound has nothing to show on the picture: its clip menu is under the timeline.
+    if (l.kind === 'audio') {
+      setPicked(null)
+      preview.post({ type: 'highlight', id: null })
+      if (!Object.keys(timing).length) refreshTiming()
+      return
+    }
     const ref = l.id || l.sel
     // A script's state object has no element: it opens with its timing.
     setPicked(ref
@@ -413,11 +455,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   }
 
   // ── Timeline edits through the editor tool ─────────────────
-  const windowOf = (ix: number | null): TimingLayer | null => {
-    const l = ix != null ? layers[ix] : null
-    const w = l?.id ? timing[l.id] : undefined
-    return w && w.movable && w.start != null && w.end != null ? w : null
-  }
+  const windowOf = (ix: number | null): TimingLayer | null => (ix != null ? windowFor(layers[ix], timing, clips) : null)
   const runEdit = async (req: Record<string, unknown>, what: string): Promise<void> => {
     try {
       const v = await api.controls.run(dir, req)
@@ -432,10 +470,34 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
       say(`Couldn't change ${what}: ${String((e as Error).message ?? e).split('\n')[0]}`)
     }
   }
+  /** An edit to a clip through HyperFrames' timeline tool, undoable like the rest. */
+  const runClip = async (e: ClipEdit): Promise<void> => {
+    try {
+      const r = await api.clips.edit(dir, e)
+      if (r.changed) push({ kind: 'file', rel: r.file, before: r.before, after: r.after, label: r.label })
+      say(r.changed ? `Changed ${r.label}` : 'Nothing to change')
+      reloadNow()
+      refreshTiming()
+    } catch (err) {
+      say(`Couldn't do that: ${String((err as Error).message ?? err).split('\n')[0]}`)
+    }
+  }
   const commitEdit = (e: Edit): void => {
     const l = layers[e.ix]
     const w = windowOf(e.ix)
     if (!l || !w) return
+    const clip = l.id ? clips[l.id] : undefined
+    if (e.kind === 'fade') {
+      if (clip) runClip({ op: 'fade', ref: clip.ref, in: e.fin, out: e.fout })
+      return
+    }
+    // A clip the editor tool can't move: HyperFrames' timeline tool moves it.
+    if (clip && !(timing[l.id] && timing[l.id].movable) && e.kind === 'window') {
+      const [a0, l0] = [w.start!, w.end! - w.start!]
+      if (Math.abs(e.at - a0) < 1e-3 && Math.abs(e.len - l0) < 1e-3) return
+      runClip(Math.abs(e.len - l0) < 1e-3 ? { op: 'move', ref: clip.ref, at: e.at } : { op: 'trim', ref: clip.ref, start: e.at, end: e.at + e.len })
+      return
+    }
     if (e.kind === 'window') {
       const [a0, l0] = [w.start!, w.end! - w.start!]
       if (Math.abs(e.at - a0) < 1e-3 && Math.abs(e.len - l0) < 1e-3) return
@@ -610,10 +672,45 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
         e.preventDefault()
         const d = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 1 / 30)
         preview.seek(Math.min(duration, Math.max(0, preview.now() + d)))
-      } else if (e.key === 'v' || e.key === 'V') setTool('select')
+      } else if ((e.key === 'v' || e.key === 'V') && !e.metaKey) setTool('select')
+      else if (selClip) {
+        // The chosen clip: S splits at the playhead, ⌘D duplicates, ⌫ deletes (⇧ closes the gap).
+        if ((e.key === 's' || e.key === 'S') && !e.metaKey) {
+          e.preventDefault()
+          runClip({ op: 'split', ref: selClip.ref, at: preview.now() })
+        } else if ((e.key === 'd' || e.key === 'D') && e.metaKey && !e.shiftKey) {
+          e.preventDefault()
+          runClip({ op: 'duplicate', ref: selClip.ref, at: selClip.end })
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+          e.preventDefault()
+          runClip({ op: 'delete', ref: selClip.ref, close: e.shiftKey })
+          setSel(null)
+          setPicked(null)
+        }
+      }
     }
     addEventListener('keydown', key)
     return () => removeEventListener('keydown', key)
+  })
+  // ⌘C and ⌘V (the Edit menu's) copy the chosen clip and paste it at the playhead.
+  useEffect(() => {
+    const copy = (e: ClipboardEvent): void => {
+      if (typing() || !selClip || String(getSelection() ?? '')) return
+      e.preventDefault()
+      copied.current = selClip.ref
+      say(`Copied ${selClip.id}`)
+    }
+    const paste = (e: ClipboardEvent): void => {
+      if (typing() || !copied.current || !dir) return
+      e.preventDefault()
+      runClip({ op: 'duplicate', ref: copied.current, at: preview.now() })
+    }
+    document.addEventListener('copy', copy)
+    document.addEventListener('paste', paste)
+    return () => {
+      document.removeEventListener('copy', copy)
+      document.removeEventListener('paste', paste)
+    }
   })
   useEvent('command', ({ name }) => {
     switch (name) {
@@ -665,7 +762,24 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
     </div>
   ), [url, preview.srcs[0], preview.srcs[1], preview.front, preview.state.ready]) // eslint-disable-line react-hooks/exhaustive-deps
   const layer = sel != null ? layers[sel] ?? null : null
+  /** The chosen layer's clip, when it is one. */
+  const selClip = layer?.id ? clips[layer.id] ?? null : null
   const size = preview.state.size
+  const clipMenu = (clip: Clip, close: () => void): React.ReactNode => (
+    <ClipMenu clip={clip} clips={Object.values(clips)} at={preview.now()} canPaste={!!copied.current}
+      onEdit={runClip}
+      onCopy={() => {
+        copied.current = clip.ref
+        say(`Copied ${clip.id}`)
+      }}
+      onPaste={() => copied.current && runClip({ op: 'duplicate', ref: copied.current, at: preview.now() })}
+      onAsk={() => {
+        setScope(true)
+        showSide('chat')
+        composer.current?.focus()
+      }}
+      onClose={close} />
+  )
   const aspect = size ? size[0] / size[1] : 16 / 9
   const openNotes = comments.filter((c) => !c.resolved).length
   const chats = owner?.meta.chats ?? []
@@ -910,8 +1024,40 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
             }}
             onToggleLayers={() => setLayersOpen((o) => !o)}
             onRows={setRows}
-            footer={<LayerBar layer={layer} win={windowOf(sel)} tween={tween} onNudge={nudge} onEase={setEase} onAdjustable={askAdjustable} />}
+            clips={clips}
+            sounds={sounds}
+            beats={beats ?? []}
+            loop={loop}
+            onLoop={setLoop}
+            onMenu={(ix, x, y, t) => {
+              selectLayer(ix, null)
+              setMenu({ ix, x, y, t })
+            }}
+            footer={<span className="tl-foot-row">
+              <LayerBar layer={layer} win={windowOf(sel)} tween={tween} onNudge={nudge} onEase={setEase} onAdjustable={askAdjustable} />
+              {selClip && <ClipButton>{(close) => clipMenu(selClip, close)}</ClipButton>}
+              <span className="spacer" />
+              {loop && (
+                <span className="tl-loop-chip">
+                  <Icon name="repeat" size={12} /> <span className="mono">{clock(loop[0])}–{clock(loop[1])}</span>
+                  <button className="link" onClick={() => setLoop(null)} aria-label="Stop looping">×</button>
+                </span>
+              )}
+              {!loop && <span className="faint tl-loop-hint">⇧-drag the ruler to loop</span>}
+              <Tip title="Beats" body="The music's beats on the ruler; dragged edges catch on them.">
+                <button className={`tl-chip${beats !== null ? ' on' : ''}`} onClick={() => {
+                  if (beats !== null) setBeats(null)
+                  else api.clips.beats(dir).then((b) => {
+                    setBeats(b)
+                    if (!b.length) say('No beats found: the video has no music, or none with a clear beat')
+                  }).catch((e) => say(`Couldn't find the beats: ${(e as Error).message}`))
+                }}><Icon name="beats" size={13} /> Beats</button>
+              </Tip>
+            </span>}
           />
+          {menu && layers[menu.ix]?.id && clips[layers[menu.ix].id] && (
+            <ClipMenuAt x={menu.x} y={menu.y} onClose={() => setMenu(null)}>{clipMenu(clips[layers[menu.ix].id], () => setMenu(null))}</ClipMenuAt>
+          )}
         </div>}
       </main>
 
@@ -1082,3 +1228,17 @@ function PlusMenu({ video, onDraw, onNote, onLibrary, onReference }: { video: bo
 }
 
 void useMemo
+
+/** The chosen clip's menu, from under the timeline. */
+function ClipButton({ children }: { children: (close: () => void) => React.ReactNode }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Tip title="Clip" body="Split, speed, volume, fades and more. Right-click a clip for the same.">
+        <button ref={anchor} className={`tl-chip${open ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>Clip <Icon name="chevron" size={11} /></button>
+      </Tip>
+      <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} side="top" align="start" width={260}>{children(() => setOpen(false))}</Popover>
+    </>
+  )
+}

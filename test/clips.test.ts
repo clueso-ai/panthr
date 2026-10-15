@@ -85,6 +85,10 @@ describe.skipIf(!process.env.PANTHR_EDIT_E2E)('edits', () => {
     // The fades are still there.
     expect(pts[0]).toEqual({ t: 0, v: 0 })
     expect(r.before).not.toEqual(r.after)
+    // A new level: the fades and ducking follow it.
+    await editClip(dir, { op: 'set', ref: '#music', volume: 0.4 })
+    m = (await clips(dir)).find((c) => c.id === 'music')!
+    expect(Math.max(...m.lanes.find((l) => l.target === 'volume')!.points.map((p) => p.v))).toBeCloseTo(0.4, 3)
     await editClip(dir, { op: 'normalize', ref: '#voice' })
     const v = (await clips(dir)).find((c) => c.id === 'voice')!
     expect(v.volume).not.toBeNull()
@@ -107,5 +111,11 @@ describe.skipIf(!process.env.PANTHR_EDIT_E2E)('edits', () => {
     await editClip(dir, { op: 'delete', ref: hold.ref, close: true })
     const after = (await clips(dir)).filter((x) => x.trackIndex === 0).sort((a, b) => a.start - b.start)
     expect(after.map((x) => x.start)).toEqual([0, 3])
+    // Trimming the left edge: it starts later in its file too.
+    await editClip(dir, { op: 'trim', ref: after[1].ref, start: 4, end: after[1].end })
+    const t = (await clips(dir)).find((x) => x.id === after[1].id)!
+    expect([t.start, t.mediaStart]).toEqual([4, after[1].mediaStart + (4 - after[1].start) * (after[1].rate || 1)])
+    await editClip(dir, { op: 'move', ref: '#music', at: 1 })
+    expect((await clips(dir)).find((x) => x.id === 'music')!.start).toBe(1)
   }, 240_000)
 })

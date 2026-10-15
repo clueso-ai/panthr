@@ -5,20 +5,22 @@
 import {
   ArrowLeft, ArrowUp, Check, ChevronDown, ChevronRight, Cloud, Ellipsis, Folder, History, Laptop, Layers, LibraryBig,
   MapPin, MessageSquarePlus, MousePointer2, Network, Pause, PenLine, Play, Plus, Search, Settings, SlidersHorizontal,
-  Sparkle, Square, Maximize2, Minimize2, Server, Clock, CircleDot, Sun, Moon, FolderInput, GitBranch, Image, Film, SquareTerminal, StickyNote, Trash2, Undo2, Upload, X, type LucideIcon
+  Sparkle, Square, Maximize2, Minimize2, Server, Clock, CircleDot, Sun, Moon, FolderInput, GitBranch, Image, Film, SquareTerminal, StickyNote, Trash2, Undo2, Upload, X, Scissors, Copy, LayoutGrid, Repeat, AudioLines, Captions, Ruler, BookmarkPlus, type LucideIcon
 } from 'lucide-react'
 
 export type IconName =
   | 'plus' | 'pen' | 'pin' | 'library' | 'up' | 'chevron' | 'chevron-right' | 'check' | 'spark' | 'prompt'
   | 'laptop' | 'cloud' | 'sliders' | 'layers' | 'back' | 'new-chat' | 'cursor' | 'history' | 'close'
   | 'agents' | 'play' | 'pause' | 'stop' | 'export' | 'settings' | 'search' | 'trash' | 'folder' | 'note' | 'undo' | 'dots' | 'image' | 'film' | 'sun' | 'moon' | 'import' | 'branch' | 'expand' | 'shrink' | 'server' | 'clock' | 'record'
+  | 'split' | 'copy' | 'grid' | 'repeat' | 'beats' | 'captions' | 'guides' | 'recipe'
 
 const ICONS: Record<IconName, LucideIcon> = {
   plus: Plus, pen: PenLine, pin: MapPin, library: LibraryBig, up: ArrowUp, chevron: ChevronDown, 'chevron-right': ChevronRight,
   check: Check, spark: Sparkle, prompt: SquareTerminal, laptop: Laptop, cloud: Cloud, sliders: SlidersHorizontal, layers: Layers,
   back: ArrowLeft, 'new-chat': MessageSquarePlus, cursor: MousePointer2, history: History, close: X, agents: Network,
   play: Play, pause: Pause, stop: Square, export: Upload, settings: Settings, search: Search, trash: Trash2, folder: Folder,
-  note: StickyNote, undo: Undo2, dots: Ellipsis, image: Image, film: Film, sun: Sun, moon: Moon, import: FolderInput, branch: GitBranch, expand: Maximize2, shrink: Minimize2, server: Server, clock: Clock, record: CircleDot
+  note: StickyNote, undo: Undo2, dots: Ellipsis, image: Image, film: Film, sun: Sun, moon: Moon, import: FolderInput, branch: GitBranch, expand: Maximize2, shrink: Minimize2, server: Server, clock: Clock, record: CircleDot,
+  split: Scissors, copy: Copy, grid: LayoutGrid, repeat: Repeat, beats: AudioLines, captions: Captions, guides: Ruler, recipe: BookmarkPlus
 }
 
 /** Transport glyphs read better solid. */

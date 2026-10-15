@@ -440,6 +440,8 @@ export interface Clip {
 }
 
 export type ClipEdit =
+  | { op: 'move'; ref: string; at: number }
+  | { op: 'trim'; ref: string; start: number; end: number }
   | { op: 'split'; ref: string; at: number }
   | { op: 'delete'; ref: string; close?: boolean }
   | { op: 'duplicate'; ref: string; at?: number }

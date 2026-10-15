@@ -228,6 +228,25 @@ async function writeMix(dir: string, c: Clip, mix: Mix): Promise<void> {
 
 // ── Edits ─────────────────────────────────────────────────────────────
 
+/** A new volume: the fades and ducking follow it to the new level. */
+async function relevel(dir: string, path: string, id: string): Promise<void> {
+  const mix = readMix(readFileSync(path, 'utf8'), id)
+  if (!Object.keys(mix).length) return
+  const now = (await clips(dir)).find((x) => x.id === id)
+  if (now) await writeMix(dir, now, mix)
+}
+
+/** Make the file's composition last at least until `end` (never shorter). */
+function grow(path: string, end: number): void {
+  const html = readFileSync(path, 'utf8')
+  const m = /<[a-zA-Z][\w-]*\b[^>]*\sdata-composition-id\s*=[^>]*>/.exec(html)
+  if (!m) return
+  const d = /\sdata-duration\s*=\s*["']([\d.]+)["']/.exec(m[0])
+  if (!d || Number(d[1]) >= end - 1e-3) return
+  const tag = m[0].replace(d[0], ` data-duration="${r3(end)}"`)
+  writeFileSync(path, html.slice(0, m.index) + tag + html.slice(m.index + m[0].length))
+}
+
 const fileOf = (dir: string, rel: string): string => {
   const p = resolve(dir, rel)
   if (p !== resolve(dir) && !p.startsWith(resolve(dir) + sep)) throw new Error('outside the video')
@@ -243,6 +262,25 @@ export async function editClip(dir: string, e: ClipEdit): Promise<ClipEditResult
   const before = readFileSync(path, 'utf8')
   let label = 'the clip'
   switch (e.op) {
+    case 'move': {
+      grow(path, Math.max(0, e.at) + (c.end - c.start))
+      await timeline(dir, ['move', c.ref, String(r3(Math.max(0, e.at)))])
+      label = `the timing of ${c.id}`
+      break
+    }
+    case 'trim': {
+      const [a, b] = [r3(Math.max(0, e.start)), r3(e.end)]
+      if (Math.abs(a - c.start) < 1e-3 && Math.abs(b - c.end) < 1e-3) break
+      grow(path, b)
+      await timeline(dir, ['trim', c.ref, '--start', String(a), '--end', String(b)])
+      // Its left edge moved: what it plays starts that much later (or earlier) in its file.
+      if (c.src && Math.abs(a - c.start) > 1e-3) {
+        const ms = r3(Math.max(0, (c.mediaStart || 0) + (a - c.start) * (c.rate || 1)))
+        await runEdit(dir, { op: 'set', file: c.file, target: c.id, write: 'attr:data-media-start', value: String(ms) })
+      }
+      label = `the length of ${c.id}`
+      break
+    }
     case 'split': {
       if (!(e.at > c.start + 0.04 && e.at < c.end - 0.04)) throw new Error('the playhead is not inside it')
       await timeline(dir, ['split', c.ref, String(r3(e.at))])
@@ -261,6 +299,7 @@ export async function editClip(dir: string, e: ClipEdit): Promise<ClipEditResult
       break
     }
     case 'duplicate': {
+      if (e.at != null) grow(path, e.at + (c.end - c.start))
       await timeline(dir, ['duplicate', c.ref, ...(e.at != null ? ['--start', String(r3(e.at))] : [])])
       label = `duplicating ${c.id}`
       break
@@ -275,14 +314,10 @@ export async function editClip(dir: string, e: ClipEdit): Promise<ClipEditResult
       // A faster or slower clip plays the same stretch of its source: its length follows.
       if (e.rate != null && c.src && Math.abs((c.rate || 1) - e.rate) > 1e-3) {
         const len = ((c.end - c.start) * (c.rate || 1)) / e.rate
+        grow(path, c.start + len)
         await timeline(dir, ['trim', c.ref, '--end', String(r3(c.start + len))])
       }
-      // The lane's level follows a new volume.
-      if (e.volume != null && volumeLane(c).length) {
-        const mix = readMix(readFileSync(path, 'utf8'), c.id)
-        const now = (await clips(dir)).find((x) => x.id === c.id)
-        if (now) await writeMix(dir, now, mix)
-      }
+      if (e.volume != null) await relevel(dir, path, c.id)
       label = e.rate != null ? `the speed of ${c.id}` : e.volume != null ? `the volume of ${c.id}` : `the track of ${c.id}`
       break
     }
@@ -318,6 +353,7 @@ export async function editClip(dir: string, e: ClipEdit): Promise<ClipEditResult
       const target = e.target ?? (c.kind === 'audio' && voices && !/voice|vo\b|narrat|speech/i.test(`${c.id} ${c.src}`) ? -24 : -16)
       const volume = Math.min(2, Math.max(0.02, 10 ** ((target - s.lufs) / 20)))
       await timeline(dir, ['set', c.ref, `volume=${r3(volume)}`])
+      await relevel(dir, path, c.id)
       label = `the loudness of ${c.id}`
       break
     }
@@ -335,7 +371,10 @@ export async function editClip(dir: string, e: ClipEdit): Promise<ClipEditResult
       if (!shot.ok) throw new Error('could not take the frame')
       await timeline(dir, ['split', c.ref, String(at)])
       const second = (await clips(dir)).find((x) => x.id !== c.id && x.src === c.src && Math.abs(x.start - at) < 0.01)
-      if (second) await timeline(dir, ['move', second.ref, String(r3(at + len))])
+      if (second) {
+        grow(path, at + len + (second.end - second.start))
+        await timeline(dir, ['move', second.ref, String(r3(at + len))])
+      }
       // The still, in the gap, on the same track and in the same place.
       const html = readFileSync(path, 'utf8')
       const anchor = second ? new RegExp(`<video\\b[^>]*\\sid=["']${second.id}["']`).exec(html) : null

@@ -6,11 +6,17 @@
 // playhead), a press on the ruler or film scrubs, ⌘-scroll or a pinch zooms
 // about the pointer, sideways scroll pans. On a layer: a press chooses it;
 // a drag moves its bar, its ends stretch it, and on the chosen layer its
-// steps (tweens) move and stretch too. Edges catch on the playhead.
+// steps (tweens) move and stretch too. Edges catch on the playhead, the
+// other clips' edges and the music's beats.
+//
+// A clip with sound draws its waveform at the level it plays (its volume,
+// fades and ducking); chosen, it has fade handles at its top corners. A
+// shift-drag on the ruler marks a range to loop; a right-click on a clip
+// opens what can be done to it.
 
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPE } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Comment, Layer, Scene, TimingLayer } from '@shared/types'
+import type { Clip, ClipSound, Comment, Layer, Scene, TimingLayer } from '@shared/types'
 import { tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
@@ -31,8 +37,9 @@ const GRIP = 7
 export type Edit =
   | { kind: 'window'; ix: number; at: number; len: number }
   | { kind: 'tween'; ix: number; tw: number; start: number; dur: number }
+  | { kind: 'fade'; ix: number; fin: number; fout: number }
 
-type Grab = 'move' | 'start' | 'end' | { tw: number; part: 'move' | 'start' | 'end' }
+type Grab = 'move' | 'start' | 'end' | 'fade-in' | 'fade-out' | { tw: number; part: 'move' | 'start' | 'end' }
 
 export function stepFor(visible: number, width: number): number {
   const perPx = visible / Math.max(1, width)
@@ -78,6 +85,15 @@ export interface TimelineProps {
   onToggleLayers(): void
   onRows(n: number): void
   footer: React.ReactNode
+  /** Clips by layer id (HyperFrames' timeline), their sound, the beats. */
+  clips: Record<string, Clip>
+  sounds: Record<string, ClipSound>
+  beats: number[]
+  /** A range to loop, set by a shift-drag on the ruler. */
+  loop: [number, number] | null
+  onLoop(r: [number, number] | null): void
+  /** A right-click on a layer's bar, at t. */
+  onMenu(ix: number, x: number, y: number, t: number): void
 }
 
 export function Timeline(p: TimelineProps) {
@@ -88,6 +104,10 @@ export function Timeline(p: TimelineProps) {
   const [zoom, scroll] = clampView(dur, view[0], view[1])
   const [skim, setSkim] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ ix: number; grab: Grab; x0: number; a0: number; l0: number; moved: boolean } | null>(null)
+  /** Where a dragged edge caught (a guide line while it holds). */
+  const [caught, setCaught] = useState<number | null>(null)
+  /** The ruler being shift-dragged: a range to loop. */
+  const looping = useRef<number | null>(null)
   const [edit, setEdit] = useState<Edit | null>(null)
   const [hoverGrab, setHoverGrab] = useState<Grab | null>(null)
   const [range, setRange] = useState<[number, number] | null>(null)
@@ -150,18 +170,29 @@ export function Timeline(p: TimelineProps) {
     return () => el.removeEventListener('wheel', wheel)
   })
 
-  const windowOf = (ix: number): TimingLayer | null => {
+  const windowOf = (ix: number): TimingLayer | null => windowFor(p.layers[ix], p.timing, p.clips)
+  const clipOf = (ix: number): Clip | null => {
     const l = p.layers[ix]
-    const w = l && l.id ? p.timing[l.id] : undefined
-    return w && w.movable && w.start != null && w.end != null ? w : null
+    return (l?.id && p.clips[l.id]) || null
+  }
+  /** Its window is a clip's (moved by HyperFrames' timeline tool), not the editor tool's. */
+  const windowIsClip = (ix: number): boolean => {
+    const l = p.layers[ix]
+    const w = l?.id ? p.timing[l.id] : undefined
+    return !(w && w.movable && w.start != null) && !!clipOf(ix)
   }
 
-  /** Which part of layer ix's bar is at px (the chosen layer's tweens first). */
-  const grabAt = (ix: number, px: number): Grab | null => {
+  /** Which part of layer ix's bar is at px, py (fade handles, then the chosen layer's tweens). */
+  const grabAt = (ix: number, px: number, py = 99): Grab | null => {
     const w = windowOf(ix)
     if (!w) return null
     const la = x(w.start!)
     const lb = x(w.end!)
+    const c = clipOf(ix)
+    if (p.selected === ix && c?.audible && py <= 11) {
+      if (Math.abs(px - (la + (c.mix?.in ?? 0) * pps)) <= 6) return 'fade-in'
+      if (Math.abs(px - (lb - (c.mix?.out ?? 0) * pps)) <= 6) return 'fade-out'
+    }
     const g = Math.min(GRIP, (lb - la) / 3)
     if (Math.abs(px - la) <= Math.min(g, 4)) return 'start'
     if (Math.abs(px - lb) <= Math.min(g, 4)) return 'end'
@@ -179,7 +210,7 @@ export function Timeline(p: TimelineProps) {
   }
 
   const cursorFor = (g: Grab | null, held: boolean): string =>
-    !g ? 'pointer' : g === 'start' || g === 'end' || (typeof g === 'object' && g.part !== 'move') ? 'ew-resize' : held ? 'grabbing' : 'grab'
+    !g ? 'pointer' : g === 'fade-in' || g === 'fade-out' ? 'col-resize' : g === 'start' || g === 'end' || (typeof g === 'object' && g.part !== 'move') ? 'ew-resize' : held ? 'grabbing' : 'grab'
 
   // ── Skimming ───────────────────────────────────────────────
   const skimTo = (t: number | null): void => {
@@ -229,12 +260,35 @@ export function Timeline(p: TimelineProps) {
   }
 
   // ── Layers ─────────────────────────────────────────────────
-  const snap = (t: number): number => (Math.abs(x(t) - x(p.time)) < 6 ? p.time : Math.round(t * 20) / 20)
+  /** The moments an edge catches on: the playhead, the other layers' edges, the beats. */
+  const edges = (skip: number): number[] => {
+    const out = [p.time, 0, dur, ...p.beats]
+    p.layers.forEach((_, i) => {
+      if (i === skip) return
+      const w = windowOf(i)
+      if (w) out.push(w.start!, w.end!)
+    })
+    if (p.loop) out.push(...p.loop)
+    return out
+  }
+  const snapTo = (t: number, near: number[]): [number, number | null] => {
+    let best: number | null = null
+    for (const e of near) if (Math.abs(x(e) - x(t)) < 6 && (best === null || Math.abs(e - t) < Math.abs(best - t))) best = e
+    return best !== null ? [best, best] : [Math.round(t * 20) / 20, null]
+  }
+  const snap = (t: number): number => snapTo(t, edges(-1))[0]
 
   const rowDown = (ix: number, e: RPE): void => {
     if (e.button !== 0) return
     const px = localX(e)
-    const g = px >= 0 ? grabAt(ix, px) : null
+    const py = e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top
+    const g = px >= 0 ? grabAt(ix, px, py) : null
+    if (g === 'fade-in' || g === 'fade-out') {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      const c = clipOf(ix)!
+      setDrag({ ix, grab: g, x0: px, a0: g === 'fade-in' ? c.mix?.in ?? 0 : c.mix?.out ?? 0, l0: c.end - c.start, moved: false })
+      return
+    }
     p.onSelect(ix, g && typeof g === 'object' ? g.tw : g ? null : p.tween)
     const w = windowOf(ix)
     if (g && w) {
@@ -260,29 +314,49 @@ export function Timeline(p: TimelineProps) {
     if (drag) {
       const dt = (px - drag.x0) / pps
       const { a0, l0, grab } = drag
+      const moved = drag.moved || Math.abs(px - drag.x0) > 2
+      if (moved !== drag.moved) setDrag({ ...drag, moved })
+      if (grab === 'fade-in' || grab === 'fade-out') {
+        const c = clipOf(drag.ix)!
+        const f = Math.round(Math.min(l0 / 2, Math.max(0, a0 + (grab === 'fade-in' ? dt : -dt))) * 20) / 20
+        setEdit({ kind: 'fade', ix: drag.ix, fin: grab === 'fade-in' ? f : c.mix?.in ?? 0, fout: grab === 'fade-out' ? f : c.mix?.out ?? 0 })
+        return
+      }
+      const near = edges(drag.ix)
       let at = a0
       let len = l0
+      let line: number | null = null
       const kind = typeof grab === 'object' ? grab.part : grab
       if (kind === 'move') {
-        let s = snap(a0 + dt)
-        const end = snap(a0 + dt + l0)
-        if (Math.abs(end - (a0 + dt + l0)) < Math.abs(s - (a0 + dt))) s = end - l0
-        at = Math.min(Math.max(0, s), Math.max(0, dur - l0))
+        const [s0, l1] = snapTo(a0 + dt, near)
+        const [e0, l2] = snapTo(a0 + dt + l0, near)
+        let s = s0
+        line = l1
+        if (l2 !== null && (l1 === null || Math.abs(e0 - (a0 + dt + l0)) < Math.abs(s0 - (a0 + dt)))) {
+          s = e0 - l0
+          line = l2
+        }
+        // A clip may run past the end (the video grows); a layer's steps may not.
+        at = Math.max(0, windowIsClip(drag.ix) ? s : Math.min(s, Math.max(0, dur - l0)))
       } else if (kind === 'start') {
-        const s = Math.min(Math.max(0, snap(a0 + dt)), a0 + l0 - 0.05)
+        const [s0, l1] = snapTo(a0 + dt, near)
+        const s = Math.min(Math.max(0, s0), a0 + l0 - 0.05)
+        line = l1
         len = a0 + l0 - s
         at = s
       } else {
-        len = Math.min(Math.max(0.05, snap(a0 + l0 + dt) - a0), dur - a0)
+        const [e0, l1] = snapTo(a0 + l0 + dt, near)
+        line = l1
+        len = Math.max(0.05, e0 - a0)
+        if (!windowIsClip(drag.ix)) len = Math.min(len, dur - a0)
       }
-      const moved = drag.moved || Math.abs(px - drag.x0) > 2
-      if (moved !== drag.moved) setDrag({ ...drag, moved })
+      setCaught(line)
       setEdit(typeof grab === 'object' ? { kind: 'tween', ix: drag.ix, tw: grab.tw, start: at, dur: len } : { kind: 'window', ix: drag.ix, at, len })
       return
     }
     if (scrubbing.current) p.onSeek(tAt(px))
     else {
-      setHoverGrab(px >= 0 ? grabAt(ix, px) : null)
+      setHoverGrab(px >= 0 ? grabAt(ix, px, e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top) : null)
       skimTo(tAt(px))
     }
   }
@@ -291,6 +365,7 @@ export function Timeline(p: TimelineProps) {
     if (drag) {
       if (edit && drag.moved) p.onEdit(edit)
       setDrag(null)
+      setCaught(null)
       // The bar keeps where it was let go until the file says otherwise.
       setTimeout(() => setEdit(null), 600)
     }
@@ -328,7 +403,29 @@ export function Timeline(p: TimelineProps) {
             <span className="faint"> / {clock(p.duration)}</span>
           </span>
         </div>
-        <div className="tl-track" ref={tracks} onPointerDown={startScrub} onPointerMove={moveScrub} onPointerUp={endScrub}>
+        <div className="tl-track" ref={tracks}
+          onPointerDown={(e) => {
+            if (e.shiftKey && e.button === 0) {
+              ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+              looping.current = tAt(localX(e))
+              return
+            }
+            startScrub(e)
+          }}
+          onPointerMove={(e) => {
+            if (looping.current !== null) {
+              const t = tAt(localX(e))
+              const a = snap(Math.min(looping.current, t))
+              const b = snap(Math.max(looping.current, t))
+              p.onLoop(b - a > 0.05 ? [a, b] : null)
+            } else moveScrub(e)
+          }}
+          onPointerUp={() => {
+            looping.current = null
+            endScrub()
+          }}>
+          {p.loop && <div className="tl-loop-band" style={{ left: x(p.loop[0]), width: Math.max(2, x(p.loop[1]) - x(p.loop[0])) }} />}
+          {p.beats.filter((b) => b >= scroll && b <= scroll + visible).map((b) => <i key={b} className="tl-beat" style={{ left: x(b) }} />)}
           {ticks.map((t) => (
             <div key={t.toFixed(3)} className="tl-tick" style={{ left: x(t) }}>
               {x(t) < width - 36 && <span>{tickLabel(t, step)}</span>}
@@ -385,15 +482,24 @@ export function Timeline(p: TimelineProps) {
               tween={p.selected === ix ? p.tween : null}
               lit={p.selected === ix || (!!p.pickedId && !!l.id && p.pickedId === l.id)}
               cursor={cursorFor(drag?.ix === ix ? drag.grab : hoverGrab, !!drag)}
+              clip={clipOf(ix)}
+              sound={l.id ? p.sounds[l.id] ?? null : null}
+              pps={pps}
               onDown={(e) => rowDown(ix, e)}
               onMove={(e) => rowMove(ix, e)}
               onUp={rowUp}
+              onMenu={(e) => {
+                e.preventDefault()
+                p.onMenu(ix, e.clientX, e.clientY, tAt(localX(e)))
+              }}
             />
           ))}
         </div>
       </motion.div>
       {/* The playhead and the skimmer, over all of it */}
       <div className="tl-over" style={{ left: GUTTER }}>
+        {p.loop && <div className="tl-loop" style={{ left: x(p.loop[0]), width: Math.max(2, x(p.loop[1]) - x(p.loop[0])) }} />}
+        {caught !== null && <div className="tl-caught" style={{ left: x(caught) }} />}
         <div ref={head} className="tl-head"><i /></div>
         <AnimatePresence>
           {sx !== null && sx >= 0 && sx <= width && (
@@ -423,10 +529,50 @@ export function Timeline(p: TimelineProps) {
   )
 }
 
-function LayerRow({ l, ix, x, width, win, edit, selected, tween, lit, cursor, onDown, onMove, onUp }: {
+/** A layer's window: the editor tool's when it can move it, else its clip's (HyperFrames' timeline). */
+export function windowFor(l: Layer | undefined, timing: Record<string, TimingLayer>, clips: Record<string, Clip>): TimingLayer | null {
+  const w = l && l.id ? timing[l.id] : undefined
+  if (w && w.movable && w.start != null && w.end != null) return w
+  const c = l && l.id ? clips[l.id] : undefined
+  return c ? { id: c.id, file: c.file, label: l!.label, start: c.start, end: c.end, movable: true, why: null, tweens: [] } : null
+}
+
+/** The level a clip plays at, t seconds into it: its volume lane, else its volume. */
+export function gainAt(c: Clip, t: number): number {
+  const pts = c.lanes.find((l) => l.target === 'volume')?.points
+  if (!pts?.length) return c.volume ?? 1
+  if (t <= pts[0].t) return pts[0].v
+  for (let i = 1; i < pts.length; i++) {
+    if (t <= pts[i].t) {
+      const a = pts[i - 1]
+      const b = pts[i]
+      return b.t > a.t ? a.v + ((t - a.t) / (b.t - a.t)) * (b.v - a.v) : b.v
+    }
+  }
+  return pts[pts.length - 1].v
+}
+
+/** A clip's waveform at the level it plays, `w` px wide. */
+function Wave({ clip, sound, w, h }: { clip: Clip; sound: ClipSound; w: number; h: number }) {
+  const len = clip.end - clip.start
+  if (!sound.peaks.length || w < 4 || len <= 0) return null
+  const cols = Math.min(Math.floor(w / 2), 900)
+  let d = ''
+  for (let i = 0; i <= cols; i++) {
+    const t = (i / cols) * len
+    const pk = sound.peaks[Math.min(sound.peaks.length - 1, Math.floor(t * sound.per))] ?? 0
+    const a = Math.max(0.5, Math.min(1, pk * gainAt(clip, t)) * (h / 2 - 1))
+    const px = (i / cols) * w
+    d += `M${px.toFixed(1)} ${(h / 2 - a).toFixed(1)}V${(h / 2 + a).toFixed(1)}`
+  }
+  return <svg className="tl-wave" width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><path d={d} /></svg>
+}
+
+function LayerRow({ l, ix, x, width, win, edit, selected, tween, lit, cursor, clip, sound, pps, onDown, onMove, onUp, onMenu }: {
   l: Layer; ix: number; x: (t: number) => number; width: number; win: TimingLayer | null; edit: Edit | null
   selected: boolean; tween: number | null; lit: boolean; cursor: string
-  onDown: (e: RPE) => void; onMove: (e: RPE) => void; onUp: () => void
+  clip: Clip | null; sound: ClipSound | null; pps: number
+  onDown: (e: RPE) => void; onMove: (e: RPE) => void; onUp: () => void; onMenu: (e: React.MouseEvent) => void
 }) {
   const glyph = GLYPH[l.kind] ?? '◆'
   let bar: React.ReactNode
@@ -438,9 +584,24 @@ function LayerRow({ l, ix, x, width, win, edit, selected, tween, lit, cursor, on
     const w = Math.max(6, lb - la)
     const name = l.label
     const fits = w >= name.length * 6.4 + 30
+    const fin = edit?.kind === 'fade' ? edit.fin : clip?.mix?.in ?? 0
+    const fout = edit?.kind === 'fade' ? edit.fout : clip?.mix?.out ?? 0
+    const loud = !!sound && sound.peakDb != null && sound.peakDb > -1
     bar = (
       <>
-        <div className={`tl-bar${selected ? ' on' : ''}`} style={{ left: la, width: w }}>
+        <div className={`tl-bar${selected ? ' on' : ''}${clip?.audible ? ' sound' : ''}`} style={{ left: la, width: w }}>
+          {clip?.audible && sound && <Wave clip={clip} sound={sound} w={w} h={LAYER_H - 4} />}
+          {clip?.audible && (fin > 0 || fout > 0) && (
+            <svg className="tl-fades" width={w} height={LAYER_H - 4} preserveAspectRatio="none">
+              {fin > 0 && <polygon points={`0,0 ${fin * pps},0 0,${LAYER_H - 4}`} />}
+              {fout > 0 && <polygon points={`${w},0 ${w - fout * pps},0 ${w},${LAYER_H - 4}`} />}
+            </svg>
+          )}
+          {selected && clip?.audible && <>
+            <i className="tl-fade-grip" style={{ left: Math.min(w - 4, fin * pps) }} />
+            <i className="tl-fade-grip" style={{ left: Math.max(0, w - fout * pps) }} />
+          </>}
+          {loud && <Tip title="Too loud" body={`It peaks at ${sound!.peakDb!.toFixed(1)} dB, at or past the export's ceiling: it will clip. Lower its volume, or even out its loudness from its menu.`}><span className="tl-loud">Too loud</span></Tip>}
           {win.tweens.map((t, k) => {
             const [ts, td] = edit?.kind === 'tween' && edit.tw === k ? [edit.start, edit.dur] : [t.start + shift, t.duration]
             const a = x(ts) - la
@@ -481,7 +642,7 @@ function LayerRow({ l, ix, x, width, win, edit, selected, tween, lit, cursor, on
   return (
     <div className={`tl-row tl-layer${lit ? ' lit' : ''}`} style={{ height: LAYER_H }} data-ix={ix}>
       <div className="tl-gutter" />
-      <div className="tl-track" style={{ cursor }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}>
+      <div className="tl-track" style={{ cursor }} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onContextMenu={onMenu}>
         {bar}
       </div>
     </div>
