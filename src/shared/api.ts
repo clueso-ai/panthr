@@ -146,6 +146,8 @@ export interface Api {
     add(input: string, name?: string): Promise<Reference>
     remove(id: string): Promise<void>
     rename(id: string, name: string): Promise<Reference>
+    /** A finished video kept as a recipe: its latest export taken apart, with its source beside it. */
+    fromVideo(dir: string, name?: string): Promise<Reference>
     /** Deconstruct again (after a failure, or with a newer agent). */
     retry(id: string): Promise<void>
     /** Everything in its folder: what the agent wrote, the frames, the video. */

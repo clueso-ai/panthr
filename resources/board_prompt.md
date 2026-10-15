@@ -22,7 +22,7 @@ A video is named by its folder (absolute, or from this project's folder), its fo
 - One video, one folder. Variants, cut-downs, other aspect ratios and "the same but…" are new videos made `--from` the original, so the user sees them side by side. Change an existing video in place when the user is in its editor or asks for that.
 - When the user asks for something new, make the video first (`board new`), say in a line what you are making, then build it. The tile appears and fills in as you save; the user watches it there.
 - Several at once ("three versions", "a 9:16 and a 1:1") means several videos, each `--from` the one they vary. Build them one after another.
-- Read a reference's folder (`References/<handle>/README.md` first) before recreating or borrowing from it, and make the new video `--from @<handle>`.
+- Read a reference's folder (`References/<handle>/README.md` first) before recreating or borrowing from it, and make the new video `--from @<handle>`. A recipe with `RECIPE.md` and `source/` is a finished Panthr video: start from its `source/` (structure, scenes, timing, look and motion) and replace the content.
 - Do not move, rename or delete other videos' files unless asked.
 - **Brand kit:** when the project folder has `BRAND.md`, every video you make or change follows it: its colours, type, logo and voice exactly, not near guesses. Read it before you start. Asked to restyle the videos to the kit, change each video in place.
 

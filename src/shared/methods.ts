@@ -15,7 +15,7 @@ export const METHODS: All = {
   controls: { all: true, save: true, run: true, timing: true },
   review: { comments: true, saveComments: true, versions: true, render: true, cancelRender: true, frames: true, annotate: true, library: true, addToLibrary: true, importFiles: true, check: true },
   skills: { state: true, add: true, remove: true, setOn: true, link: true, search: true, addOne: true, create: true, importFolder: true, read: true, write: true, removeOwn: true },
-  references: { list: true, add: true, remove: true, rename: true, retry: true, files: true, readFile: true },
+  references: { list: true, add: true, remove: true, rename: true, retry: true, files: true, readFile: true, fromVideo: true },
   history: { list: true, undo: true },
   brand: { get: true, save: true, logo: true },
   share: { save: true, open: true },

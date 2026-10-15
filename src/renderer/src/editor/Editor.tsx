@@ -929,7 +929,8 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
                   onClearRange={() => setRange(null)} />
               )}
               {side === 'versions' && (
-                <VersionsPanel dir={dir} versions={versions} exporting={exporting} stage={stage} onExport={exportNow} onCancel={() => api.review.cancelRender(dir)} />
+                <VersionsPanel dir={dir} versions={versions} exporting={exporting} stage={stage} onExport={exportNow} onCancel={() => api.review.cancelRender(dir)}
+                  onRecipe={() => api.references.fromVideo(dir).then((r) => say(`Saved as the recipe @${r.handle}: it is being taken apart. Mention it with @ next time.`)).catch((e) => say(`Couldn't save it: ${(e as Error).message}`))} />
               )}
               {side === 'captions' && dir && (
                 <CaptionsPanel dir={dir} time={preview.state.time} clips={Object.values(clips)} onSeek={(t) => preview.seek(t)}

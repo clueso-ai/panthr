@@ -408,6 +408,10 @@ function inside(dir: string, rel: string): string {
 }
 
 export const references: Api['references'] = {
+  async fromVideo(dir, name) {
+    const { saveRecipe } = await import('./recipes')
+    return saveRecipe(dir, name)
+  },
   async list() {
     return list()
   },

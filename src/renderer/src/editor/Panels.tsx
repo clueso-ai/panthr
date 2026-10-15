@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { rise, tr, MOVE, QUICK } from '@/lib/motion'
 import { ago, bytes, clock } from '@/lib/format'
 import { Icon } from '@/ui/Icon'
+import { Tip } from '@/ui/Tooltip'
 import { Composer, type ComposerHandle } from '@/ui/Controls'
 import { ReferencesSection } from './References'
 
@@ -93,8 +94,8 @@ function NoteRow({ c, on, onSelect, onResolve, onDelete }: { c: Comment; on: boo
 
 // ── Versions ──────────────────────────────────────────────────
 
-export function VersionsPanel({ dir, versions, exporting, stage, onExport, onCancel }: {
-  dir: string; versions: Version[]; exporting: number | null; stage: string; onExport(): void; onCancel(): void
+export function VersionsPanel({ dir, versions, exporting, stage, onExport, onCancel, onRecipe }: {
+  dir: string; versions: Version[]; exporting: number | null; stage: string; onExport(): void; onCancel(): void; onRecipe(): void
 }) {
   const [urls, setUrls] = useState<Record<number, { poster: string; video: string }>>({})
   const [playing, setPlaying] = useState<number | null>(null)
@@ -113,6 +114,11 @@ export function VersionsPanel({ dir, versions, exporting, stage, onExport, onCan
       <div className="panel-head">
         <span className="mono faint">{versions.length} version{versions.length === 1 ? '' : 's'}</span>
         <span className="spacer" />
+        {exporting === null && versions.length > 0 && (
+          <Tip title="Save as a recipe" body="Keep this video to make more like it: its latest export is taken apart and its source kept beside it. Mention it with @ next time.">
+            <button className="btn small" onClick={onRecipe}><Icon name="recipe" size={13} /> Save as a recipe</button>
+          </Tip>
+        )}
         {exporting === null && <button className="btn small primary" onClick={onExport}><Icon name="export" size={13} /> Export</button>}
       </div>
       <AnimatePresence>
