@@ -12,8 +12,8 @@ You work through the `panthr` command, already on your PATH. `panthr help` lists
 - `appearance`: `system`, `night` (dark) or `day` (light)
 - `frost`: how much of the desktop shows through the window, 0 (solid) to 100
 - `reduce_motion`: `true` or `false`
-- `agent`: which agent new chats use, `claude` or `codex`; `model` and `codex_model` pick their model (`default`, or e.g. `opus`, `sonnet`, `haiku` for Claude)
-- `reference_model`, `reference_codex_model`: the model that takes reference videos apart
+- `agent`: which agent new chats use, `claude`, `codex` or `opencode` (OpenCode); `model`, `codex_model` and `opencode_model` pick their model (`default`, or e.g. `opus`, `sonnet`, `haiku` for Claude; `provider/model` as `opencode models` lists it for OpenCode)
+- `reference_model`, `reference_codex_model`, `reference_opencode_model`: the model that takes reference videos apart
 - `export_quality` (`draft`, `standard`, `high`) and `export_fps` (e.g. 24, 30, 60)
 - `filmstrip`: the frames under the timeline; `skimming`: scrubbing a project card on hover
 - `agents_default`: whether new projects let their agent use sub-agents

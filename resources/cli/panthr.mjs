@@ -646,7 +646,7 @@ const commands = {
 const HELP = `${bold('panthr')} — Panthr from the command line
 
 ${bold('Make')}
-  new "<idea>" [--agent claude|codex] [--model m] [--host h] [--wait] [--no-open]
+  new "<idea>" [--agent claude|codex|opencode] [--model m] [--host h] [--wait] [--no-open]
                          Start a project from an idea and hand it to the agent
   chat "<message>" [--wait] [--new]
                          Ask the agent for a change (--wait prints its work as it goes)

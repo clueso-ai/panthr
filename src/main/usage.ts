@@ -1,12 +1,12 @@
 // Usage: where the time and money go. Built from every chat's turns (each
-// ends with how long it took and, for Claude Code, its cost in API dollars;
-// newer turns also say when, on which agent and account, and how many
-// tokens): by day, by project, by account, and the newest turns of each.
-// Codex reports tokens, not dollars.
+// ends with how long it took and, for Claude Code and OpenCode, its cost in
+// API dollars; newer turns also say when, on which agent and account, and
+// how many tokens): by day, by project, by account, and the newest turns of
+// each. Codex reports tokens, not dollars.
 
 import { statSync } from 'node:fs'
 import type { Api } from '@shared/api'
-import type { Engine, Item, TurnMeta, UsageProject, UsageReport, UsageTotals, UsageTurn } from '@shared/types'
+import { engineShort, type Engine, type Item, type TurnMeta, type UsageProject, type UsageReport, type UsageTotals, type UsageTurn } from '@shared/types'
 import { accountFor, accounts } from './accounts'
 import { assistantDir } from './paths'
 import { listCanvases } from './board'
@@ -112,7 +112,7 @@ export function report(nowMs = Date.now()): UsageReport {
     projects,
     accounts: [...byAccount.entries()].map(([id, t]) => {
       const a = known.find((x) => x.id === id)
-      return { id, label: a ? `${a.engine === 'codex' ? 'Codex' : 'Claude'} · ${a.label}` : id, engine: a?.engine ?? 'claude', color: a?.color ?? '#8a8a90', ...t }
+      return { id, label: a ? `${engineShort(a.engine)} · ${a.label}` : id, engine: a?.engine ?? 'claude', color: a?.color ?? '#8a8a90', ...t }
     }).sort((a, b) => b.seconds - a.seconds),
     undated
   }

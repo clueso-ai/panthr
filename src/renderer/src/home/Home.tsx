@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Canvas, ConnectionStatus, Engine, HeldRecording, Host, ScheduleStatus, Skill } from '@shared/types'
+import { modelKey, type Canvas, type ConnectionStatus, type Engine, type HeldRecording, type Host, type ScheduleStatus, type Skill } from '@shared/types'
 import { nextText } from '@/settings/Schedules'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, SETTLE } from '@/lib/motion'
@@ -97,7 +97,7 @@ export function Home({ onOpen, onStart, onSettings }: {
   }, [])
   useEffect(() => box.current?.focus(), [])
 
-  const chosen = model ?? (engine === 'codex' ? s.codex_model : s.model)
+  const chosen = model ?? s[modelKey(engine)]
   const held = useHeld()
   const start = (idea: string): void => {
     // Recordings stay on this Mac: a project with them is made here.

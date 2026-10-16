@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Engine, Reference, SkillsState } from '@shared/types'
+import { engineShort, type Engine, type Reference, type SkillsState } from '@shared/types'
 import { api } from '@/lib/api'
 import { tr, MOVE, QUICK } from '@/lib/motion'
 import { Icon, type IconName } from './Icon'
@@ -157,7 +157,7 @@ export function ActivityButton({ except }: { except?: string } = {}) {
           {n === 0 && <div className="activity-empty faint">Agent turns, exports, recipes being taken apart and skills installing show here while they run.</div>}
           <AnimatePresence initial={false}>
             {[...a.turns].map(([dir, t]) => (
-              <Row key={`t${dir}`} icon="spark" title={a.names.get(dir) ?? dir} detail={`${t.engine === 'codex' ? 'Codex' : 'Claude'} is working · ${since(t.startedAt, at)}`}
+              <Row key={`t${dir}`} icon="spark" title={a.names.get(dir) ?? dir} detail={`${engineShort(t.engine)} is working · ${since(t.startedAt, at)}`}
                 actions={<>
                   <button className="link" onClick={() => { setOpen(false); openProject(dir) }}>Open</button>
                   <button className="link danger" onClick={() => api.chats.stop(dir, t.chatId)}>Stop</button>

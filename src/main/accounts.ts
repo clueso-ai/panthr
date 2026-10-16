@@ -2,7 +2,9 @@
 // Codex. Each is signed in to its own folder: CLAUDE_CONFIG_DIR for Claude
 // Code (default ~/.claude), CODEX_HOME for Codex (default ~/.codex). HOME is
 // never changed: on a Mac that would move the keychain Claude Code keeps
-// its sign-in in. A chat runs on one of its agent's accounts.
+// its sign-in in. A chat runs on one of its agent's accounts. OpenCode has
+// just the one: its own sign-in, holding every provider it is signed in to
+// (`opencode auth list`), signed in to more with `opencode auth login`.
 //
 // Who an account is: `claude auth status`, or `codex login status` and the
 // id token in its auth.json. How much is used: Claude Code's stream says so
@@ -17,34 +19,42 @@ import { execFile, spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { Api } from '@shared/api'
-import type { AccountStatus, AccountUsage, AgentAccount, Engine, Settings, UsageWindow } from '@shared/types'
+import { ENGINES, type AccountStatus, type AccountUsage, type AgentAccount, type Engine, type Settings, type UsageWindow } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { dataDir, home, toolEnv } from './paths'
 import { getSettings, settings } from './settings'
 import { claudeBin } from './agents/claude'
 import { codexBin } from './agents/codex'
+import { opencodeBin } from './agents/opencode'
 
 /** Each agent's own account: whatever it uses on its own. */
 export const DEFAULT_ID = 'default'
 export const CODEX_DEFAULT_ID = 'codex'
+export const OPENCODE_DEFAULT_ID = 'opencode'
 const COLORS = ['#ff5b23', '#3d63ff', '#12b07a', '#7c5cff', '#ffb000', '#e5487f', '#06b6d4']
 
-const ENGINES: Engine[] = ['claude', 'codex']
-const listKey = (e: Engine): 'claude_accounts' | 'codex_accounts' => (e === 'codex' ? 'codex_accounts' : 'claude_accounts')
-const pickKey = (e: Engine): 'claude_account' | 'codex_account' => (e === 'codex' ? 'codex_account' : 'claude_account')
+/** The agents with accounts of their own to add (OpenCode keeps one sign-in). */
+type Several = 'claude' | 'codex'
+const listKey = (e: Several): 'claude_accounts' | 'codex_accounts' => (e === 'codex' ? 'codex_accounts' : 'claude_accounts')
+const pickKey = (e: Several): 'claude_account' | 'codex_account' => (e === 'codex' ? 'codex_account' : 'claude_account')
 
-const defaultAccount = (e: Engine): AgentAccount => ({ id: e === 'codex' ? CODEX_DEFAULT_ID : DEFAULT_ID, engine: e, label: 'Default', dir: '', color: '#8a8a90' })
+const defaultId = (e: Engine): string => (e === 'codex' ? CODEX_DEFAULT_ID : e === 'opencode' ? OPENCODE_DEFAULT_ID : DEFAULT_ID)
+const defaultAccount = (e: Engine): AgentAccount => ({ id: defaultId(e), engine: e, label: 'Default', dir: '', color: '#8a8a90' })
 
-/** An agent's accounts, its default first (no agent: both). */
+/** An agent's added accounts, and the one its new chats use. */
+const added = (e: Engine): AgentAccount[] => (e === 'opencode' ? [] : getSettings()[listKey(e)])
+const picked = (e: Engine): string => (e === 'opencode' ? OPENCODE_DEFAULT_ID : getSettings()[pickKey(e)])
+
+/** An agent's accounts, its default first (no agent: every agent's). */
 export function accounts(engine?: Engine): AgentAccount[] {
-  return (engine ? [engine] : ENGINES).flatMap((e) => [defaultAccount(e), ...getSettings()[listKey(e)]])
+  return (engine ? [engine] : ENGINES).flatMap((e) => [defaultAccount(e), ...added(e)])
 }
 
 /** An account of an agent by id (unknown, or another agent's: the one its new chats use, else its default). */
 export function accountFor(id: string | null | undefined, engine: Engine = 'claude'): AgentAccount {
   const all = accounts(engine)
-  return all.find((a) => a.id === id) ?? all.find((a) => a.id === getSettings()[pickKey(engine)]) ?? all[0]
+  return all.find((a) => a.id === id) ?? all.find((a) => a.id === picked(engine)) ?? all[0]
 }
 
 const engineOf = (id: string): Engine => accounts().find((a) => a.id === id)?.engine ?? 'claude'
@@ -52,6 +62,7 @@ const engineOf = (id: string): Engine => accounts().find((a) => a.id === id)?.en
 /** An account's folder, as a path. */
 export function configDir(a: AgentAccount): string {
   if (a.dir) return a.dir.replace(/^~(?=\/|$)/, home())
+  if (a.engine === 'opencode') return join(home(), '.local/share/opencode')
   return a.engine === 'codex' ? process.env.CODEX_HOME || join(home(), '.codex') : process.env.CLAUDE_CONFIG_DIR || join(home(), '.claude')
 }
 
@@ -69,6 +80,7 @@ export function agentEnv(engine: Engine, id?: string | null): NodeJS.ProcessEnv 
 
 export const claudeEnv = (id?: string | null): NodeJS.ProcessEnv => agentEnv('claude', id)
 export const codexEnv = (id?: string | null): NodeJS.ProcessEnv => agentEnv('codex', id)
+export const opencodeEnv = (): NodeJS.ProcessEnv => agentEnv('opencode')
 
 // ── Who each account is ────────────────────────────────────────────────
 
@@ -78,6 +90,8 @@ interface Who {
   plan: string | null
   org: string | null
   at: number
+  /** The agent is not installed. */
+  missing?: boolean
 }
 
 const who = new Map<string, Who>()
@@ -100,7 +114,32 @@ function claims(jwt: unknown): any {
   }
 }
 
+/** OpenCode's sign-ins (`opencode auth list`): the providers it can use. Only
+ *  their names are read; null when OpenCode could not be run. */
+export function opencodeProviders(json: string): string[] | null {
+  let v: any
+  try {
+    v = JSON.parse(json)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(v)) return null
+  return v.filter((p) => Array.isArray(p?.connections) && p.connections.length > 0).map((p) => (typeof p.name === 'string' ? p.name : String(p.id ?? '')))
+}
+
+/** Where a command is on our PATH (null: not installed). */
+function which(cmd: string): Promise<string | null> {
+  return new Promise((ok) => execFile('/bin/sh', ['-c', `command -v ${cmd}`], { env: toolEnv(), timeout: 5000 }, (e, stdout) => ok(e ? null : stdout.trim() || null)))
+}
+
 async function authStatus(a: AgentAccount): Promise<Who> {
+  if (a.engine === 'opencode') {
+    const bin = opencodeBin()
+    if (bin === 'opencode' && !(await which('opencode'))) return { signedIn: false, email: null, plan: null, org: null, at: Date.now(), missing: true }
+    const out = await new Promise<string>((ok) => execFile(bin, ['auth', 'list', '--format', 'json', '--standalone'], { env: opencodeEnv(), timeout: 20_000 }, (_e, stdout) => ok(stdout ?? '')))
+    const providers = opencodeProviders(out) ?? []
+    return { signedIn: providers.length > 0, email: null, plan: providers.join(', ') || null, org: null, at: Date.now() }
+  }
   if (a.engine === 'codex') {
     const out = await exec(codexBin(), ['login', 'status'], codexEnv(a.id))
     const signedIn = /logged in/i.test(out) && !/not logged in/i.test(out)
@@ -247,7 +286,7 @@ export function codexUsage(id: string, thread: string): Omit<AccountUsage, 'at'>
 
 const statusOf = (a: AgentAccount): AccountStatus => {
   const w = who.get(a.id)
-  return { ...a, signedIn: w ? w.signedIn : null, email: w?.email ?? null, plan: w?.plan ?? null, org: w?.org ?? null, usage: usages()[a.id] ?? null }
+  return { ...a, signedIn: w ? w.signedIn : null, email: w?.email ?? null, plan: w?.plan ?? null, org: w?.org ?? null, usage: usages()[a.id] ?? null, ...(w?.missing ? { missing: true } : {}) }
 }
 
 let timer: NodeJS.Timeout | null = null
@@ -269,7 +308,7 @@ async function refresh(force: boolean): Promise<void> {
 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'account'
 
-async function setAccounts(engine: Engine, list: AgentAccount[]): Promise<void> {
+async function setAccounts(engine: Several, list: AgentAccount[]): Promise<void> {
   await settings.set({ [listKey(engine)]: list } as Partial<Settings>)
 }
 
@@ -293,11 +332,12 @@ export const accountsApi: Api['accounts'] = {
     return accounts().map(statusOf)
   },
   async add(engine, label) {
+    if (engine === 'opencode') throw new Error('OpenCode keeps one sign-in, with all its providers in it: sign in to another with Sign in.')
     const name = label.trim() || 'Account'
     const taken = new Set(accounts().map((a) => a.id))
     const base = engine === 'codex' ? `codex-${slug(name)}` : slug(name)
     let id = base
-    for (let n = 2; taken.has(id) || id === DEFAULT_ID || id === CODEX_DEFAULT_ID; n++) id = `${base}-${n}`
+    for (let n = 2; taken.has(id) || id === DEFAULT_ID || id === CODEX_DEFAULT_ID || id === OPENCODE_DEFAULT_ID; n++) id = `${base}-${n}`
     const dir = engine === 'codex' ? `~/.codex-${id.replace(/^codex-/, '')}` : `~/.claude-${id}`
     const a: AgentAccount = { id, engine, label: name, dir, color: COLORS[(accounts(engine).length - 1) % COLORS.length] }
     mkdirSync(configDir(a), { recursive: true })
@@ -308,13 +348,13 @@ export const accountsApi: Api['accounts'] = {
   },
   async rename(id, label) {
     const e = engineOf(id)
-    if (!label.trim()) return
+    if (!label.trim() || e === 'opencode') return
     await setAccounts(e, getSettings()[listKey(e)].map((a) => (a.id === id ? { ...a, label: label.trim() } : a)))
     changed()
   },
   async remove(id) {
-    if (id === DEFAULT_ID || id === CODEX_DEFAULT_ID) return
     const e = engineOf(id)
+    if (id === DEFAULT_ID || id === CODEX_DEFAULT_ID || e === 'opencode') return
     await setAccounts(e, getSettings()[listKey(e)].filter((a) => a.id !== id))
     if (getSettings()[pickKey(e)] === id) await settings.set({ [pickKey(e)]: defaultAccount(e).id } as Partial<Settings>)
     who.delete(id)
@@ -325,7 +365,10 @@ export const accountsApi: Api['accounts'] = {
     if (!a) throw new Error('No such account')
     const q = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
     if (a.dir) mkdirSync(configDir(a), { recursive: true })
-    const line = a.engine === 'codex'
+    // OpenCode asks there which provider to sign in to.
+    const line = a.engine === 'opencode'
+      ? `${q(opencodeBin())} auth login`
+      : a.engine === 'codex'
       ? `${a.dir ? `CODEX_HOME=${q(configDir(a))} ` : ''}${q(codexBin())} login`
       : `${a.dir ? `CLAUDE_CONFIG_DIR=${q(configDir(a))} ` : ''}${q(claudeBin())} auth login`
     // A test run never opens Terminal on the person's screen.
@@ -336,7 +379,7 @@ export const accountsApi: Api['accounts'] = {
   },
   async setDefault(id) {
     const a = accounts().find((x) => x.id === id)
-    if (!a) return
+    if (!a || a.engine === 'opencode') return
     await settings.set({ [pickKey(a.engine)]: a.id } as Partial<Settings>)
     changed()
   }

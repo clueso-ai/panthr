@@ -21,7 +21,7 @@ let assistantPrompt: string | null = null
  *  the assistant's (Panthr itself, from Home). */
 export type PromptKind = boolean | 'assistant'
 
-/** The video-making instructions (Codex gets them too). On the Board, the
+/** The video-making instructions (Codex and OpenCode get them too). On the Board, the
  *  Board's own (making projects, showing them) come first. The assistant
  *  makes no videos: it has only its own. */
 export function promptText(board: PromptKind = false): string {

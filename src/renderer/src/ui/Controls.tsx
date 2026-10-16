@@ -2,7 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
-import type { Engine, Model, Reference } from '@shared/types'
+import { ENGINES, engineName, engineShort, modelKey, type Engine, type Model, type Reference } from '@shared/types'
 import { api, useSettings } from '@/lib/api'
 import { tr, QUICK, MOVE } from '@/lib/motion'
 import { Icon, type IconName } from './Icon'
@@ -261,9 +261,9 @@ const CLAUDE_FALLBACK: Model[] = [
   { id: 'haiku', name: 'Haiku' }
 ]
 
-/** The agent-and-model chip: a mark for the agent (spark: Claude Code,
- *  prompt: Codex) and the model. Its menu lists one agent's models; the
- *  other agent is one row that swaps the list (crossfading). */
+/** The agent-and-model chip: the agent's mark and the model. Its menu
+ *  lists one agent's models; each other agent is a row that swaps the list
+ *  (crossfading). */
 export function ModelChip({ engine, model, onPick, locked, agents, onAgents, account, onAccount }: {
   engine: Engine
   model: string
@@ -282,20 +282,19 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [shown, setShown] = useState<Engine>(engine)
-  const [models, setModels] = useState<Record<Engine, Model[]>>({ claude: CLAUDE_FALLBACK, codex: [{ id: 'default', name: 'Default' }] })
+  const [models, setModels] = useState<Record<Engine, Model[]>>({ claude: CLAUDE_FALLBACK, codex: [{ id: 'default', name: 'Default' }], opencode: [{ id: 'default', name: 'Default' }] })
   useLayoutEffect(() => {
     if (!open) return
     setShown(engine)
-    for (const e of ['claude', 'codex'] as Engine[]) {
+    for (const e of ENGINES) {
       api.chats.models(e).then((m) => m?.length && setModels((x) => ({ ...x, [e]: m }))).catch(() => {})
     }
   }, [open, engine])
   const list = models[engine]
   const name = list.find((m) => m.id === model)?.name ?? model
-  const label = name === 'Default' || model === 'default' ? (engine === 'codex' ? 'Codex' : 'Claude') : name
-  const other: Engine = shown === 'codex' ? 'claude' : 'codex'
-  const off = locked && other !== engine
-  const title = (e: Engine): string => (e === 'codex' ? 'Codex' : 'Claude Code')
+  const label = name === 'Default' || model === 'default' ? engineShort(engine) : name
+  const others = ENGINES.filter((e) => e !== shown)
+  const title = engineName
   return (
     <>
       <Tip title={title(engine)} body="The agent and model for this project.">
@@ -312,21 +311,30 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
             <MenuTitle>
               <AgentMark engine={shown} size={12} /> {title(shown)}
             </MenuTitle>
-            {models[shown].map((m) => (
-              <MenuItem key={m.id} label={m.name} on={shown === engine && m.id === model} onSelect={() => {
-                onPick(shown, m.id)
-                setOpen(false)
-              }} />
-            ))}
+            {/* OpenCode offers many: the list scrolls. */}
+            <div className="menu-scroll">
+              {models[shown].map((m) => (
+                <MenuItem key={m.id} label={m.name} on={shown === engine && m.id === model} onSelect={() => {
+                  onPick(shown, m.id)
+                  setOpen(false)
+                }} />
+              ))}
+            </div>
           </motion.div>
           <MenuSep />
-          <MenuItem
-            icon={<AgentMark engine={other} size={14} />}
-            label={title(other)}
-            disabled={off}
-            trailing={off ? <span className="menu-hint">New chat to switch</span> : <Icon name="chevron-right" size={12} className="faint" />}
-            onSelect={() => setShown(other)}
-          />
+          {others.map((other) => {
+            const off = locked && other !== engine
+            return (
+              <MenuItem
+                key={other}
+                icon={<AgentMark engine={other} size={14} />}
+                label={title(other)}
+                disabled={off}
+                trailing={off ? <span className="menu-hint">New chat to switch</span> : <Icon name="chevron-right" size={12} className="faint" />}
+                onSelect={() => setShown(other)}
+              />
+            )
+          })}
           {shown === engine && several && (
             <>
               <MenuSep />
@@ -363,5 +371,5 @@ export function ModelChip({ engine, model, onPick, locked, agents, onAgents, acc
 /** Settings' defaults for a new project's agent and model. */
 export function useDefaultModel(): { engine: Engine; model: string } {
   const s = useSettings()
-  return { engine: s.agent, model: s.agent === 'codex' ? s.codex_model : s.model }
+  return { engine: s.agent, model: s[modelKey(s.agent)] }
 }

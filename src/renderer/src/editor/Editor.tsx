@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ChatState, Checkpoint, Clip, ClipEdit, ClipSound, Comment, Engine, Layer, LibraryItem, Picked, Project, TimingLayer, Version } from '@shared/types'
+import { modelKey, type ChatState, type Checkpoint, type Clip, type ClipEdit, type ClipSound, type Comment, type Engine, type Layer, type LibraryItem, type Picked, type Project, type TimingLayer, type Version } from '@shared/types'
 import { setRequest } from '@shared/controls'
 import { api, useEvent, useReferences, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
@@ -633,7 +633,7 @@ export function Editor({ canvas, active, first, onActivate, onHome, onSettings }
   })
 
   const engine: Engine = chat?.engine ?? settings.agent
-  const model = owner?.meta.models[engine] ?? (engine === 'codex' ? settings.codex_model : settings.model)
+  const model = owner?.meta.models[engine] ?? settings[modelKey(engine)]
   const pickModel = async (e: Engine, m: string): Promise<void> => {
     if (!owner) return
     if (chatId && e !== engine) await api.chats.setEngine(canvas, chatId, e)

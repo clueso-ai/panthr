@@ -1,6 +1,6 @@
 // The chat: transcripts built from recorded agent streams, and the chat
 // lifecycle (send, queue, titles, sessions, stop, engines, notes) with fake
-// agent processes: no real claude / codex ever runs here.
+// agent processes: no real claude / codex / opencode ever runs here.
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +16,7 @@ const fake = vi.hoisted(() => ({
   starts: [] as any[],
   sent: [] as string[],
   codex: [] as any[],
+  opencode: [] as any[],
   out: null as null | ((e: any) => void),
   alive: false,
   failStart: false,
@@ -55,9 +56,19 @@ vi.mock('../src/main/agents/codex', async (orig) => {
   }
   return { ...real, CodexRun }
 })
+vi.mock('../src/main/agents/opencode', async (orig) => {
+  const real: any = await orig()
+  class OpencodeRun {
+    running() { return false }
+    send(o: any, out: (e: any) => void) { fake.opencode.push(o); fake.out = out }
+    stop() {}
+  }
+  return { ...real, OpencodeRun, models: async () => [{ id: 'openai/gpt-5.5', name: 'openai/gpt-5.5' }] }
+})
 
 import { parse as claudeParse } from '../src/main/agents/claude'
 import { newRun, parse as codexParse } from '../src/main/agents/codex'
+import { finish as opencodeFinish, newRun as newOpencodeRun, parse as opencodeParse } from '../src/main/agents/opencode'
 import { Transcript, chats, anyWorking, stopAll, titleFrom, modelsFor, _test } from '../src/main/chats'
 import { chatPath, loadMeta, saveMetaFile } from '../src/main/projects'
 
@@ -86,7 +97,7 @@ afterAll(() => {
 })
 beforeEach(() => {
   emitted.length = 0
-  Object.assign(fake, { starts: [], sent: [], codex: [], out: null, alive: false, failStart: false, name: null, named: [] })
+  Object.assign(fake, { starts: [], sent: [], codex: [], opencode: [], out: null, alive: false, failStart: false, name: null, named: [] })
 })
 
 // ── The transcript from recorded streams ───────────────────────────
@@ -354,6 +365,35 @@ describe('chats', () => {
     expect(fake.starts).toEqual([])
   })
 
+  it('opencode: one run per message, resuming the session, with its model and the instructions', async () => {
+    const dir = project({ models: { opencode: 'openai/gpt-5.5' } })
+    const id = await chats.create(dir, 'opencode')
+    await chats.send(dir, id, 'first')
+    expect(fake.opencode[0]).toMatchObject({ dir, session: null, text: 'first', model: 'openai/gpt-5.5', instructions: 'PROMPT' })
+    // The events of a real run, as its parser gives them.
+    const st = newOpencodeRun()
+    for (const l of [
+      '{"type":"step_start","sessionID":"ses_9","part":{"type":"step-start"}}',
+      '{"type":"tool_use","sessionID":"ses_9","part":{"type":"tool","id":"call_1","tool":"shell","state":{"status":"completed","input":{"command":"ls"},"metadata":{"metadata":{"exit":0}}}}}',
+      '{"type":"text","sessionID":"ses_9","part":{"type":"text","text":"Done."}}'
+    ]) for (const e of opencodeParse(l, st)) fake.out!(e)
+    for (const e of opencodeFinish(st, 0)) fake.out!(e)
+    expect(loadMeta(dir)!.chats[0].session_id).toBe('ses_9')
+    let s = await chats.open(dir, id)
+    expect(s.working).toBe(false)
+    expect(s.items.slice(1, 3)).toEqual([{ Steps: [{ id: 'call_1', name: 'Bash', summary: 'ls', agent: false, done: true, error: false }] }, { Text: 'Done.' }])
+    expect(s.items.at(-1)).toMatchObject({ Meta: { engine: 'opencode', account: 'opencode', error: false } })
+    await chats.send(dir, id, 'second')
+    expect(fake.opencode[1]).toMatchObject({ session: 'ses_9', text: 'second' })
+    // A run that dies says so, by name.
+    feed({ type: 'exited' })
+    s = await chats.open(dir, id)
+    expect(s.engine).toBe('opencode')
+    expect(s.items.at(-1)).toEqual({ Note: 'OpenCode stopped' })
+    expect(fake.starts).toEqual([])
+    expect(fake.codex).toEqual([])
+  })
+
   it('the engine switches only while the chat is empty', async () => {
     const dir = project()
     const id = await chats.create(dir)
@@ -403,12 +443,14 @@ describe('chats', () => {
     expect(_test.live.size).toBeGreaterThan(0)
   })
 
-  it('models: Claude fixed, Codex its cache after Default', async () => {
+  it('models: Claude fixed, Codex its cache after Default, OpenCode its list', async () => {
     expect((await chats.models('claude')).map((m) => m.id)).toEqual(['default', 'opus', 'sonnet', 'haiku'])
     mkdirSync(join(process.env.HOME!, '.codex'), { recursive: true })
     writeFileSync(join(process.env.HOME!, '.codex/models_cache.json'), JSON.stringify({ models: Array.from({ length: 9 }, (_, i) => ({ slug: `m${i}` })) }))
     const c = modelsFor('codex')
     expect(c).toHaveLength(7)
     expect(c[0]).toEqual({ id: 'default', name: 'Default' })
+    // OpenCode's: Default, then what `opencode models` lists.
+    expect(await chats.models('opencode')).toEqual([{ id: 'default', name: 'Default' }, { id: 'openai/gpt-5.5', name: 'openai/gpt-5.5' }])
   })
 })

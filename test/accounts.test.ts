@@ -19,13 +19,23 @@ const fake = vi.hoisted(() => ({
   sent: [] as string[],
   out: null as null | ((e: any) => void),
   alive: false,
-  codex: [] as any[]
+  codex: [] as any[],
+  /** OpenCode: installed, and the providers it is signed in to. */
+  opencode: { installed: true, providers: [] as string[] }
 }))
 vi.mock('node:child_process', async (orig) => {
   const real: any = await orig()
   return {
     ...real,
     execFile: (_cmd: string, args: string[], opts: any, cb: (e: any, out: string) => void) => {
+      if (_cmd === '/bin/sh' && args[1] === 'command -v opencode') {
+        cb(fake.opencode.installed ? null : new Error('not found'), fake.opencode.installed ? '/x/opencode\n' : '')
+        return
+      }
+      if (args[0] === 'auth' && args[1] === 'list') {
+        cb(null, JSON.stringify(fake.opencode.providers.map((name) => ({ id: name.toLowerCase(), name, connections: [{ type: 'credential', id: 'c', label: 'secret-ish', method: 'oauth' }] }))))
+        return
+      }
       if (args[0] === 'login' && args[1] === 'status') {
         cb(null, fake.signedIn.has(opts.env.CODEX_HOME ?? 'codex') ? 'Logged in using ChatGPT' : 'Not logged in')
         return
@@ -199,6 +209,21 @@ function rollout(homeDir: string, thread: string, used: [number, number], reache
   writeFileSync(f, JSON.stringify({ type: 'session_meta', payload: { id: thread } }) + '\n' + JSON.stringify({ type: 'event_msg', payload: { type: 'token_count', rate_limits: rl } }) + '\n')
   return f
 }
+
+describe('OpenCode', () => {
+  it('has one account: signed in when a provider is, not installed when it is missing', async () => {
+    fake.opencode = { installed: true, providers: ['OpenAI', 'OpenCode Console'] }
+    let list = (await accountsApi.list(true)).filter((a) => a.engine === 'opencode')
+    expect(list.map((a) => [a.id, a.signedIn, a.plan, !!a.missing])).toEqual([['opencode', true, 'OpenAI, OpenCode Console', false]])
+    fake.opencode = { installed: true, providers: [] }
+    list = (await accountsApi.list(true)).filter((a) => a.engine === 'opencode')
+    expect(list.map((a) => [a.signedIn, a.plan])).toEqual([[false, null]])
+    fake.opencode = { installed: false, providers: [] }
+    list = (await accountsApi.list(true)).filter((a) => a.engine === 'opencode')
+    expect(list[0].missing).toBe(true)
+    await expect(accountsApi.add('opencode', 'Work')).rejects.toThrow()
+  })
+})
 
 describe('Codex accounts', () => {
   it('gives each its own CODEX_HOME, made if missing', async () => {

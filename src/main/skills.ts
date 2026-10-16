@@ -1,7 +1,7 @@
 // Skills: what the agents know how to do beyond code. Panthr keeps one
 // shared set in ~/Panthr/Skills, installed with the open `skills` CLI
 // (skills.sh) for Claude Code and Codex alike, and links it into every
-// project (`.claude/skills`, `.agents/skills`), so a new project starts
+// project (`.claude/skills`, `.agents/skills`: OpenCode reads both), so a new project starts
 // with all of them at once. A set of packs comes by default (HyperFrames,
 // video-use, GSAP, motion design...); anyone can add more by package.
 //
