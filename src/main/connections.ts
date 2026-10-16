@@ -1,4 +1,4 @@
-// Connections: other machines' Panthr, used from here. Each is a Panthr
+// Connections: other machines' Panther, used from here. Each is a Panther
 // server running there (installed and started by us over SSH), reached by a
 // bridge that speaks the control socket's JSON lines over the ssh session.
 // The server keeps running when the link drops, so an agent's turn there
@@ -249,13 +249,13 @@ class Supervisor {
       const plan = await prepare(this.c, (step) => gen === this.gen && this.set({ step }))
       if (gen !== this.gen) return
       this.httpSock = plan.httpSock
-      this.set({ step: 'Starting Panthr there' })
+      this.set({ step: 'Starting Panther there' })
       const proc = spawn(plan.cmd, plan.args, { env: plan.env, stdio: ['pipe', 'pipe', 'pipe'] })
       const link = new Link(proc, (name, payload) => gen === this.gen && this.onEvent(name, payload), (why) => gen === this.gen && this.lost(why))
       this.link = link
       const hello = (await link.call('env.hello', [], HELLO_MS)) as Hello
       if (gen !== this.gen) return
-      if (hello.protocol !== PROTOCOL) throw new Error(`Its Panthr is not supported here (protocol ${hello.protocol}, this Mac speaks ${PROTOCOL}). Update Panthr on both.`)
+      if (hello.protocol !== PROTOCOL) throw new Error(`Its Panther is not supported here (protocol ${hello.protocol}, this Mac speaks ${PROTOCOL}). Update Panther on both.`)
       this.hello = hello
       await link.call('subscribe', ['*'])
       this.set({ phase: 'connected', step: null, error: null, retryAt: null })
@@ -333,7 +333,7 @@ class Supervisor {
 }
 
 /** Calls that bring files from this Mac (the argument holding them). */
-const UPLOADS: Record<string, number> = { 'review.importFiles': 1, 'board.import': 1, 'brand.logo': 1 }
+const UPLOADS: Record<string, number> = { 'review.importFiles': 1, 'board.import': 1 }
 
 /** Events about that machine's own app (its settings, its references, its skills, its window). */
 const LOCAL_ONLY = new Set(['settings', 'references', 'skills:state', 'command', 'connections'])
@@ -351,9 +351,9 @@ const sockDir = (): string => join(dataDir(), 'conn')
 
 async function prepare(c: Connection, step: (s: string) => void): Promise<Plan> {
   const entry = serverEntry()
-  if (!existsSync(entry)) throw new Error('The Panthr server is missing from this build (npm run build)')
+  if (!existsSync(entry)) throw new Error('The Panther server is missing from this build (npm run build)')
   if (c.kind === 'command') {
-    // A server started here: a second Panthr with its own data folder (tests use this).
+    // A server started here: a second Panther with its own data folder (tests use this).
     const data = c.dataDir || join(dataDir(), 'Local', c.id)
     mkdirSync(data, { recursive: true })
     return {
@@ -373,16 +373,16 @@ async function prepare(c: Connection, step: (s: string) => void): Promise<Plan> 
   const homeThere = /^HOME=(.+)$/m.exec(out)?.[1]?.trim()
   if (probe.code !== 0 || !homeThere) throw new Error(lastLine(probe.stderr) || `Could not reach ${c.target}`)
   const node = /^NODE=(\d+)/m.exec(out)?.[1]
-  if (!node) throw new Error(`Panthr needs Node 18 or newer on ${c.label} (none found in its login shell)`)
-  if (+node < 18) throw new Error(`Panthr needs Node 18 or newer on ${c.label} (it has ${node})`)
+  if (!node) throw new Error(`Panther needs Node 18 or newer on ${c.label} (none found in its login shell)`)
+  if (+node < 18) throw new Error(`Panther needs Node 18 or newer on ${c.label} (it has ${node})`)
 
   if (!/^HAVE$/m.test(out)) {
-    step(`Installing Panthr on ${c.label}`)
+    step(`Installing Panther on ${c.label}`)
     const mk = await run('ssh', [...sshOpts(), c.target, `mkdir -p "$HOME/${dir}.part/resources"`])
     if (mk.code !== 0) throw new Error(lastLine(mk.stderr) || 'Could not make its folder')
     for (const [from, to] of [[entry, `${dir}.part/server.cjs`], [resourcesDir() + '/', `${dir}.part/resources/`]] as const) {
       const r = await run('rsync', ['-az', '--exclude', 'bin/', '-e', rsyncSsh(), from, `${c.target}:${to}`])
-      if (r.code !== 0) throw new Error(lastLine(r.stderr) || 'Could not copy Panthr there')
+      if (r.code !== 0) throw new Error(lastLine(r.stderr) || 'Could not copy Panther there')
     }
     // Whole or not at all: a half-copied build is never run.
     const mv = await run('ssh', [...sshOpts(), c.target, `rm -rf "$HOME/${dir}" && mv "$HOME/${dir}.part" "$HOME/${dir}"`])

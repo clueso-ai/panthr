@@ -18,14 +18,12 @@ import { files } from './files'
 import { references } from './references'
 import { boardApi, canvasesApi } from './board'
 import { historyApi } from './history'
-import { brandApi } from './brand'
 import { shareApi } from './share'
 import { assistantApi } from './assistant'
 import { connectionsApi, route } from './connections'
 import { accountsApi } from './accounts'
 import { usageApi } from './usage'
 import { sizesApi } from './sizes'
-import { schedulesApi } from './schedules'
 import { recorderApi } from './recorder'
 import { clipsApi } from './clips'
 import { storyboardApi } from './storyboard'
@@ -33,8 +31,8 @@ import { captionsApi } from './captions'
 
 export const handlers: Api = {
   app: appApi, settings, state, projects, chats, controls, review, skills, files, hosts, references,
-  board: { ...boardApi, ...sizesApi }, canvases: canvasesApi, history: historyApi, brand: brandApi, share: shareApi, assistant: assistantApi,
-  connections: connectionsApi, accounts: accountsApi, usage: usageApi, schedules: schedulesApi, recorder: recorderApi, clips: clipsApi, storyboard: storyboardApi, captions: captionsApi
+  board: { ...boardApi, ...sizesApi }, canvases: canvasesApi, history: historyApi, share: shareApi, assistant: assistantApi,
+  connections: connectionsApi, accounts: accountsApi, usage: usageApi, recorder: recorderApi, clips: clipsApi, storyboard: storyboardApi, captions: captionsApi
 }
 
 /** A method on this machine's handlers. */

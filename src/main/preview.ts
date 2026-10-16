@@ -2,7 +2,7 @@
 //
 //   panthr://p-<id>/index.html   the project's files (each project its own
 //                                origin), with the HyperFrames runtime, the
-//                                picker and Panthr's bridge put in its <head>
+//                                picker and Panther's bridge put in its <head>
 //   panthr://file/<abs path>     a file the window shows (frames, posters,
 //                                versions, library items), byte ranges too
 //

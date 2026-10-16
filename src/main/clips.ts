@@ -1,7 +1,7 @@
 // The clips on a video's timeline: its media and timed elements, read and
 // edited with HyperFrames' own timeline tool (`hyperframes timeline`), which
 // splits, trims, moves, duplicates, deletes and sets volume and speed. On
-// top of it, Panthr's own: fades and ducking under a voice (one volume lane
+// top of it, Panther's own: fades and ducking under a voice (one volume lane
 // in the clip's data-automation), evening out loudness (data-volume from a
 // measurement), a freeze frame, closing the gap a delete leaves, and what
 // the timeline draws: waveforms, peaks and the music's beats.
@@ -71,7 +71,7 @@ export async function clips(dir: string): Promise<Clip[]> {
     }
   }
   for (const t of v.timeline?.tracks ?? []) walk(t.rows)
-  // Panthr's own fades and ducking, from the files.
+  // Panther's own fades and ducking, from the files.
   const files = new Map<string, string>()
   for (const c of out) {
     if (!c.audible) continue

@@ -66,7 +66,7 @@ const jobs = new Map<string, { child: ChildProcess | null; cancelled: boolean }>
 function load(dir: string): Reference | null {
   const m = readJson<Meta | null>(metaPath(dir), null)
   if (!m?.id) return null
-  // Left half-done by a Panthr that quit: say so (it can be retried).
+  // Left half-done by a Panther that quit: say so (it can be retried).
   if ((m.status === 'importing' || m.status === 'analyzing') && !jobs.has(m.id)) {
     m.status = 'failed'
     m.step = null
@@ -245,7 +245,7 @@ What is here to work from:
 - analysis.json: its length, size, frame rate, whether it has sound, and the scene cuts ffmpeg found
 - frames/: stills named by their time (t-0012.40.jpg is at 12.40 s), and one just after each cut (cut-...jpg). Open and look at them.
 - contact.jpg: the evenly spaced stills on one sheet
-- reading/: what Panthr measured before you (start with reading/README.md): the shots, a word-by-word transcript, the text on screen with where it sits, tempo and beats, the colours of each shot, and how much the picture moves over time. Trust it, but check it against the frames.
+- reading/: what Panther measured before you (start with reading/README.md): the shots, a word-by-word transcript, the text on screen with where it sits, tempo and beats, the colours of each shot, and how much the picture moves over time. Trust it, but check it against the frames.
 
 Work quickly: aim to be done in about five minutes. Start from reading/ and contact.jpg, then open the stills that matter (the cut- ones first, about 25 at most); look closer only where it changes what someone would build. Use Bash to batch work (several crops or measurements in one command) rather than one call per frame.
 

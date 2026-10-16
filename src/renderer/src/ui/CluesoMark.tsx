@@ -1,6 +1,6 @@
 // Clueso's logo: the pink puzzle mark and the full lockup (mark plus
 // Clueso's own wordmark, drawn as outlines so it never falls back to a
-// system font), for the "by Clueso" line beside Panthr's wordmark.
+// system font), for the "by Clueso" line beside Panther's wordmark.
 
 import { useId } from 'react'
 
@@ -47,7 +47,7 @@ export function CluesoLogo({ height = 12 }: { height?: number }) {
   )
 }
 
-/** "by Clueso", quiet, for after the Panthr wordmark. */
+/** "by Clueso", quiet, for after the Panther wordmark. */
 export function ByClueso({ height = 9 }: { height?: number }) {
   return (
     <span className="by-clueso">

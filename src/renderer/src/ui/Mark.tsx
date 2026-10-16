@@ -1,4 +1,4 @@
-// The Panthr mark, "Shutter": a camera iris of six curved blades in two
+// The Panther mark, "Shutter": a camera iris of six curved blades in two
 // tones of the accent, cut apart by thin lines of the ground. It opens when
 // it appears, fires a quick shot every few seconds, and breathes (opening
 // and closing, turning slowly) while an agent works.
@@ -51,7 +51,7 @@ export function Mark({ size, open = OPEN, turn = 0, color = 'var(--acc)', shade 
   const id = useId()
   const paths = open === OPEN ? REST : blades(open)
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flex: 'none' }} aria-label="Panthr">
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flex: 'none' }} aria-label="Panther">
       <defs>
         <clipPath id={id}><circle cx="50" cy="50" r="44" /></clipPath>
       </defs>

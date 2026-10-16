@@ -4,7 +4,7 @@
 // Prints {"type":"started","width":…,"height":…} once frames flow, and
 // {"type":"done"} or {"type":"error","message":…} at the end. Stops (and
 // finishes the file) when stdin closes. The pointer can be left out of the
-// picture (--no-cursor); Panthr notes its movements anyway (panthr-input).
+// picture (--no-cursor); Panther notes its movements anyway (panthr-input).
 import AVFoundation
 import Foundation
 import ScreenCaptureKit
@@ -54,7 +54,7 @@ final class Recorder: NSObject, SCStreamOutput, SCStreamDelegate {
             } else {
                 let d = content.displays.first(where: { $0.displayID == (displayID ?? CGMainDisplayID()) }) ?? content.displays.first
                 guard let d = d else { fail("No display to record") }
-                // Panthr's own windows stay out of the picture.
+                // Panther's own windows stay out of the picture.
                 let mine = content.windows.filter { $0.owningApplication?.bundleIdentifier == "io.clueso.panthr" }
                 filter = SCContentFilter(display: d, excludingWindows: mine)
                 size = CGSize(width: d.width, height: d.height)
@@ -152,7 +152,7 @@ final class Recorder: NSObject, SCStreamOutput, SCStreamDelegate {
 }
 
 let rec = Recorder()
-// Stops when Panthr closes stdin.
+// Stops when Panther closes stdin.
 FileHandle.standardInput.readabilityHandler = { h in
     if h.availableData.isEmpty {
         FileHandle.standardInput.readabilityHandler = nil

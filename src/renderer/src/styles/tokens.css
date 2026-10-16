@@ -34,7 +34,7 @@
 /* Registered so a Frost change eases instead of snapping. */
 @property --frost { syntax: '<number>'; inherits: true; initial-value: 0.78; }
 
-/* Panthr's look: neutral greys, Host Grotesk, one ember accent (the refined
+/* Panther's look: neutral greys, Host Grotesk, one ember accent (the refined
    editor direction). Night is the default; Day mirrors it. Every colour
    comes from here. */
 

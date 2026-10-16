@@ -1,4 +1,4 @@
-// Panthr's server, for using another machine from a Mac (see
+// Panther's server, for using another machine from a Mac (see
 // src/main/connections.ts). Two modes:
 //
 //   server.cjs --daemon   the server: the API on the control socket (as the
@@ -158,7 +158,7 @@ async function bridge(): Promise<void> {
   const { socketPath } = await import('../main/control')
   mkdirSync(DATA, { recursive: true })
   const path = socketPath(DATA)
-  // Another build running there (Panthr was updated): it makes way.
+  // Another build running there (Panther was updated): it makes way.
   const hello = await ask(path, 'env.hello')
   if (hello && hello.version !== BUILD) {
     await ask(path, 'env.shutdown')
@@ -174,7 +174,7 @@ async function bridge(): Promise<void> {
     }
   }
   if (!sock) {
-    console.error('Panthr could not start its server (see ~/.panthr/data/server.log)')
+    console.error('Panther could not start its server (see ~/.panthr/data/server.log)')
     process.exit(1)
   }
   process.stdin.pipe(sock)

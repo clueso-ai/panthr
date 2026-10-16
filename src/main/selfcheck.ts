@@ -1,4 +1,4 @@
-// The self-check: what Panthr looks for in a video before the agent's work
+// The self-check: what Panther looks for in a video before the agent's work
 // is called done. HyperFrames' own check (lint, runtime errors, layout:
 // text or shapes running off the frame, contrast) and a look at the picture
 // itself over time (a frame that flashes black or white, or the picture

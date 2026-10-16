@@ -2,7 +2,7 @@
 // STORYBOARD.md (the frames in order: title, length, what is on screen, the
 // voiceover, and how far along each is: outline, built, animated) and
 // storyboard.html (a sketch of each frame, in cells with id="frame-NN").
-// Panthr shows it as a board to review frame by frame: a still of each
+// Panther shows it as a board to review frame by frame: a still of each
 // sketch, taken in a hidden window, and the person's notes and approvals
 // (.studio/storyboard-review.json), which go to the agent as one message.
 

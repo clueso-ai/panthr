@@ -62,7 +62,7 @@ if let i = args.firstIndex(of: "--window"), i + 1 < args.count, let id = UInt32(
     Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in tick() }
 }
 
-// Ends when Panthr closes its stdin.
+// Ends when Panther closes its stdin.
 FileHandle.standardInput.readabilityHandler = { h in
     if h.availableData.isEmpty { exit(0) }
 }

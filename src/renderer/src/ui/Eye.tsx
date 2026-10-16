@@ -1,4 +1,4 @@
-// The Panthr mark, "Cat's eye": an almond stone tilted up at the outer
+// The Panther mark, "Cat's eye": an almond stone tilted up at the outer
 // corner with one vertical slit. It opens when it appears, blinks every few
 // seconds, and its slit widens (watches) while an agent thinks.
 
@@ -58,7 +58,7 @@ export function EyeMark({ width, blink = 0, watch = 0, color = 'var(--acc)', cut
   const open = Math.max(0.05, 1 - Math.min(1, Math.max(0, blink)))
   const spread = 27 - 7 * Math.min(1, Math.max(0, watch))
   return (
-    <svg width={width} height={width * 0.46} viewBox="15 34 70 32" style={{ display: 'block', flex: 'none' }} aria-label="Panthr">
+    <svg width={width} height={width * 0.46} viewBox="15 34 70 32" style={{ display: 'block', flex: 'none' }} aria-label="Panther">
       <path d={place(lens([50, 18], [50, 82], 46, 40), open)} fill={color} />
       <path d={place(lens([50 - spread, 50], [50 + spread, 50], 30, 24), open)} fill={cut} />
     </svg>

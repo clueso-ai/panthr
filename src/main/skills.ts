@@ -1,4 +1,4 @@
-// Skills: what the agents know how to do beyond code. Panthr keeps one
+// Skills: what the agents know how to do beyond code. Panther keeps one
 // shared set in ~/Panthr/Skills, installed with the open `skills` CLI
 // (skills.sh) for Claude Code and Codex alike, and links it into every
 // project (`.claude/skills`, `.agents/skills`), so a new project starts
@@ -16,7 +16,7 @@ import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { pathEnv, studioRoot } from './paths'
 
-/** What Panthr starts with: video and motion craft, by their own names. */
+/** What Panther starts with: video and motion craft, by their own names. */
 export function defaults(): Pack[] {
   const p = (source: string, title: string, skills: string[] = []): Pack => ({ source, title, skills })
   return [

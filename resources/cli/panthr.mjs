@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// panthr: Panthr from the command line. It drives the app (starting it,
+// panthr: Panther from the command line. It drives the app (starting it,
 // out of the way, when it is not running), so what you do here is what
 // the window shows, and the other way round.
 //
@@ -83,7 +83,7 @@ class App {
       }
     })
     sock.on('close', () => {
-      for (const { fail } of this.pending.values()) fail(new Error('Panthr closed the connection'))
+      for (const { fail } of this.pending.values()) fail(new Error('Panther closed the connection'))
     })
   }
   call(method, ...params) {
@@ -114,7 +114,7 @@ async function app() {
   try {
     return new App(await tryConnect())
   } catch {}
-  if (process.env.PANTHR_NO_LAUNCH) throw new Error('Panthr is not running.')
+  if (process.env.PANTHR_NO_LAUNCH) throw new Error('Panther is not running.')
   const target = process.env.PANTHR_APP ? ['-g', '-a', process.env.PANTHR_APP] : ['-g', '-b', 'io.clueso.panthr']
   await new Promise((ok) => execFile('open', target, () => ok()))
   for (let i = 0; i < 60; i++) {
@@ -123,7 +123,7 @@ async function app() {
       return new App(await tryConnect())
     } catch {}
   }
-  throw new Error('Could not reach Panthr. Is it installed? (Set PANTHR_APP to the app if it is somewhere unusual.)')
+  throw new Error('Could not reach Panther. Is it installed? (Set PANTHR_APP to the app if it is somewhere unusual.)')
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -235,7 +235,7 @@ const commands = {
   async status(a, { opt }) {
     const st = await a.call('ui.status')
     out(opt, st, () => {
-      console.log(`${bold('Panthr')} ${st.version}  ${st.working ? green('● an agent is working') : dim('idle')}`)
+      console.log(`${bold('Panther')} ${st.version}  ${st.working ? green('● an agent is working') : dim('idle')}`)
       console.log(st.state?.project && !st.state.home ? `Open: ${st.state.project}` : 'On Home')
     })
   },
@@ -292,55 +292,6 @@ const commands = {
       }
     })
     if (results.some((c) => c.problems.length)) process.exitCode = 1
-  },
-
-  async schedule(a, { pos, opt }) {
-    const [verb, ...rest] = pos
-    const DAYS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }
-    const NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const list = await a.call('schedules.list')
-    const find = (w) => {
-      const q = String(w ?? '').toLowerCase()
-      const s = list.find((x) => x.id === w || x.name.toLowerCase() === q) ?? list.find((x) => x.name.toLowerCase().includes(q))
-      if (!s) throw new Error(`No schedule called "${w}". See: panthr schedule`)
-      return s
-    }
-    const daysOf = (s) => {
-      const v = String(s || 'daily').toLowerCase()
-      if (v === 'daily' || v === 'every day') return [0, 1, 2, 3, 4, 5, 6]
-      if (v === 'weekdays') return [1, 2, 3, 4, 5]
-      return v.split(/[ ,]+/).map((d) => DAYS[d.slice(0, 3)]).filter((d) => d !== undefined)
-    }
-    const when = (s) => `${s.days.length === 7 ? 'every day' : s.days.join() === '1,2,3,4,5' ? 'weekdays' : s.days.map((d) => NAMES[d]).join(', ')} at ${s.time}`
-    if (verb === 'add') {
-      const name = rest.join(' ').trim()
-      if (!name || typeof opt.prompt !== 'string') throw new Error('panthr schedule add "<name>" --prompt "<what to make>" --on fri|mon,thu|weekdays|daily --at 09:00 [--canvas <project>] [--no-export]')
-      const days = daysOf(opt.on)
-      if (!days.length) throw new Error('--on takes days (mon,fri), weekdays or daily')
-      const project = typeof opt.canvas === 'string' ? await a.call('canvases.find', opt.canvas) : null
-      const s = await a.call('schedules.save', { name, prompt: opt.prompt, project, days, time: typeof opt.at === 'string' ? opt.at : '09:00', exportAfter: !opt['no-export'], enabled: true })
-      return out(opt, s, () => console.log(`${green('✓')} ${bold(s.name)}  ${dim(`${when(s)} · next ${new Date(s.next * 1000).toLocaleString()}`)}`))
-    }
-    if ((verb === 'rm' || verb === 'remove') && rest.length) {
-      const s = find(rest.join(' '))
-      await a.call('schedules.remove', s.id)
-      return out(opt, { removed: s.id }, () => console.log(`Removed ${s.name}.`))
-    }
-    if ((verb === 'on' || verb === 'off') && rest.length) {
-      const s = find(rest.join(' '))
-      const r = await a.call('schedules.save', { ...s, enabled: verb === 'on' })
-      return out(opt, r, () => console.log(`${r.name} is ${verb}.`))
-    }
-    if (verb === 'run' && rest.length) {
-      const s = find(rest.join(' '))
-      await a.call('schedules.run', s.id)
-      return out(opt, { started: s.id }, () => console.log(dim(`Running ${s.name} now.`)))
-    }
-    if (verb) throw new Error('panthr schedule [add "<name>" --prompt "…" --on fri --at 09:00 | run <name> | on|off <name> | rm <name>]')
-    out(opt, list, () => {
-      if (!list.length) return console.log(dim('No schedules. Add one: panthr schedule add "Changelog" --prompt "…" --on fri --at 09:00'))
-      for (const s of list) console.log(`${s.enabled ? green('●') : dim('○')} ${bold(s.name)}  ${dim(`${when(s)}${s.next ? ` · next ${new Date(s.next * 1000).toLocaleString()}` : ''}${s.last ? ` · last: ${s.last.note}` : ''}`)}`)
-    })
   },
 
   async canvases(a, { opt }) {
@@ -643,7 +594,7 @@ const commands = {
   }
 }
 
-const HELP = `${bold('panthr')} — Panthr from the command line
+const HELP = `${bold('panthr')} — Panther from the command line
 
 ${bold('Make')}
   new "<idea>" [--agent claude|codex] [--model m] [--host h] [--wait] [--no-open]
@@ -678,9 +629,6 @@ ${bold('Inside the video')}
   edit '<json>'          One editor-tool request, e.g. '{"op":"move","file":"index.html","layer":"title","delta":0.5}'
 
 ${bold('The app')}
-  schedule [add "<name>" --prompt "<what>" --on fri|weekdays|daily --at 09:00 [--canvas <project>] [--no-export]
-           | run <name> | on|off <name> | rm <name>]
-                         Videos made on their own, on a timetable
   status                 Running? Which project is open? Is an agent working?
   canvases               Every project, as Home shows them (each a canvas of videos)
   ask "<project>" "<message>" [--video <name>]

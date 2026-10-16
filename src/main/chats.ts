@@ -714,7 +714,7 @@ export const chats: Api['chats'] = {
     updateMeta(dir, (m) => {
       m.chats = m.chats.filter((x) => x.id !== chatId)
     })
-    // Only the transcript Panthr wrote.
+    // Only the transcript Panther wrote.
     rmSync(chatPath(dir, chatId), { force: true })
   },
   async anyWorking() {

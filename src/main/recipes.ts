@@ -48,9 +48,9 @@ export async function saveRecipe(dir: string, name?: string): Promise<Reference>
   const title = name?.trim() || load(dir)?.meta.name || 'Recipe'
   const ref = await add(file, title)
   const copied = copySource(dir, join(ref.dir, 'source'))
-  writeFileSync(join(ref.dir, 'RECIPE.md'), `# ${title}: a recipe made in Panthr
+  writeFileSync(join(ref.dir, 'RECIPE.md'), `# ${title}: a recipe made in Panther
 
-This recipe is a finished Panthr video (export v${last.n}), saved to make more like it. Besides the taken-apart video, its own source is in \`source/\`: ${copied.length ? copied.map((c) => `\`${c}\``).join(', ') : 'nothing could be copied'}.
+This recipe is a finished Panther video (export v${last.n}), saved to make more like it. Besides the taken-apart video, its own source is in \`source/\`: ${copied.length ? copied.map((c) => `\`${c}\``).join(', ') : 'nothing could be copied'}.
 
 To make another one like it: start from \`source/\` (its structure, scene order, timing, type, colours and motion), keep what made it work, and replace the content with the new subject. Read its STORYBOARD.md and BRIEF.md first when they are there.
 `)

@@ -1,6 +1,6 @@
 {
   "name": "panthr",
-  "productName": "Panthr",
+  "productName": "Panther",
   "version": "1.1.0",
   "description": "Make videos by talking to an agent, on your Mac.",
   "main": "./out/main/index.js",
@@ -44,13 +44,13 @@
   },
   "build": {
     "appId": "io.clueso.panthr",
-    "productName": "Panthr",
-    "copyright": "Panthr by Clueso",
+    "productName": "Panther",
+    "copyright": "Panther by Clueso",
     "fileAssociations": [
       {
         "ext": "panthr",
-        "name": "Panthr project",
-        "description": "A Panthr project: its videos, canvas, notes and brand kit",
+        "name": "Panther project",
+        "description": "A Panther project: its videos, canvas, notes and brand kit",
         "role": "Editor",
         "rank": "Owner"
       }
@@ -88,8 +88,8 @@
       "identity": null,
       "darkModeSupport": true,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Panthr records your voice with a screen recording, when you turn the microphone on.",
-        "NSScreenCaptureUsageDescription": "Panthr records your screen when you ask it to, to make demo videos."
+        "NSMicrophoneUsageDescription": "Panther records your voice with a screen recording, when you turn the microphone on.",
+        "NSScreenCaptureUsageDescription": "Panther records your screen when you ask it to, to make demo videos."
       }
     },
     "asar": true,

@@ -1,4 +1,4 @@
-// Panthr: the window, the app menu, the panthr:// protocol and the API.
+// Panther: the window, the app menu, the panthr:// protocol and the API.
 //
 // Headless runs (tests, captures) never show a window: PANTHR_SHOT=<png>
 // renders it hidden, runs PANTHR_EVAL (a script in the window) if given,
@@ -21,12 +21,12 @@ import { stopAllReferences } from './references'
 import { openShare } from './share'
 import { call } from './handlers'
 import { startConnections, stopConnections } from './connections'
-import { startSchedules, stopSchedules } from './schedules'
 
 const HEADLESS = !!process.env.PANTHR_SHOT
-if (process.env.PANTHR_DATA_DIR) app.setPath('userData', process.env.PANTHR_DATA_DIR)
-app.setName('Panthr')
-app.setAboutPanelOptions({ applicationName: 'Panthr', credits: 'by Clueso', copyright: 'Panthr by Clueso' })
+app.setName('Panther')
+// Electron's own storage stays where Panthr kept it (the app was renamed), beside our data.
+app.setPath('userData', dataDir())
+app.setAboutPanelOptions({ applicationName: 'Panther', credits: 'by Clueso', copyright: 'Panther by Clueso' })
 registerScheme()
 // A test run never puts up a dialog: errors go to its log.
 if (HEADLESS) process.on('uncaughtException', (e) => console.error('uncaught:', e))
@@ -53,7 +53,7 @@ function createWindow(): BrowserWindow {
   const w0 = new BrowserWindow({
     x, y, width: w, height: h, minWidth: 900, minHeight: 600,
     show: false,
-    title: 'Panthr',
+    title: 'Panther',
     titleBarStyle: 'hiddenInset',
     // Centred on the 52 pt title row (14 pt controls), with the back arrow and the name.
     trafficLightPosition: { x: 18, y: 19 },
@@ -189,7 +189,7 @@ const command = (name: string) => () => emit('command', { name })
 function buildMenu(): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'Panthr',
+      label: 'Panther',
       submenu: [
         { role: 'about' },
         { type: 'separator' },
@@ -313,7 +313,6 @@ app.whenReady().then(() => {
   // Other machines (not in a test run unless it has its own).
   if (!HEADLESS || process.env.PANTHR_CONNECTIONS) startConnections()
   // Videos on a timetable (not in a test run unless asked).
-  if (!HEADLESS || process.env.PANTHR_SCHEDULES) startSchedules()
   // Files opened before the window was up.
   win.webContents.once('did-finish-load', () => {
     ready = true
@@ -326,7 +325,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopConnections()
-  stopSchedules()
   stopAll()
   stopAllReferences()
   app.quit()

@@ -86,29 +86,6 @@
 .tile-export.failed { background: color-mix(in srgb, var(--danger) 70%, black); }
 .sizes-go { display: flex; justify-content: flex-end; padding: 6px 4px 2px; }
 
-/* The brand kit: a pinned card in the canvas tools, and its sheet. */
-.brand-card { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px 0 6px; border-radius: 8px; transition: background var(--quick) var(--ease); }
-.brand-card:hover { background: var(--hover); }
-.brand-card img { height: 18px; max-width: 40px; object-fit: contain; }
-.brand-swatches { display: inline-flex; }
-.brand-swatches i { width: 14px; height: 14px; border-radius: 50%; margin-left: -4px; box-shadow: 0 0 0 1.5px var(--raised); }
-.brand-swatches i:first-child { margin-left: 0; }
-.brand-font { font-size: 12px; color: var(--t2); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.brand-sheet { position: relative; width: min(560px, calc(100vw - 80px)); max-height: min(720px, calc(100vh - 80px)); overflow-y: auto; padding: 18px 18px 14px; border-radius: 16px; background: var(--pane); box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--hair-2); display: flex; flex-direction: column; gap: 14px; }
-.brand-head { display: flex; flex-direction: column; gap: 2px; padding-right: 36px; }
-.brand-head b { font-size: 15px; }
-.brand-head span { font-size: 12px; }
-.brand-sheet section { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.brand-sheet h4 { margin: 0; font-size: 11.5px; font-weight: 600; color: var(--t3); }
-.brand-colors { display: flex; flex-direction: column; gap: 6px; width: 100%; align-items: flex-start; }
-.brand-color, .brand-font-row { display: flex; align-items: center; gap: 8px; width: 100%; }
-.brand-color input[type='color'] { width: 30px; height: 28px; padding: 0; border: 0; background: none; border-radius: 6px; flex: none; }
-.brand-color .text-input, .brand-font-row .text-input { height: 28px; padding: 0 8px; flex: 1; min-width: 0; user-select: text; }
-.brand-color .hex { flex: 0 0 96px; }
-.brand-logo { display: flex; align-items: center; gap: 10px; }
-.brand-logo img { height: 40px; max-width: 140px; object-fit: contain; border-radius: 6px; background: var(--field); padding: 4px; }
-.brand-voice { width: 100%; padding: 8px 10px; resize: vertical; user-select: text; }
-.brand-go { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 
 /* Notes and instruction arrows on the canvas. */
 .canvas-note { position: absolute; padding: 10px 10px 6px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 22%, var(--raised)); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22); cursor: grab; z-index: 3; transition: opacity var(--move) var(--ease); }

@@ -75,7 +75,7 @@ export function UsagePane() {
         ))}
       </div>
       <div className="use-axis faint"><span>{r.days[0]?.day.slice(5)}</span><span>Today</span></div>
-      {r.undated > 0 && <p className="pane-note">{r.undated} older turn{r.undated === 1 ? '' : 's'} from before Panthr noted when each happened: {r.undated === 1 ? 'its day is' : 'their days are'} estimated from when the chat began and was last used.</p>}
+      {r.undated > 0 && <p className="pane-note">{r.undated} older turn{r.undated === 1 ? '' : 's'} from before Panther noted when each happened: {r.undated === 1 ? 'its day is' : 'their days are'} estimated from when the chat began and was last used.</p>}
 
       <h3 className="use-h">Accounts</h3>
       <div className="use-table">

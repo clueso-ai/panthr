@@ -161,14 +161,6 @@ export interface Api {
     /** Put a turn's files back as they were before it (or, redo, as it left them). */
     undo(dir: string, chatId: string, turn: number, redo?: boolean): Promise<{ restored: string[]; skipped: string[] }>
   }
-  brand: {
-    /** A project's brand kit (empty when it has none). */
-    get(dir: string): Promise<import('./types').Brand>
-    /** Save it (and BRAND.md beside it, for the agent). */
-    save(dir: string, brand: import('./types').Brand): Promise<void>
-    /** Copy a logo into the project's brand/ folder (returns its path from the project). */
-    logo(dir: string, from: string): Promise<string>
-  }
   share: {
     /** The project as one .panthr file (asks where, when no file is given); returns its path, or '' when cancelled. */
     save(canvas: string, file?: string): Promise<string>
@@ -224,24 +216,16 @@ export interface Api {
      *  never over a change someone else made since). */
     replace(dir: string, rel: string, expected: string, next: string): Promise<boolean>
   }
-  schedules: {
-    list(): Promise<import('./types').ScheduleStatus[]>
-    /** Add one, or change it (by id). */
-    save(s: Omit<import('./types').Schedule, 'id' | 'created_at' | 'lastRun' | 'last'> & { id?: string }): Promise<import('./types').ScheduleStatus>
-    remove(id: string): Promise<void>
-    /** Run it now (as if its time had come). */
-    run(id: string): Promise<void>
-  }
   recorder: {
-    /** What macOS lets Panthr record: 'granted', 'denied', 'not-determined', 'restricted'. */
+    /** What macOS lets Panther record: 'granted', 'denied', 'not-determined', 'restricted'. */
     access(): Promise<{ screen: string; microphone: string }>
     /** System Settings at Privacy ▸ Screen Recording (or the microphone). */
     openPrivacy(what: 'screen' | 'microphone'): Promise<void>
     /** Quit and open again (macOS applies a new Screen Recording permission only then); force: even with an agent working. */
     relaunch(force?: boolean): Promise<void>
-    /** Screens and windows to record (not Panthr's own). */
+    /** Screens and windows to record (not Panther's own). */
     sources(): Promise<import('./types').RecordingSource[]>
-    /** Record one into a project (null: from Home, held for Home's chat box): with the pointer in the picture or not, the microphone or not. Panthr steps aside until it is stopped. */
+    /** Record one into a project (null: from Home, held for Home's chat box): with the pointer in the picture or not, the microphone or not. Panther steps aside until it is stopped. */
     start(canvas: string | null, sourceId: string, opts: { pointer: boolean; mic: boolean }): Promise<{ id: string; canvas: string | null }>
     /** A held recording, moved onto a project's canvas as a video; its folder. */
     attach(canvas: string, held: string): Promise<string>
@@ -297,8 +281,6 @@ export interface Events {
   'project:renamed': { dir: string; name: string }
   /** A .panthr was opened (from Finder, a drop, or the menu): go to its project. */
   'share:opened': { dir: string; merged: boolean; text: string }
-  /** A project's brand kit changed. */
-  'brand:changed': { dir: string }
   /** A project's checkpoints changed. */
   'history:changed': { dir: string }
   /** The board's tiles or arrows changed. */
@@ -310,8 +292,6 @@ export interface Events {
   /** It landed: a video on its project's canvas. */
   'recorder:done': { id: string; canvas: string | null; dir: string; name: string; held?: import('./types').HeldRecording }
   'recorder:failed': { id: string; message: string }
-  /** The schedules changed (saved, ran, finished). */
-  schedules: import('./types').ScheduleStatus[]
   /** The Claude accounts changed (signed in, usage heard). */
   accounts: AccountStatus[]
   /** The connections changed (added, removed, connecting, connected, failed). */

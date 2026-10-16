@@ -1,4 +1,4 @@
-// Panthr's bridge in the preview page: reports time, scenes, layers and
+// Panther's bridge in the preview page: reports time, scenes, layers and
 // size to the app (the parent window), fits the composition to the view,
 // takes playback and pen commands, and describes a layer chosen on the
 // timeline. Injected into every project page with the runtime and picker.

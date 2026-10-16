@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- The App Store / TestFlight build runs in the App Sandbox. Panthr drives
+<!-- The App Store / TestFlight build runs in the App Sandbox. Panther drives
      the user's own agents (Claude Code, Codex) and tools (node, npx, ffmpeg,
-     ssh), so it reads and writes where those live, as the first Panthr did. -->
+     ssh), so it reads and writes where those live, as the first Panther did. -->
 <plist version="1.0">
 <dict>
   <key>com.apple.security.app-sandbox</key><true/>

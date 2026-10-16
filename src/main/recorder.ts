@@ -2,7 +2,7 @@
 // a product demo from. panthr-capture (ScreenCaptureKit) records it to an
 // MP4, with the pointer in the picture or not, and the microphone if
 // asked; panthr-input notes where the pointer goes and clicks either way,
-// so a pointer can be drawn in later. Panthr's window steps aside
+// so a pointer can be drawn in later. Panther's window steps aside
 // meanwhile; a timer in the menu bar (or ⇧⌘2) stops it.
 //
 // Stopped, it becomes a video on the project's canvas: the recording
@@ -294,7 +294,7 @@ export const recorderApi: Api['recorder'] = {
     const list = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 360, height: 225 } })
     sources = new Map(list.map((s) => [s.id, s]))
     return list
-      .filter((s) => !mine.has(s.id) && s.name !== 'Panthr' && !s.thumbnail.isEmpty())
+      .filter((s) => !mine.has(s.id) && s.name !== 'Panther' && !s.thumbnail.isEmpty())
       .map((s): RecordingSource => ({ id: s.id, name: s.name, kind: s.id.startsWith('screen:') ? 'screen' : 'window', thumb: s.thumbnail.toDataURL() }))
   },
   async start(canvas0, sourceId, opts) {
@@ -324,7 +324,7 @@ export const recorderApi: Api['recorder'] = {
     // Its first word: recording, or why not.
     const first = await new Promise<{ type: string; message?: string }>((ok) => {
       const lines = createInterface({ input: c.stdout! })
-      const timer = setTimeout(() => ok({ type: 'error', message: 'The recording did not start (is Screen Recording allowed for Panthr?)' }), 15000)
+      const timer = setTimeout(() => ok({ type: 'error', message: 'The recording did not start (is Screen Recording allowed for Panther?)' }), 15000)
       lines.on('line', (l) => {
         let m: any
         try {

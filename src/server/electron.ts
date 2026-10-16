@@ -1,5 +1,5 @@
 // Electron, for the server on another machine (no window, no Mac): only
-// what Panthr's main-process modules touch. The panthr:// handler is kept
+// what Panther's main-process modules touch. The panthr:// handler is kept
 // for the server's HTTP to answer with; dialogs and Finder are not there.
 
 import { dirname } from 'node:path'

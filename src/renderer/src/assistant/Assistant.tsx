@@ -1,6 +1,6 @@
 // The assistant, from Home: a button at the bottom right opens a small chat
 // box, which can grow to fill the window. It runs on the person's own agent
-// and looks after Panthr itself (settings, skills, references); what is
+// and looks after Panther itself (settings, skills, references); what is
 // about a project it hands to that project's conversation, and the window
 // goes there. Open or not, and how big, outlives a visit to a project.
 
@@ -130,7 +130,7 @@ export function Assistant() {
                 ) : (
                   <div className="assistant-empty">
                     <motion.div {...rise(8, MOVE)}>
-                      <div className="assistant-empty-title">What should Panthr do?</div>
+                      <div className="assistant-empty-title">What should Panther do?</div>
                       <div className="assistant-empty-body">
                         Change a setting, add a skill from a link, or ask for something in one of your projects. Project work goes to that project's own agent, and you're taken there.
                       </div>
@@ -143,7 +143,7 @@ export function Assistant() {
                   </div>
                 )}
                 <div className="composer-card assistant-composer">
-                  <Composer ref={box} placeholder="Ask Panthr…" onSubmit={send} onChange={setText} maxRows={8} />
+                  <Composer ref={box} placeholder="Ask Panther…" onSubmit={send} onChange={setText} maxRows={8} />
                   <div className="composer-row">
                     <span className="faint assistant-hint">Runs on your own agent, on this Mac</span>
                     <span className="spacer" />

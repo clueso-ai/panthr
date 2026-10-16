@@ -20,7 +20,6 @@ import { Tip } from '@/ui/Tooltip'
 import { ReferencesSection, RefSheet } from '@/editor/References'
 import { RecordButton } from './Record'
 import { Compare } from './Compare'
-import { BrandCard } from './Brand'
 import { ArrowLabel, NoteCard, NOTE_W, noteMessage } from './Notes'
 import { MenuItem, MenuSep, Popover } from '@/ui/Popover'
 import './board.css'
@@ -661,7 +660,6 @@ export const CanvasStage = memo(function CanvasStage({ canvas, active, onActivat
             <button className="board-tool notes-tool" onClick={() => sendNotes(openNotes)}><Icon name="note" size={15} /><span>Send {openNotes.length} note{openNotes.length === 1 ? '' : 's'}</span></button>
           </Tip>
         )}
-        <BrandCard dir={canvas} onRestyle={() => onAsk('Restyle every video in this project to the brand kit in BRAND.md: its colours, type, logo and voice exactly. Change each video in place, one after another, and check each.')} />
         <Tip title="Recipes" body="Videos your agent has taken apart, to make more like them. Mention one with @.">
           <button className="board-tool" onClick={() => setRefsOpen(true)}><Icon name="film" size={15} /><span>Recipes</span></button>
         </Tip>

@@ -1,5 +1,5 @@
 // Remote hosts: projects that live and run on another machine (a dev box,
-// a beefy desktop) while Panthr is used here. Everything runs there: the
+// a beefy desktop) while Panther is used here. Everything runs there: the
 // page itself (a small server on the host, reached through an SSH tunnel),
 // the agent (Claude Code or Codex), the editor tool behind the timeline and
 // inspector, snapshots and renders. Here there is only the app's own notes
@@ -158,7 +158,7 @@ export function kill(host: Host, pid: number): void {
 // ── Syncing ───────────────────────────────────────────────────────────
 
 /** Files that stay on each side: dependencies, renders (pulled on their
- *  own), and the skills links Panthr makes locally. */
+ *  own), and the skills links Panther makes locally. */
 const EXCLUDE = ['node_modules/', '.git/', '.studio/versions/', '.claude/skills/', '.agents/skills/']
 
 /** The `-e` rsync takes to ride the same connection. */
@@ -258,7 +258,7 @@ export async function snapshot(dir: string, at: string, rel: string): Promise<vo
 /** The parsers the editor tool needs (the same pin as here). */
 export const PARSERS = '@hyperframes/parsers@0.8.73'
 
-/** The tool's version marker: the same number the GPUI Panthr wrote, so a
+/** The tool's version marker: the same number the GPUI Panther wrote, so a
  *  host set up by either is not set up again. */
 export function toolVersion(tool: string): string {
   const M = (1n << 64n) - 1n

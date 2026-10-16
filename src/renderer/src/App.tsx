@@ -1,6 +1,6 @@
 // Home (every project) or a project (its canvas of videos, its conversation,
 // and the active video's timeline); Settings over either. Where you were is
-// kept: Panthr opens where it was left.
+// kept: Panther opens where it was left.
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'

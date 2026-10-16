@@ -1,4 +1,4 @@
-// Panthr's icons: Lucide's (ISC), drawn at a 1.5 pt stroke so they sit
+// Panther's icons: Lucide's (ISC), drawn at a 1.5 pt stroke so they sit
 // lightly beside 13 px text. One name per thing the app shows, mapped to
 // Lucide's drawing for it, so call sites never name a Lucide icon.
 

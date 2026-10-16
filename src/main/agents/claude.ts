@@ -1,6 +1,6 @@
 // Claude Code: one long-lived `claude -p` process per chat, fed user
 // messages as stream-json on stdin and read as stream-json on stdout. The
-// Panthr prompt is appended to Claude Code's own; the project folder is its
+// Panther prompt is appended to Claude Code's own; the project folder is its
 // working directory; the shared library is an extra dir. Agents are Claude
 // Code's own subagents (the Task tool), allowed or not per project.
 // Port of studio-mac/src/claude.rs.
@@ -18,7 +18,7 @@ let boardPrompt: string | null = null
 let assistantPrompt: string | null = null
 
 /** Which instructions a chat gets: a video's, a project's (its canvas), or
- *  the assistant's (Panthr itself, from Home). */
+ *  the assistant's (Panther itself, from Home). */
 export type PromptKind = boolean | 'assistant'
 
 /** The video-making instructions (Codex gets them too). On the Board, the

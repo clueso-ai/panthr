@@ -254,7 +254,7 @@ function UserMessage({ text: full, long, onMore, fresh }: { text: string; long: 
         {clip && <button className="um-more" onClick={onMore}>Show all</button>}
       </div>
       {m && m[1] && <div className="um-about" title="The video that was active">◎ {m[1]}</div>}
-      {self && <div className="um-about" title="Panthr checked the video and sent what it found">◎ Self-check</div>}
+      {self && <div className="um-about" title="Panther checked the video and sent what it found">◎ Self-check</div>}
     </motion.div>
   )
 }

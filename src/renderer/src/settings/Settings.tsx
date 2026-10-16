@@ -12,18 +12,16 @@ import { MenuItem, Popover } from '@/ui/Popover'
 import { Mark } from '@/ui/Mark'
 import { AccountDot, UsageBar, resetsIn, useAccounts } from '@/ui/Accounts'
 import { UsagePane } from './Usage'
-import { SchedulesPane } from './Schedules'
 import { ByClueso } from '@/ui/CluesoMark'
 import { setAppearance } from '@/ui/ThemeToggle'
 import { AgentMark } from '@/ui/AgentMark'
 import './settings.css'
 
-export type Pane = 'general' | 'agents' | 'usage' | 'schedules' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
+export type Pane = 'general' | 'agents' | 'usage' | 'skills' | 'connections' | 'hosts' | 'editor' | 'export' | 'about'
 const PANES: [Pane, string, IconName][] = [
   ['general', 'General', 'settings'],
   ['agents', 'Agents', 'agents'],
   ['usage', 'Usage', 'history'],
-  ['schedules', 'Schedules', 'clock'],
   ['skills', 'Skills', 'library'],
   ['connections', 'Connections', 'server'],
   ['hosts', 'Hosts', 'cloud'],
@@ -64,7 +62,6 @@ export function Settings({ open, pane, onPane, onClose }: { open: boolean; pane:
                   {pane === 'general' && <General />}
                   {pane === 'agents' && <Agents />}
                   {pane === 'usage' && <UsagePane />}
-                  {pane === 'schedules' && <SchedulesPane />}
                   {pane === 'skills' && <Skills />}
                   {pane === 'connections' && <Connections />}
                   {pane === 'hosts' && <Hosts />}
@@ -183,7 +180,7 @@ function Agents() {
       </Card>
       <Card>
         <Row title="Helper agents" body="New projects start with them. Better results on big jobs; more time and cost."><Switch on={s.agents_default} onChange={(v) => set({ agents_default: v })} /></Row>
-        <Row title="Self-check" body="After a turn that changed a video, Panthr checks it (text off the frame, errors, flashes, the picture going blank) and has the agent fix what it finds, once."><Switch on={s.self_check} onChange={(v) => set({ self_check: v })} /></Row>
+        <Row title="Self-check" body="After a turn that changed a video, Panther checks it (text off the frame, errors, flashes, the picture going blank) and has the agent fix what it finds, once."><Switch on={s.self_check} onChange={(v) => set({ self_check: v })} /></Row>
       </Card>
       <p className="pane-note">Each project can pick its own model from the chip in its chat box.</p>
     </>
@@ -238,7 +235,7 @@ function AgentAccounts({ engine }: { engine: Engine }) {
                 <UsageBar label="Week" w={a.usage.seven_day} />
               </div>
             )}
-            {confirm === a.id && <div className="acct-note faint">Panthr forgets it; its sign-in stays in {a.dir}. Chats on it move to the account new chats use.</div>}
+            {confirm === a.id && <div className="acct-note faint">Panther forgets it; its sign-in stays in {a.dir}. Chats on it move to the account new chats use.</div>}
           </div>
         )
       })}
@@ -577,7 +574,7 @@ function Connections() {
   }
   return (
     <>
-      <p className="pane-lede">Use another machine from here. Its projects show on Home beside this Mac’s, and their agents, previews and exports run there. Panthr installs and starts itself there over SSH: keys must already work without a password, and the machine needs Node 18 or newer.</p>
+      <p className="pane-lede">Use another machine from here. Its projects show on Home beside this Mac’s, and their agents, previews and exports run there. Panther installs and starts itself there over SSH: keys must already work without a password, and the machine needs Node 18 or newer.</p>
       <Card>
         <Row title="This Mac" body="Here: always on.">
           <span className="conn-state ok"><i />Here</span>
@@ -598,7 +595,7 @@ function Connections() {
                 <Switch on={c.enabled} onChange={(v) => api.connections.setEnabled(c.id, v)} />
               </Row>
               <div className={`conn-line ${line.tone}`}><i />{line.text}</div>
-              {confirm === c.id && <div className="conn-line off">Its projects stay on {c.label}; its Panthr there stops. You can connect again any time.</div>}
+              {confirm === c.id && <div className="conn-line off">Its projects stay on {c.label}; its Panther there stops. You can connect again any time.</div>}
             </Card>
           </motion.div>
         )
@@ -704,7 +701,7 @@ function CommandLine() {
   }, [])
   return (
     <Card title="Command line">
-      <Row title="panthr" body={st?.installed ? (st.onPath ? `Installed at ${st.path}` : `Installed at ${st.path}; add ~/.local/bin to your PATH to use it.`) : 'Drive Panthr from a terminal, a script, or another agent.'}>
+      <Row title="panthr" body={st?.installed ? (st.onPath ? `Installed at ${st.path}` : `Installed at ${st.path}; add ~/.local/bin to your PATH to use it.`) : 'Drive Panther from a terminal, a script, or another agent.'}>
         <button className="btn small" onClick={async () => {
           try {
             setSt(await api.app.installCli())
@@ -727,7 +724,7 @@ function About() {
   }, [])
   return (
     <>
-      <div className="about-mark"><Mark size={56} cut="var(--pane)" /><div><div className="wordmark">Panthr</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
+      <div className="about-mark"><Mark size={56} cut="var(--pane)" /><div><div className="wordmark">Panther</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
       <Card title="On this Mac">
         {missing === null ? <Row title="Checking tools…"><span /></Row> : missing.length === 0 ? (
           <Row title="Everything is installed" body="Claude Code or Codex, Node, npx and ffmpeg were found."><span className="ok">✓</span></Row>

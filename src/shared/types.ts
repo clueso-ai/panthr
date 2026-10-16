@@ -1,5 +1,5 @@
 // Shared data shapes. Everything that is saved keeps the on-disk JSON of
-// the first (GPUI) Panthr, so both read the same ~/Panthr projects and the
+// the first (GPUI) Panther, so both read the same ~/Panthr projects and the
 // same Application Support/Panthr files.
 
 // ── Projects (~/Panthr/<name>/.studio/project.json) ───────────────
@@ -103,37 +103,6 @@ export interface AccountUsage {
   at: number
 }
 
-// ── Schedules (Application Support/Panthr/schedules.json) ─────────
-// Videos made on their own, on a timetable: a message for a project's agent
-// (or a new project each time), sent at a time on chosen days.
-
-export interface Schedule {
-  id: string
-  name: string
-  /** What to make: the message for the agent. */
-  prompt: string
-  /** The project it works in (null: a new project each run). */
-  project: string | null
-  /** Days of the week it runs (0 Sunday … 6 Saturday); all seven: every day. */
-  days: number[]
-  /** When, local time ("09:00"). */
-  time: string
-  /** Export the videos it changed when the agent is done. */
-  exportAfter: boolean
-  enabled: boolean
-  created_at: number
-  /** When it last ran (s since the epoch). */
-  lastRun: number | null
-  last: { at: number; dir: string; ok: boolean; note: string } | null
-}
-
-export interface ScheduleStatus extends Schedule {
-  /** When it runs next (s since the epoch), null when off. */
-  next: number | null
-  /** Running now. */
-  running: boolean
-}
-
 /** A screen or window to record. */
 export interface RecordingSource {
   id: string
@@ -171,7 +140,7 @@ export interface UsageTurn extends UsageTotals {
   engine: Engine
   account: string
   error: boolean
-  /** Its time is a guess (from before Panthr noted when turns end). */
+  /** Its time is a guess (from before Panther noted when turns end). */
   estimated?: boolean
 }
 
@@ -193,7 +162,7 @@ export interface UsageReport {
   days: (UsageTotals & { day: string })[]
   projects: UsageProject[]
   accounts: (UsageTotals & { id: string; label: string; engine: Engine; color: string })[]
-  /** Turns from before Panthr noted when each happened: their days are estimated. */
+  /** Turns from before Panther noted when each happened: their days are estimated. */
   undated: number
 }
 
@@ -438,7 +407,7 @@ export interface Clip {
   /** It has sound (an audio, or a video with a file). */
   audible: boolean
   linked: string | null
-  /** Panthr's fades and ducking on it (seconds; duck: the voices, how far down). */
+  /** Panther's fades and ducking on it (seconds; duck: the voices, how far down). */
   mix: { in?: number; out?: number; duck?: { under: string[]; depth: number } } | null
 }
 
@@ -557,7 +526,7 @@ export interface Skill {
   description: string
   pack: string | null
   on: boolean
-  /** Where it came from: one of Panthr's defaults, a package added later,
+  /** Where it came from: one of Panther's defaults, a package added later,
    *  or the user's own (written or imported here; editable). */
   origin: 'builtin' | 'added' | 'yours'
   dir: string
@@ -590,7 +559,7 @@ export interface Host {
 }
 
 // ── Connections (Application Support/Panthr/connections.json) ─────
-// Other machines' Panthr: a server there, reached over SSH, whose projects
+// Other machines' Panther: a server there, reached over SSH, whose projects
 // show here beside this Mac's (their folders as /@<id>/<path there>).
 
 export interface Connection {
@@ -752,13 +721,3 @@ export interface Checkpoint {
   at: number
 }
 
-// ── A project's brand kit (.studio/brand.json, written out as BRAND.md) ──
-
-export interface Brand {
-  colors: { name: string; hex: string }[]
-  fonts: { role: string; family: string }[]
-  /** The logo, from the project folder (copied in as brand/logo.*). */
-  logo: string | null
-  /** How it sounds: tone, words to use and avoid. */
-  voice: string
-}

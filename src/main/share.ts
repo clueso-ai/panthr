@@ -109,7 +109,7 @@ export async function openShare(file: string): Promise<{ dir: string; merged: bo
   try {
     await run('/usr/bin/ditto', ['-x', '-k', file, stage])
     const m = readJson<Manifest | null>(join(stage, 'panthr.json'), null)
-    if (!m || m.format !== FORMAT || !existsSync(join(stage, 'project'))) throw new Error('Not a Panthr project file')
+    if (!m || m.format !== FORMAT || !existsSync(join(stage, 'project'))) throw new Error('Not a Panther project file')
     const incoming = readJson<{ notes?: CanvasNote[]; tiles?: Record<string, unknown> }>(join(stage, 'project', '.studio', 'canvas.json'), {})
 
     // The same project here already: bring its notes home.
@@ -158,7 +158,7 @@ export const shareApi: Api['share'] = {
     if (!out) {
       const w = BrowserWindow.getFocusedWindow()
       const name = folderName(loadMeta(real(canvas))?.name ?? 'Project')
-      const opts: Electron.SaveDialogOptions = { defaultPath: join(app.getPath('desktop'), `${name}.panthr`), filters: [{ name: 'Panthr project', extensions: ['panthr'] }] }
+      const opts: Electron.SaveDialogOptions = { defaultPath: join(app.getPath('desktop'), `${name}.panthr`), filters: [{ name: 'Panther project', extensions: ['panthr'] }] }
       const r = await (w ? dialog.showSaveDialog(w, opts) : dialog.showSaveDialog(opts))
       if (r.canceled || !r.filePath) return ''
       out = r.filePath

@@ -53,7 +53,7 @@ async function ensure(dir: string): Promise<void> {
   }
   mkdirSync(join(dir, '.studio'), { recursive: true })
   await git(dir, ['init', '-q'])
-  await git(dir, ['config', 'user.name', 'Panthr'])
+  await git(dir, ['config', 'user.name', 'Panther'])
   await git(dir, ['config', 'user.email', 'panthr@localhost'])
   await git(dir, ['config', 'core.quotePath', 'false'])
   mkdirSync(join(gitDir(dir), 'info'), { recursive: true })

@@ -1,6 +1,6 @@
 // The assistant: a conversation outside the projects, opened from Home. It
 // runs on the person's own agent (as every chat does) with its own
-// instructions, and looks after Panthr itself through the `panthr` command:
+// instructions, and looks after Panther itself through the `panthr` command:
 // settings, skills, references. What is about a project it does not do
 // itself: it hands the message to that project's conversation (handoff),
 // and the window goes there to watch it happen.
@@ -17,7 +17,7 @@ import { createCanvas, keyFor, listCanvases } from './board'
 import { loadMeta, metaPath, newChat, saveMetaFile } from './projects'
 import { assistantDir, now } from './paths'
 
-export const ASSISTANT_NAME = 'Panthr assistant'
+export const ASSISTANT_NAME = 'Panther assistant'
 
 export const isAssistant = (dir: string): boolean => resolve(dir) === resolve(assistantDir())
 

@@ -1,4 +1,4 @@
-// The `app` namespace: the Mac around Panthr (Finder, files, URLs, tools).
+// The `app` namespace: the Mac around Panther (Finder, files, URLs, tools).
 
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -87,7 +87,7 @@ export const appApi: Api['app'] = {
     // Ours, or nothing: never replace someone else's panthr.
     try {
       const st = lstatSync(link)
-      if (!st.isSymbolicLink()) throw new Error(`${link} exists and is not Panthr's`)
+      if (!st.isSymbolicLink()) throw new Error(`${link} exists and is not Panther's`)
       unlinkSync(link)
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e

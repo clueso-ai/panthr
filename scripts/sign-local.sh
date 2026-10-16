@@ -9,7 +9,7 @@
 # identifier. Inside out either way: the helpers in Resources (which --deep
 # passes over) first, then the app.
 set -e
-APP="${1:-dist/mac-arm64/Panthr.app}"
+APP="${1:-dist/mac-arm64/Panther.app}"
 ID=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ { print $2; exit }')
 for bin in "$APP"/Contents/Resources/resources/bin/*; do
   [ -f "$bin" ] && [ -x "$bin" ] && codesign --force -s "${ID:--}" "$bin"

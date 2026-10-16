@@ -1,5 +1,5 @@
 // Recording the screen into a project: pick a screen or a window (and the
-// microphone if you like), a 3-2-1, and Panthr steps aside while it records;
+// microphone if you like), a 3-2-1, and Panther steps aside while it records;
 // the menu-bar timer or ⇧⌘2 stops it. The recording lands as a video on the
 // canvas, with a card offering to make a demo of it. From Home it makes no
 // project: it is attached to Home's chat box, and sending makes the project
@@ -127,7 +127,7 @@ export function RecordOverlay() {
         {s.count != null && (
           <motion.div className="rec-count" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={tr(MOVE)}>
             <motion.b key={s.count} initial={{ scale: 1.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={tr(SETTLE)}>{s.count}</motion.b>
-            <span>Recording starts. Panthr steps aside; stop it from the menu bar or with ⇧⌘2.</span>
+            <span>Recording starts. Panther steps aside; stop it from the menu bar or with ⇧⌘2.</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -203,16 +203,16 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
         </div>
         {blocked ? (
           <div className="rec-perm">
-            <b>Panthr needs permission to record your screen</b>
+            <b>Panther needs permission to record your screen</b>
             <ol>
               <li>
                 Open Screen Recording in System Settings.
                 <button className="btn small" onClick={() => api.recorder.openPrivacy('screen')}>Open Screen Recording</button>
               </li>
-              <li>Turn Panthr on. If Panthr is listed more than once (an older copy), remove those with − and turn this one on, or add it with +.</li>
+              <li>Turn Panther on. If Panther is listed more than once (an older copy), remove those with − and turn this one on, or add it with +.</li>
               <li>
-                Relaunch Panthr: macOS only applies it to a fresh start.
-                <button className="btn small primary" onClick={() => api.recorder.relaunch().catch((e) => setRelaunchErr((e as Error).message))}>Relaunch Panthr</button>
+                Relaunch Panther: macOS only applies it to a fresh start.
+                <button className="btn small primary" onClick={() => api.recorder.relaunch().catch((e) => setRelaunchErr((e as Error).message))}>Relaunch Panther</button>
               </li>
             </ol>
             {relaunchErr && (
@@ -243,7 +243,7 @@ function RecordSheet({ fromHome, onClose, onStart }: { fromHome: boolean; onClos
           </>
         )}
         {mic && access?.microphone === 'denied' && (
-          <div className="rec-err">The microphone is off for Panthr. <button className="link" onClick={() => api.recorder.openPrivacy('microphone')}>Turn it on in System Settings</button>, then relaunch Panthr.</div>
+          <div className="rec-err">The microphone is off for Panther. <button className="link" onClick={() => api.recorder.openPrivacy('microphone')}>Turn it on in System Settings</button>, then relaunch Panther.</div>
         )}
         <div className="rec-go">
           <Tip title="Show the pointer" body="Off: the pointer stays out of the picture. Where it went and what it clicked are noted either way, so one can be drawn in later, as large or smooth as you like.">

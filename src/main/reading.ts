@@ -4,7 +4,7 @@
 // for want of one.
 //
 //   reading/shots.json            shots (PySceneDetect's adaptive detector
-//                                 via uvx, else Panthr's own from motion)
+//                                 via uvx, else Panther's own from motion)
 //   reading/transcript.json|.txt  what is said, word by word (hyperframes
 //                                 transcribe: Whisper or Parakeet)
 //   reading/text-on-screen.json|.md  text in the frames (Apple's Vision)
@@ -259,7 +259,7 @@ export async function readVideo(dir: string, video: string, info: { duration: nu
   const save = (name: string, v: unknown): void => writeFileSync(join(out, name), typeof v === 'string' ? v : JSON.stringify(v, null, 1))
   const d = info.duration
 
-  // Motion (and Panthr's own cuts), 10 frames a second (fewer for long videos).
+  // Motion (and Panther's own cuts), 10 frames a second (fewer for long videos).
   step('Measuring motion')
   const fps = d > 300 ? 4 : 10
   let motion: number[] = []
@@ -274,7 +274,7 @@ export async function readVideo(dir: string, video: string, info: { duration: nu
   let shots = await shotsByPySceneDetect(video, out)
   let method = 'PySceneDetect adaptive detector'
   if (!shots || !shots.length) {
-    method = shots ? 'PySceneDetect found one shot' : 'Panthr motion detector (PySceneDetect unavailable: needs uv)'
+    method = shots ? 'PySceneDetect found one shot' : 'Panther motion detector (PySceneDetect unavailable: needs uv)'
     shots = shots && shots.length ? shots : shotsFrom(cutsFromMotion(motion, fps), d)
   }
   save('shots.json', { method, shots })
@@ -346,9 +346,9 @@ export async function readVideo(dir: string, video: string, info: { duration: nu
     }
   } else notes.push('text on screen: skipped (the OCR helper is not in this build)')
 
-  const readme = `# What Panthr measured
+  const readme = `# What Panther measured
 
-Before the agent looked, Panthr read this video with tools that run on this Mac.
+Before the agent looked, Panther read this video with tools that run on this Mac.
 
 | File | What it holds |
 |---|---|
