@@ -102,8 +102,10 @@ export function Home({ onOpen, onStart, onSettings }: {
     <div className="home">
       <div className="home-top drag">
         <Mark size={24} />
-        <span className="wordmark">Panther</span>
-        <ByClueso height={12} />
+        <span className="brand-lockup">
+          <span className="wordmark">Panther</span>
+          <ByClueso height={12} />
+        </span>
         <span className="spacer" />
         <div className="no-drag home-top-btns">
           <ThemeToggle />
