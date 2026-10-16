@@ -115,7 +115,7 @@ export function Assistant() {
             style={{ transformOrigin: 'bottom right' }}
           >
             <div className="assistant-head">
-              {working ? <LiveMark size={20} busy cut="var(--pane)" shots={false} /> : <Mark size={20} cut="var(--pane)" />}
+              {working ? <LiveMark size={20} busy shots={false} /> : <Mark size={20} />}
               <b>Assistant</b>
               <span className="faint ellipsis">Settings, skills, and anything for your projects</span>
               <span className="spacer" />
@@ -168,7 +168,7 @@ export function Assistant() {
           <motion.div className="assistant-fab-wrap" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={tr(QUICK)}>
             <Tip side="top" title={open ? "Close the assistant" : "Assistant"} keys="⌘J" body={open ? undefined : 'Change settings, add skills, or send work to a project.'}>
               <button className={`assistant-fab${open ? ' on' : ''}`} onClick={toggleAssistant} aria-label="Assistant">
-                {open ? <Icon name="close" size={16} /> : working ? <LiveMark size={24} busy cut="var(--raised)" shots={false} /> : <Mark size={24} cut="var(--raised)" />}
+                {open ? <Icon name="close" size={16} /> : working ? <LiveMark size={24} busy shots={false} /> : <Mark size={24} />}
                 {working && !open && <i className="assistant-dot" />}
               </button>
             </Tip>

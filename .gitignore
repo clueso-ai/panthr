@@ -4,3 +4,4 @@ build/*.yml
 dist
 node_modules
 out
+.claude/worktrees/
