@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ConnectionStatus, Engine, Host, HostCheck, Model, Settings as S, Skill, SkillHit, SkillsState } from '@shared/types'
+import { engineShort, type ConnectionStatus, type Engine, type Host, type HostCheck, type Model, type Settings as S, type Skill, type SkillHit, type SkillsState } from '@shared/types'
 import { api, useEvent, useSettings } from '@/lib/api'
 import { rise, tr, MOVE, QUICK, SETTLE } from '@/lib/motion'
 import { Icon, type IconName } from '@/ui/Icon'
@@ -82,7 +82,7 @@ const set = (patch: Partial<S>): void => {
   api.settings.set(patch)
 }
 
-function Row({ title, body, children, mark }: { title: string; body?: string; children: React.ReactNode; mark?: 'claude' | 'codex' }) {
+function Row({ title, body, children, mark }: { title: string; body?: string; children: React.ReactNode; mark?: Engine }) {
   return (
     <div className="row">
       {mark && <span className="row-mark"><AgentMark engine={mark} size={18} /></span>}
@@ -133,7 +133,7 @@ function General() {
   )
 }
 
-function ModelMenu({ engine, value, onChange }: { engine: 'claude' | 'codex'; value: string; onChange(v: string): void }) {
+function ModelMenu({ engine, value, onChange }: { engine: Engine; value: string; onChange(v: string): void }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [models, setModels] = useState<Model[]>([])
@@ -148,10 +148,12 @@ function ModelMenu({ engine, value, onChange }: { engine: 'claude' | 'codex'; va
       </button>
       <Popover anchor={anchor} open={open} onClose={() => setOpen(false)} align="end" width={200}>
         <div className="menu">
-          {models.map((m) => <MenuItem key={m.id} label={m.name} on={m.id === value} onSelect={() => {
-            onChange(m.id)
-            setOpen(false)
-          }} />)}
+          <div className="menu-scroll">
+            {models.map((m) => <MenuItem key={m.id} label={m.name} on={m.id === value} onSelect={() => {
+              onChange(m.id)
+              setOpen(false)
+            }} />)}
+          </div>
         </div>
       </Popover>
     </>
@@ -164,19 +166,26 @@ function Agents() {
     <>
       <Card>
         <Row title="New chats use" body="Whichever is signed in on this Mac.">
-          <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[{ value: 'claude', label: <span className="seg-mark"><AgentMark engine="claude" size={13} />Claude Code</span> }, { value: 'codex', label: <span className="seg-mark"><AgentMark engine="codex" size={13} />Codex</span> }]} />
+          <Segmented id="agent" value={s.agent} onChange={(v) => set({ agent: v })} options={[
+            { value: 'claude', label: <span className="seg-mark"><AgentMark engine="claude" size={13} />Claude Code</span> },
+            { value: 'codex', label: <span className="seg-mark"><AgentMark engine="codex" size={13} />Codex</span> },
+            { value: 'opencode', label: <span className="seg-mark"><AgentMark engine="opencode" size={13} />OpenCode</span> }
+          ]} />
         </Row>
       </Card>
       <AgentAccounts engine="claude" />
       <AgentAccounts engine="codex" />
+      <OpencodeSignIn />
       <Failover />
       <Card title="Default models">
         <Row title="Claude Code" body="Default is what Claude Code is set to." mark="claude"><ModelMenu engine="claude" value={s.model} onChange={(v) => set({ model: v })} /></Row>
         <Row title="Codex" body="Default is what Codex is set to." mark="codex"><ModelMenu engine="codex" value={s.codex_model} onChange={(v) => set({ codex_model: v })} /></Row>
+        <Row title="OpenCode" body="Default is what OpenCode is set to. Any model of a provider it is signed in to." mark="opencode"><ModelMenu engine="opencode" value={s.opencode_model} onChange={(v) => set({ opencode_model: v })} /></Row>
       </Card>
       <Card title="Recipes">
         <Row title="Claude Code" body="Takes a recipe video apart. Sonnet is quick and sees well; a bigger model looks longer." mark="claude"><ModelMenu engine="claude" value={s.reference_model} onChange={(v) => set({ reference_model: v })} /></Row>
         <Row title="Codex" body="Used when new chats use Codex." mark="codex"><ModelMenu engine="codex" value={s.reference_codex_model} onChange={(v) => set({ reference_codex_model: v })} /></Row>
+        <Row title="OpenCode" body="Used when new chats use OpenCode. Pick one that sees images." mark="opencode"><ModelMenu engine="opencode" value={s.reference_opencode_model} onChange={(v) => set({ reference_opencode_model: v })} /></Row>
       </Card>
       <Card>
         <Row title="Helper agents" body="New projects start with them. Better results on big jobs; more time and cost."><Switch on={s.agents_default} onChange={(v) => set({ agents_default: v })} /></Row>
@@ -240,9 +249,32 @@ function AgentAccounts({ engine }: { engine: Engine }) {
         )
       })}
       <div className="acct-add">
-        <input className="text-input" placeholder={`Name another ${engine === 'codex' ? 'Codex' : 'Claude'} account (Work, Personal…)`} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        <input className="text-input" placeholder={`Name another ${engineShort(engine)} account (Work, Personal…)`} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <button className="btn" onClick={add}>Add and sign in</button>
       </div>
+    </Card>
+  )
+}
+
+/** OpenCode keeps one sign-in, holding every provider it is signed in to
+ *  (OpenAI, Anthropic, its own Zen…): it is installed, signed in, or not. */
+function OpencodeSignIn() {
+  const a = useAccounts(true).find((x) => x.engine === 'opencode')
+  return (
+    <Card title="OpenCode">
+      {!a || a.signedIn === null ? (
+        <Row title="Checking…"><span /></Row>
+      ) : a.missing ? (
+        <Row title="OpenCode is not installed" body="curl -fsSL https://opencode.ai/install | bash" mark="opencode"><span className="bad">×</span></Row>
+      ) : a.signedIn ? (
+        <Row title="Signed in" body={a.plan ? `To ${a.plan}. Sign in to another provider to use its models.` : undefined} mark="opencode">
+          <button className="btn small ghost" onClick={() => api.accounts.signIn(a.id)}>Add a provider</button>
+        </Row>
+      ) : (
+        <Row title="Not signed in" body="Sign in to a provider (OpenAI, Anthropic, OpenCode Zen…) in Terminal." mark="opencode">
+          <button className="btn small primary" onClick={() => api.accounts.signIn(a.id)}>Sign in</button>
+        </Row>
+      )}
     </Card>
   )
 }
@@ -299,7 +331,7 @@ function Skills() {
   }
   return (
     <>
-      <p className="pane-lede">Skills teach the agents a craft. Every project gets the ones switched on, for Claude Code and Codex alike. Find more on skills.sh, write your own, or bring a folder of them.</p>
+      <p className="pane-lede">Skills teach the agents a craft. Every project gets the ones switched on, for Claude Code, Codex and OpenCode alike. Find more on skills.sh, write your own, or bring a folder of them.</p>
       <div className="skills-bar">
         <input className="text-input skills-search" placeholder="Search your skills and skills.sh" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn" onClick={() => setMaking((m) => !m)}><Icon name="plus" size={13} /> New skill</button>
@@ -727,7 +759,7 @@ function About() {
       <div className="about-mark"><Mark size={56} /><div><div className="wordmark">Panther</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
       <Card title="On this Mac">
         {missing === null ? <Row title="Checking tools…"><span /></Row> : missing.length === 0 ? (
-          <Row title="Everything is installed" body="Claude Code or Codex, Node, npx and ffmpeg were found."><span className="ok">✓</span></Row>
+          <Row title="Everything is installed" body="Claude Code, Codex or OpenCode, Node, npx and ffmpeg were found."><span className="ok">✓</span></Row>
         ) : missing.map((m) => (
           <Row key={m} title={`${m === 'claude' ? 'Claude Code' : m} is missing`} body={m === 'claude' ? 'curl -fsSL https://claude.ai/install.sh | bash' : `brew install ${m === 'npx' ? 'node' : m}`}><span className="bad">×</span></Row>
         ))}

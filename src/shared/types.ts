@@ -4,7 +4,21 @@
 
 // ── Projects (~/Panthr/<name>/.studio/project.json) ───────────────
 
-export type Engine = 'claude' | 'codex'
+export type Engine = 'claude' | 'codex' | 'opencode'
+
+/** Every agent, in the order they are offered. */
+export const ENGINES: Engine[] = ['claude', 'codex', 'opencode']
+
+/** An agent by the name people know it by (absent: Claude Code). */
+export const engineName = (e?: Engine | null): string => (e === 'codex' ? 'Codex' : e === 'opencode' ? 'OpenCode' : 'Claude Code')
+
+/** Shorter, where a model or an account is named beside it. */
+export const engineShort = (e?: Engine | null): string => (e === 'codex' ? 'Codex' : e === 'opencode' ? 'OpenCode' : 'Claude')
+
+/** The setting holding an agent's model for chats, and for taking recipes apart. */
+export const modelKey = (e: Engine): 'model' | 'codex_model' | 'opencode_model' => (e === 'codex' ? 'codex_model' : e === 'opencode' ? 'opencode_model' : 'model')
+export const referenceModelKey = (e: Engine): 'reference_model' | 'reference_codex_model' | 'reference_opencode_model' =>
+  e === 'codex' ? 'reference_codex_model' : e === 'opencode' ? 'reference_opencode_model' : 'reference_model'
 
 export interface ChatMeta {
   id: string
@@ -53,9 +67,12 @@ export interface Settings {
   frost: number
   agent: Engine
   codex_model: string
+  /** OpenCode's model ('default', or provider/model as `opencode models` lists it). */
+  opencode_model: string
   /** The model that takes reference videos apart (quicker than chats need). */
   reference_model: string
   reference_codex_model: string
+  reference_opencode_model: string
   skimming: boolean
   /** Claude Code accounts besides the default (~/.claude), each its own config folder. */
   claude_accounts: AgentAccount[]
@@ -74,7 +91,8 @@ export interface Settings {
 // ── Agent accounts ────────────────────────────────────────────────
 // Several subscriptions at once, for Claude Code and for Codex: each
 // signed in to its own folder (CLAUDE_CONFIG_DIR, CODEX_HOME); a chat runs
-// on one of its agent's accounts.
+// on one of its agent's accounts. OpenCode has one: its own sign-in, which
+// holds every provider it is signed in to.
 
 export interface AgentAccount {
   id: string
@@ -125,7 +143,7 @@ export interface HeldRecording {
 // ── Usage (built from every chat's turns) ─────────────────────────
 
 export interface UsageTotals {
-  /** Claude Code's cost in API dollars (a subscription pays none of it; Codex reports none). */
+  /** Claude Code's and OpenCode's cost in API dollars (a subscription pays none of it; Codex reports none). */
   cost: number
   seconds: number
   turns: number
@@ -179,10 +197,12 @@ export interface AccountStatus extends AgentAccount {
   /** Null: not checked yet. */
   signedIn: boolean | null
   email: string | null
-  /** The plan (Max, Pro, Team…) or how it signs in. */
+  /** The plan (Max, Pro, Team…) or how it signs in (OpenCode: its providers). */
   plan: string | null
   org: string | null
   usage: AccountUsage | null
+  /** Its agent is not installed on this Mac (checked for OpenCode). */
+  missing?: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -196,8 +216,10 @@ export const DEFAULT_SETTINGS: Settings = {
   frost: 40,
   agent: 'claude',
   codex_model: 'default',
+  opencode_model: 'default',
   reference_model: 'sonnet',
   reference_codex_model: 'default',
+  reference_opencode_model: 'default',
   skimming: true,
   claude_accounts: [],
   claude_account: 'default',
@@ -247,7 +269,7 @@ export type Item =
   | { Note: string }
 
 /** What an agent process reports (Claude Code's stream-json, Codex's
- *  --json, both mapped onto one shape). */
+ *  --json, OpenCode's --format json, all mapped onto one shape). */
 export type AgentEvent =
   | { type: 'session'; id: string }
   | { type: 'text'; text: string; agent: boolean; parent?: string }
@@ -260,7 +282,7 @@ export type AgentEvent =
   /** How much of the account is used (Claude Code's rate_limit_event). */
   | { type: 'limits'; usage: Omit<AccountUsage, 'at'> }
 
-/** How a turn ended: its cost (Claude Code's, in API dollars; Codex reports none) and time,
+/** How a turn ended: its cost (Claude Code's and OpenCode's, in API dollars; Codex reports none) and time,
  *  and (newer turns) when, on which agent and account, and how many tokens. */
 export interface TurnMeta {
   cost_usd: number

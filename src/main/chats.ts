@@ -1,14 +1,14 @@
 // A chat with an agent on one project: its transcript, saved under
 // .studio/chats/<id>.json, and its agent process (Claude Code: one per chat,
-// kept alive; Codex: one per message). Main owns both; the window gets
-// ChatState through 'chat:state'. Port of the non-UI half of
+// kept alive; Codex and OpenCode: one per message). Main owns both; the
+// window gets ChatState through 'chat:state'. Port of the non-UI half of
 // studio-mac/src/chat.rs, with studio.rs's on_chat (session, title and
 // engine into project.json).
 
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { Api } from '@shared/api'
-import type { AgentEvent, ChatMeta, ChatState, Engine, Item, Model, Step } from '@shared/types'
+import { engineName, engineShort, modelKey, type AgentEvent, type ChatMeta, type ChatState, type Engine, type Item, type Model, type Step } from '@shared/types'
 import { emit } from './bus'
 import { readJson } from './json'
 import { getSettings } from './settings'
@@ -17,12 +17,13 @@ import * as remote from './remote'
 import { ClaudeChat, promptText } from './agents/claude'
 import { expandMentions } from './references'
 import { CodexRun, models as codexModels } from './agents/codex'
+import { OpencodeRun, models as opencodeModels } from './agents/opencode'
 import { suggestName } from './namer'
 import { isCanvas } from './board'
 import { checkpoints, record, snap, tracked } from './history'
 import { checkMessage, checkVideo } from './selfcheck'
 import { assistantDir } from './paths'
-import { accountFor, atLimit, claudeEnv, codexEnv, codexUsage, moveSession, nextAccount, noteUsage } from './accounts'
+import { accountFor, atLimit, claudeEnv, codexEnv, codexUsage, moveSession, nextAccount, noteUsage, opencodeEnv } from './accounts'
 
 /** The instructions for a chat in this folder: the assistant's, a project's or a video's. */
 const kindOf = (dir: string): boolean | 'assistant' => (resolve(dir) === resolve(assistantDir()) ? 'assistant' : isCanvas(dir))
@@ -132,7 +133,7 @@ export class Transcript {
         if (!this.working) return {}
         this.working = false
         this.streaming = null
-        this.items.push({ Note: `${this.engine === 'codex' ? 'Codex' : 'Claude Code'} stopped${ev.reason ? `: ${ev.reason}` : ''}` })
+        this.items.push({ Note: `${engineName(this.engine)} stopped${ev.reason ? `: ${ev.reason}` : ''}` })
         return { turnEnded: true }
     }
   }
@@ -162,19 +163,27 @@ export const titleFrom = (text: string): string => Array.from(text).slice(0, 40)
 /** The model for an engine: the project's pick, else Settings' (null: the agent's own default). */
 export function modelFor(dir: string, engine: Engine): string | null {
   const s = getSettings()
-  const m = loadMeta(dir)?.models[engine] ?? (engine === 'codex' ? s.codex_model : s.model)
+  const m = loadMeta(dir)?.models[engine] ?? s[modelKey(engine)]
   return m && m !== 'default' ? m : null
 }
 
-/** The models offered for an agent (studio.rs models_for). */
+/** The models offered for an agent (studio.rs models_for). OpenCode's are
+ *  asked of it (see modelsOf); here, only its Default. */
 export function modelsFor(engine: Engine): Model[] {
   if (engine === 'codex') return [{ id: 'default', name: 'Default' }, ...codexModels().slice(0, 6)]
+  if (engine === 'opencode') return [{ id: 'default', name: 'Default' }]
   return [
     { id: 'default', name: 'Default' },
     { id: 'opus', name: 'Opus' },
     { id: 'sonnet', name: 'Sonnet' },
     { id: 'haiku', name: 'Haiku' }
   ]
+}
+
+/** The models offered for an agent, OpenCode's from `opencode models`. */
+export async function modelsOf(engine: Engine): Promise<Model[]> {
+  if (engine === 'opencode') return [...modelsFor(engine), ...(await opencodeModels())]
+  return modelsFor(engine)
 }
 
 /** Write a transcript compactly, as Rust's serde_json::to_vec does. */
@@ -197,6 +206,7 @@ class Chat {
   t: Transcript
   private claude = new ClaudeChat()
   private codex = new CodexRun()
+  private opencode = new OpencodeRun()
   /** Bumped when a process is stopped or replaced: its late events are dropped. */
   private gen = 0
   /** Sending (a remote push before the message): what comes meanwhile queues. */
@@ -308,6 +318,14 @@ class Chat {
         this.codex.send({ dir: this.dir, thread: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'codex'), instructions: promptText(kindOf(this.dir)), env: codexEnv(accountFor(this.account, 'codex').id) }, this.listener())
       } catch (e) {
         this.note(`Could not start Codex: ${(e as Error).message}`)
+        return this.sendQueued()
+      }
+    } else if (this.t.engine === 'opencode') {
+      try {
+        this.gen++
+        this.opencode.send({ dir: this.dir, session: this.t.sessionId, text: expandMentions(text), model: modelFor(this.dir, 'opencode'), instructions: promptText(kindOf(this.dir)), env: opencodeEnv() }, this.listener())
+      } catch (e) {
+        this.note(`Could not start OpenCode: ${(e as Error).message}`)
         return this.sendQueued()
       }
     } else {
@@ -488,7 +506,7 @@ class Chat {
     const last = [...this.t.items].reverse().find((i): i is { User: string } => 'User' in i)
     const next = getSettings().claude_failover ? await nextAccount(engine, from.id) : null
     if (!next || !last) {
-      if (atLimit(from.id)) this.note(`${from.label === 'Default' ? `Your ${engine === 'codex' ? 'Codex' : 'Claude'} account` : from.label} has reached its usage limit.`)
+      if (atLimit(from.id)) this.note(`${from.label === 'Default' ? `Your ${engineShort(engine)} account` : from.label} has reached its usage limit.`)
       return this.sendQueued()
     }
     this.useAccount(next.id)
@@ -579,6 +597,7 @@ class Chat {
     this.gen++
     this.claude.stop()
     this.codex.stop()
+    this.opencode.stop()
   }
 
   stop(): void {
@@ -721,7 +740,7 @@ export const chats: Api['chats'] = {
     return anyWorking()
   },
   async models(engine) {
-    return modelsFor(engine)
+    return modelsOf(engine)
   }
 }
 

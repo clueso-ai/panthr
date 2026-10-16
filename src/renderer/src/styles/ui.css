@@ -54,6 +54,8 @@
 .menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-hint { font-size: 11px; color: var(--t3); flex: none; }
 .menu-sep { height: 1px; background: var(--hair); margin: 4px 8px; }
+/* A long list of choices (OpenCode's models) scrolls within the menu. */
+.menu-scroll { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
 .menu-title { display: flex; align-items: center; gap: 6px; padding: 6px 8px 4px; font-size: 11px; color: var(--t3); }
 
 .tip {

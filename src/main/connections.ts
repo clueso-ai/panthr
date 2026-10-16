@@ -294,7 +294,7 @@ class Supervisor {
   /** The agents there use this Mac's choices (agent, models, exports). */
   async syncSettings(): Promise<void> {
     const s = getSettings()
-    const pick = { agent: s.agent, model: s.model, codex_model: s.codex_model, agents_default: s.agents_default, export_quality: s.export_quality, export_fps: s.export_fps, reference_model: s.reference_model, reference_codex_model: s.reference_codex_model }
+    const pick = { agent: s.agent, model: s.model, codex_model: s.codex_model, opencode_model: s.opencode_model, agents_default: s.agents_default, export_quality: s.export_quality, export_fps: s.export_fps, reference_model: s.reference_model, reference_codex_model: s.reference_codex_model, reference_opencode_model: s.reference_opencode_model }
     await this.link?.call('settings.set', [pick]).catch(() => {})
   }
 

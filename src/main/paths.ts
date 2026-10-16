@@ -37,7 +37,8 @@ export const resource = (name: string): string => join(resourcesDir(), name)
  *  npx / node / ffmpeg they run) the usual places. */
 export function pathEnv(): string {
   const h = home()
-  const parts = [join(h, '.local/bin'), '/opt/homebrew/bin', '/usr/local/bin']
+  // ~/.opencode/bin: where OpenCode's installer puts it.
+  const parts = [join(h, '.local/bin'), join(h, '.opencode/bin'), '/opt/homebrew/bin', '/usr/local/bin']
   const nvm = join(h, '.nvm/versions/node')
   if (existsSync(nvm)) {
     const v = readdirSync(nvm).sort()

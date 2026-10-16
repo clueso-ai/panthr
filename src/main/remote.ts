@@ -1,8 +1,8 @@
 // Remote hosts: projects that live and run on another machine (a dev box,
 // a beefy desktop) while Panther is used here. Everything runs there: the
 // page itself (a small server on the host, reached through an SSH tunnel),
-// the agent (Claude Code or Codex), the editor tool behind the timeline and
-// inspector, snapshots and renders. Here there is only the app's own notes
+// the agent (Claude Code, Codex or OpenCode), the editor tool behind the
+// timeline and inspector, snapshots and renders. Here there is only the app's own notes
 // on the project (.studio: chats, comments, versions), kept in step with
 // rsync, and the videos and frames brought over to show.
 //
@@ -101,7 +101,7 @@ export function sshArgs(host: Host, ...command: string[]): string[] {
   return [...sshOpts(), host.target, ...command]
 }
 
-/** Run in the user's login shell on the host (their PATH: claude, codex, node). */
+/** Run in the user's login shell on the host (their PATH: claude, codex, opencode, node). */
 export const loginShell = (script: string): string => `exec "$SHELL" -lc ${shQuote(script)}`
 
 /** How to run `program args` in `dir` on the host: an ssh invocation whose
@@ -481,7 +481,7 @@ export async function list(host: Host): Promise<string[]> {
   return o.stdout.toString('utf8').split('\n').filter(Boolean)
 }
 
-const TOOLS = ['claude', 'codex', 'node', 'npx', 'python3', 'rsync', 'ffmpeg']
+const TOOLS = ['claude', 'codex', 'opencode', 'node', 'npx', 'python3', 'rsync', 'ffmpeg']
 
 /** What a host has, for Settings: can we reach it, and its tools. */
 export async function check(host: Host): Promise<HostCheck> {

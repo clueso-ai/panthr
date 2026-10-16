@@ -22,14 +22,15 @@ import { extname, isAbsolute, join, normalize, resolve, sep } from 'node:path'
 import { createInterface } from 'node:readline'
 import { promisify } from 'node:util'
 import type { Api } from '@shared/api'
-import type { Reference, RefFile } from '@shared/types'
+import { engineName, referenceModelKey, type Engine, type Reference, type RefFile } from '@shared/types'
 import { emit } from './bus'
 import { readJson, writeJson } from './json'
 import { now, studioRoot, toolEnv } from './paths'
-import { claudeEnv, codexEnv } from './accounts'
+import { claudeEnv, codexEnv, opencodeEnv } from './accounts'
 import { getSettings } from './settings'
 import { claudeBin, parse as parseClaude } from './agents/claude'
 import { codexBin, newRun, parse as parseCodex } from './agents/codex'
+import { newRun as newOpencodeRun, opencodeBin, parse as parseOpencode } from './agents/opencode'
 import { readVideo } from './reading'
 
 const run = promisify(execFile)
@@ -258,11 +259,18 @@ When you are done:
 Leave the video, frames/, contact.jpg and analysis.json as they are.`
 }
 
-function argsFor(engine: 'claude' | 'codex', model: string, prompt: string, dir: string): { cmd: string; args: string[] } {
+function argsFor(engine: Engine, model: string, prompt: string, dir: string): { cmd: string; args: string[] } {
+  const images = (): string[] => ['contact.jpg', ...readdirSafe(join(dir, 'frames')).filter((n) => n.startsWith('cut-')).slice(0, 8).map((n) => `frames/${n}`)].filter((f) => existsSync(join(dir, f)))
+  if (engine === 'opencode') {
+    const args = ['run', '--standalone', '--format', 'json', '--auto']
+    for (const i of images()) args.push('--file', i)
+    if (model && model !== 'default') args.push('--model', model)
+    args.push('--', prompt)
+    return { cmd: opencodeBin(), args }
+  }
   if (engine === 'codex') {
-    const images = ['contact.jpg', ...readdirSafe(join(dir, 'frames')).filter((n) => n.startsWith('cut-')).slice(0, 8).map((n) => `frames/${n}`)].filter((f) => existsSync(join(dir, f)))
     const args = ['exec', '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="workspace-write"']
-    for (const i of images) args.push('-i', i)
+    for (const i of images()) args.push('-i', i)
     if (model && model !== 'default') args.push('-m', model)
     args.push(prompt)
     return { cmd: codexBin(), args }
@@ -276,18 +284,19 @@ function argsFor(engine: 'claude' | 'codex', model: string, prompt: string, dir:
 function deconstruct(r: Reference): Promise<void> {
   const s = getSettings()
   const engine = s.agent
-  const model = engine === 'codex' ? s.reference_codex_model : s.reference_model
+  const model = s[referenceModelKey(engine)]
   const { cmd, args } = argsFor(engine, model, deconstructPrompt(r.name), r.dir)
   return new Promise((ok, fail) => {
     // On the account new chats use.
-    const child = spawn(cmd, args, { cwd: r.dir, env: engine === 'claude' ? claudeEnv() : codexEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(cmd, args, { cwd: r.dir, env: engine === 'opencode' ? opencodeEnv() : engine === 'codex' ? codexEnv() : claudeEnv(), stdio: ['ignore', 'pipe', 'pipe'] })
     const job = jobs.get(r.id)
     if (job) job.child = child
     const codexState = newRun()
+    const opencodeState = newOpencodeRun()
     let err = ''
     let last = 0
     createInterface({ input: child.stdout! }).on('line', (line) => {
-      const events = engine === 'codex' ? parseCodex(line, codexState) : parseClaude(line)
+      const events = engine === 'opencode' ? parseOpencode(line, opencodeState) : engine === 'codex' ? parseCodex(line, codexState) : parseClaude(line)
       for (const e of events) {
         // Its steps, as the reference's status (at most a few a second).
         if (e.type === 'tool' && e.summary && Date.now() - last > 300) {
@@ -297,7 +306,7 @@ function deconstruct(r: Reference): Promise<void> {
       }
     })
     child.stderr!.on('data', (b: Buffer) => (err = (err + b.toString('utf8')).slice(-4000)))
-    child.on('error', (e) => fail(new Error(`Could not start ${engine === 'codex' ? 'Codex' : 'Claude Code'}: ${e.message}`)))
+    child.on('error', (e) => fail(new Error(`Could not start ${engineName(engine)}: ${e.message}`)))
     child.on('close', (code) => {
       if (jobs.get(r.id)?.cancelled) return fail(new Error('Cancelled'))
       if (existsSync(join(r.dir, 'README.md'))) return ok()

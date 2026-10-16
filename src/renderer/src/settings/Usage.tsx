@@ -1,13 +1,13 @@
 // Settings ▸ Usage: where the time and money go, from every chat's turns.
 // Totals for the week, the month and all time; the last 30 days; each
 // account (with how much of its plan is used now); each project, opening
-// on its newest turns. Cost is Claude Code's, in API dollars (what the
-// work would cost on the API; a subscription pays none of it); Codex
-// reports tokens instead.
+// on its newest turns. Cost is Claude Code's and OpenCode's, in API dollars
+// (what the work would cost on the API; a subscription pays none of it);
+// Codex reports tokens instead, and so does OpenCode when it reports no cost.
 
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { UsageReport, UsageTotals } from '@shared/types'
+import { engineShort, type Engine, type UsageReport, type UsageTotals } from '@shared/types'
 import { api, useEvent } from '@/lib/api'
 import { tr, MOVE } from '@/lib/motion'
 import { AccountDot, UsageBar, useAccounts } from '@/ui/Accounts'
@@ -22,6 +22,11 @@ export const time = (s: number): string => {
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
 const tokens = (n: number): string => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
+
+/** What an agent's work came to: Claude Code's in dollars; Codex's in tokens;
+ *  OpenCode's in dollars when its provider charges, else in tokens. */
+const spent = (engine: Engine, t: UsageTotals): string =>
+  engine === 'claude' || (engine === 'opencode' && t.cost > 0) ? money(t.cost) : t.tokens ? `${tokens(t.tokens)} tok` : '—'
 const when = (s: number | null): string => {
   if (!s) return 'earlier'
   const d = Date.now() / 1000 - s
@@ -56,7 +61,7 @@ export function UsagePane() {
   const max = Math.max(...r.days.map(val), 1e-9)
   return (
     <>
-      <p className="pane-lede">Where the agents’ time goes, from every chat. Cost is Claude Code’s, in API dollars: what the work would cost on the API (a subscription pays none of it). Codex reports tokens instead.</p>
+      <p className="pane-lede">Where the agents’ time goes, from every chat. Cost is Claude Code’s and OpenCode’s, in API dollars: what the work would cost on the API (a subscription pays none of it). Codex reports tokens instead.</p>
       <div className="use-tiles">
         <Tile title="This week" t={r.week} />
         <Tile title="This month" t={r.month} />
@@ -85,7 +90,7 @@ export function UsagePane() {
             <div key={a.id} className="use-row">
               <span className="use-name"><AccountDot color={a.color} /> {a.label}</span>
               <span>{time(a.seconds)}</span>
-              <span>{a.engine === 'codex' ? (a.tokens ? `${tokens(a.tokens)} tok` : '—') : money(a.cost)}</span>
+              <span>{spent(a.engine, a)}</span>
               <span className="faint">{a.turns} turns</span>
               {now?.usage && <span className="use-live"><UsageBar label="5 h" w={now.usage.five_hour} /><UsageBar label="Week" w={now.usage.seven_day} /></span>}
             </div>
@@ -112,9 +117,9 @@ export function UsagePane() {
                       <div key={i} className="use-turn">
                         <span className="use-label ellipsis" title={t.label}>{t.error && <span className="use-err">failed · </span>}{t.label || '(no message)'}</span>
                         <span className="faint">{when(t.at)}</span>
-                        <span className="use-acct">{acct && <AccountDot color={acct.color} size={7} />}{acct ? acct.label : t.engine === 'codex' ? 'Codex' : 'Claude'}</span>
+                        <span className="use-acct">{acct && <AccountDot color={acct.color} size={7} />}{acct ? acct.label : engineShort(t.engine)}</span>
                         <span>{time(t.seconds)}</span>
-                        <span>{t.engine === 'codex' ? (t.tokens ? `${tokens(t.tokens)} tok` : '—') : money(t.cost)}</span>
+                        <span>{spent(t.engine, t)}</span>
                       </div>
                     )
                   })}

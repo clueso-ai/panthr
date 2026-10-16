@@ -1,17 +1,20 @@
 // A short name for a new chat (and its project) from the first message,
 // asked of the cheap model of the chat's own agent: Haiku for Claude Code,
-// the fast and affordable one Codex lists for Codex. Best effort: no answer
-// in time, or no agent, leaves the name as it was.
+// the fast and affordable one Codex lists for Codex, a small one from the
+// same provider as its chats' for OpenCode. Best effort: no answer in time,
+// or no agent, leaves the name as it was.
 
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Engine } from '@shared/types'
+import type { Engine, Model } from '@shared/types'
 import { claudeBin } from './agents/claude'
 import { codexBin } from './agents/codex'
+import { models as opencodeModels, opencodeBin, recentModels } from './agents/opencode'
 import { home, toolEnv } from './paths'
-import { claudeEnv, codexEnv } from './accounts'
+import { claudeEnv, codexEnv, opencodeEnv } from './accounts'
+import { getSettings } from './settings'
 
 const WAIT_MS = 30_000
 
@@ -38,6 +41,15 @@ export function cheapCodexModel(): string | null {
   } catch {
     return null
   }
+}
+
+/** A small model OpenCode offers from the provider its chats use (`picked`,
+ *  else the one it used last): null when there is none to be sure of. */
+export function cheapOpencodeModel(list: Model[], picked: string | null): string | null {
+  const provider = (picked && picked !== 'default' ? picked : recentModels()[0] ?? '').split('/')[0]
+  if (!provider) return null
+  const m = list.find((x) => x.id.startsWith(`${provider}/`) && /mini|nano|flash|haiku|lite|small/i.test(x.id.split('/')[1]))
+  return m?.id ?? null
 }
 
 function run(cmd: string, args: string[], env: NodeJS.ProcessEnv = toolEnv()): Promise<string | null> {
@@ -75,6 +87,24 @@ export async function suggestName(message: string, engine: Engine): Promise<stri
     } catch {
       return null
     }
+  }
+  if (engine === 'opencode') {
+    const args = ['run', '--standalone', '--format', 'json']
+    const m = cheapOpencodeModel(await opencodeModels(), getSettings().opencode_model)
+    if (m) args.push('--model', m)
+    args.push('--', prompt)
+    const out = await run(opencodeBin(), args, opencodeEnv())
+    if (out === null) return null
+    // Its reply: the text of the run's events.
+    const text = out.split('\n').map((l) => {
+      try {
+        const v = JSON.parse(l)
+        return v?.type === 'text' && typeof v.part?.text === 'string' ? v.part.text : ''
+      } catch {
+        return ''
+      }
+    }).join('')
+    return cleanName(text)
   }
   const reply = await run(claudeBin(), ['-p', prompt, '--model', 'haiku', '--max-turns', '1', '--tools', ''], claudeEnv())
   return reply === null ? null : cleanName(reply)

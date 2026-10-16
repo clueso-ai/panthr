@@ -244,7 +244,7 @@ export interface Api {
     rename(id: string, label: string): Promise<void>
     /** Forget it (its folder and sign-in stay on disk). */
     remove(id: string): Promise<void>
-    /** Open Terminal to sign in to it (claude auth login, codex login). */
+    /** Open Terminal to sign in to it (claude auth login, codex login, opencode auth login). */
     signIn(id: string): Promise<void>
     /** The account new chats use (for its agent). */
     setDefault(id: string): Promise<void>

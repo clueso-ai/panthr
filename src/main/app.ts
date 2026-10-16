@@ -41,7 +41,7 @@ async function cliStatus(): Promise<{ path: string; onPath: boolean; installed: 
 export const appApi: Api['app'] = {
   async missingTools() {
     const out: string[] = []
-    if (!(await has('claude')) && !(await has('codex'))) out.push('claude')
+    if (!(await has('claude')) && !(await has('codex')) && !(await has('opencode'))) out.push('claude')
     for (const t of ['node', 'npx', 'ffmpeg']) if (!(await has(t))) out.push(t)
     return out
   },
