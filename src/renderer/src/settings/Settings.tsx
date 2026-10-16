@@ -756,7 +756,7 @@ function About() {
   }, [])
   return (
     <>
-      <div className="about-mark"><Mark size={56} /><div><div className="wordmark">Panther</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
+      <div className="about-mark"><Mark size={56} cut="var(--pane)" /><div><div className="wordmark">Panther</div><ByClueso height={12} /><div className="faint about-line">Make videos by talking to an agent.</div></div></div>
       <Card title="On this Mac">
         {missing === null ? <Row title="Checking tools…"><span /></Row> : missing.length === 0 ? (
           <Row title="Everything is installed" body="Claude Code, Codex or OpenCode, Node, npx and ffmpeg were found."><span className="ok">✓</span></Row>

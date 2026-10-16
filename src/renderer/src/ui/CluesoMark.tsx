@@ -35,25 +35,24 @@ export function CluesoMark({ size = 14 }: { size?: number }) {
   )
 }
 
-/** The full Clueso lockup (or, `mark` off, just the word); the word takes the text colour. */
-export function CluesoLogo({ height = 12, mark = true }: { height?: number; mark?: boolean }) {
+/** The full Clueso lockup; the wordmark takes the text colour. */
+export function CluesoLogo({ height = 12 }: { height?: number }) {
   const g = useId()
-  const x = mark ? 0 : 136
   return (
-    <svg height={height} width={(height * (524 - x)) / 100} viewBox={`${x} 0 ${524 - x} 100`} fill="none" role="img" aria-label="Clueso" style={{ flex: 'none', display: 'block' }}>
-      {mark && <path fillRule="evenodd" clipRule="evenodd" d={MARK} fill={`url(#${g})`} />}
+    <svg height={height} width={(height * 524) / 100} viewBox="0 0 524 100" fill="none" role="img" aria-label="Clueso" style={{ flex: 'none', display: 'block' }}>
+      <path fillRule="evenodd" clipRule="evenodd" d={MARK} fill={`url(#${g})`} />
       {WORD.map((d, i) => <path key={i} d={d} fill="currentColor" />)}
       <defs><Gradient id={g} /></defs>
     </svg>
   )
 }
 
-/** "by Clueso", quiet, for after the Panther wordmark (Panther's mark is already Clueso's). */
+/** "by Clueso", quiet, for after the Panther wordmark. */
 export function ByClueso({ height = 9 }: { height?: number }) {
   return (
     <span className="by-clueso">
       <span>by</span>
-      <CluesoLogo height={height} mark={false} />
+      <CluesoLogo height={height} />
     </span>
   )
 }

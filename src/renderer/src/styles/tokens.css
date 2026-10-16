@@ -34,90 +34,46 @@
 /* Registered so a Frost change eases instead of snapping. */
 @property --frost { syntax: '<number>'; inherits: true; initial-value: 0.78; }
 
-/* Panther's look: neutral greys, Host Grotesk, one ember accent (the refined
-   editor direction). Night is the default; Day mirrors it. Every colour
-   comes from here. */
+/* Panther's look is Clueso's (its Jigsaw design system): neutral greys, one
+   pink accent. Night is the default; Day mirrors it. Every colour comes
+   from here. */
 
-/* Figtree (interface and headlines), Fragment Mono (numbers). Both OFL,
-   bundled so the app needs no network for them. */
-/* Figtree italic latin-ext */
+/* Clueso's type: Nohemi for headlines, Geist for the interface, Geist Mono
+   for numbers. Bundled so the app needs no network for them. */
 @font-face {
-  font-family: 'Figtree';
-  font-style: italic;
-  font-weight: 300 900;
-  font-display: swap;
-  src: url(/fonts/Figtree-italic-latin-ext.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-/* Figtree italic latin */
-@font-face {
-  font-family: 'Figtree';
-  font-style: italic;
-  font-weight: 300 900;
-  font-display: swap;
-  src: url(/fonts/Figtree-italic-latin.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-/* Figtree normal latin-ext */
-@font-face {
-  font-family: 'Figtree';
+  font-family: 'Geist';
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 100 900;
   font-display: swap;
-  src: url(/fonts/Figtree-normal-latin-ext.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  src: url(/fonts/Geist-VF.ttf) format('truetype');
 }
-/* Figtree normal latin */
 @font-face {
-  font-family: 'Figtree';
+  font-family: 'Nohemi';
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 100 900;
   font-display: swap;
-  src: url(/fonts/Figtree-normal-latin.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url(/fonts/Nohemi-VF.ttf) format('truetype');
 }
-/* Fragment Mono italic latin-ext */
 @font-face {
-  font-family: 'Fragment Mono';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url(/fonts/FragmentMono-italic-latin-ext.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-/* Fragment Mono italic latin */
-@font-face {
-  font-family: 'Fragment Mono';
-  font-style: italic;
-  font-weight: 400;
-  font-display: swap;
-  src: url(/fonts/FragmentMono-italic-latin.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-/* Fragment Mono normal latin-ext */
-@font-face {
-  font-family: 'Fragment Mono';
+  font-family: 'Geist Mono';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url(/fonts/FragmentMono-normal-latin-ext.woff2) format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  src: url(/fonts/GeistMono-Regular.ttf) format('truetype');
 }
-/* Fragment Mono normal latin */
 @font-face {
-  font-family: 'Fragment Mono';
+  font-family: 'Geist Mono';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   font-display: swap;
-  src: url(/fonts/FragmentMono-normal-latin.woff2) format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url(/fonts/GeistMono-Medium.ttf) format('truetype');
 }
 
 :root {
-  --ui: 'Figtree', -apple-system, 'Helvetica Neue', sans-serif;
-  --mono: 'Fragment Mono', ui-monospace, Menlo, monospace;
-  --display: 'Figtree', -apple-system, sans-serif;
-  --wordmark: 'Figtree', -apple-system, sans-serif;
+  --ui: 'Geist', -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+  --display: 'Nohemi', -apple-system, sans-serif;
+  --wordmark: 'Nohemi', -apple-system, sans-serif;
 
   /* Motion: one curve, three lengths. Nothing moves without them. */
   --ease: cubic-bezier(0.25, 1, 0.5, 1);
@@ -133,35 +89,35 @@
 
 :root, :root[data-theme='night'] {
   color-scheme: dark;
-  --window: rgb(14 14 15 / var(--frost, 0.78));
+  --window: rgb(13 13 13 / var(--frost, 0.78));
   /* Side panes over the frosted window: tinted, not opaque, so Frost reaches them too. */
-  --pane-glass: rgb(22 22 23 / calc(var(--frost, 0.78) * 0.5));
-  --page: #0e0e0f;
-  --pane: #161617;
-  --raised: #1e1e20;
-  --field: #232326;
+  --pane-glass: rgb(22 22 22 / calc(var(--frost, 0.78) * 0.5));
+  --page: #0d0d0d;
+  --pane: #161616;
+  --raised: #1f1f1f;
+  --field: #262626;
   --hover: rgba(255, 255, 255, 0.06);
   --press: rgba(255, 255, 255, 0.1);
-  --stage: #0a0a0b;
+  --stage: #070707;
   --hair: rgba(255, 255, 255, 0.07);
   --hair-2: rgba(255, 255, 255, 0.12);
-  --t1: #ededed;
-  --t2: #a0a0a6;
-  --t3: #6b6b71;
-  --primary: #ededed;
-  --on-primary: #161617;
-  --acc: #ff5b23;
-  --acc-deep: #b8340b;
-  --acc-soft: rgba(255, 91, 35, 0.16);
-  --acc-text: #ff9a6e;
-  --acc-sel: rgba(255, 91, 35, 0.42);
-  --ok: #3fb98a;
-  --ok-soft: rgba(63, 185, 138, 0.15);
-  --warn: #e7a93b;
-  --warn-soft: rgba(231, 169, 59, 0.14);
+  --t1: #f5f5f5;
+  --t2: #bebebe;
+  --t3: #808080;
+  --primary: #f5f5f5;
+  --on-primary: #161616;
+  --acc: #da5cc7;
+  --acc-deep: #a54f98;
+  --acc-soft: rgba(218, 92, 199, 0.16);
+  --acc-text: #de83c9;
+  --acc-sel: rgba(218, 92, 199, 0.42);
+  --ok: #22a96b;
+  --ok-soft: rgba(34, 169, 107, 0.15);
+  --warn: #d97708;
+  --warn-soft: rgba(217, 119, 8, 0.14);
   --warn-text: #ffe2a8;
-  --danger: #f2505c;
-  --danger-soft: rgba(242, 80, 92, 0.15);
+  --danger: #d94a4a;
+  --danger-soft: rgba(217, 74, 74, 0.15);
   --track: #1d1a26;
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.35);
@@ -170,34 +126,34 @@
 
 :root[data-theme='day'] {
   color-scheme: light;
-  --window: rgb(236 236 238 / var(--frost, 0.78));
+  --window: rgb(235 235 235 / var(--frost, 0.78));
   --pane-glass: rgb(255 255 255 / calc(var(--frost, 0.78) * 0.5));
-  --page: #ececee;
+  --page: #ebebeb;
   --pane: #ffffff;
-  --raised: #f4f4f6;
-  --field: #f1f1f3;
+  --raised: #f5f5f5;
+  --field: #f0f0f0;
   --hover: rgba(0, 0, 0, 0.05);
   --press: rgba(0, 0, 0, 0.08);
-  --stage: #dddde1;
+  --stage: #dedede;
   --hair: rgba(0, 0, 0, 0.08);
   --hair-2: rgba(0, 0, 0, 0.14);
-  --t1: #141416;
-  --t2: #5f5f66;
-  --t3: #96969e;
-  --primary: #141416;
+  --t1: #1f1f1f;
+  --t2: #636363;
+  --t3: #808080;
+  --primary: #1f1f1f;
   --on-primary: #ffffff;
-  --acc: #ec4a12;
-  --acc-deep: #a8300a;
-  --acc-soft: rgba(236, 74, 18, 0.1);
-  --acc-text: #b8340b;
-  --acc-sel: rgba(236, 74, 18, 0.3);
-  --ok: #1e8a5f;
-  --ok-soft: rgba(30, 138, 95, 0.1);
-  --warn: #a86a00;
-  --warn-soft: rgba(168, 106, 0, 0.12);
+  --acc: #da5cc7;
+  --acc-deep: #a63f98;
+  --acc-soft: rgba(218, 92, 199, 0.1);
+  --acc-text: #a63f98;
+  --acc-sel: rgba(218, 92, 199, 0.3);
+  --ok: #1a8f59;
+  --ok-soft: rgba(34, 169, 107, 0.1);
+  --warn: #b45f06;
+  --warn-soft: rgba(217, 119, 8, 0.12);
   --warn-text: #7a4e00;
-  --danger: #c42b3a;
-  --danger-soft: rgba(196, 43, 58, 0.1);
+  --danger: #c43c3c;
+  --danger-soft: rgba(217, 74, 74, 0.1);
   --track: #2a2733;
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.08);
   --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.12);

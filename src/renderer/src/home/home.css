@@ -1,13 +1,13 @@
 .home { position: relative; height: 100%; display: flex; flex-direction: column; }
 .home-top { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 86px; z-index: 2; }
-.wordmark { font-family: var(--wordmark); font-weight: 700; font-size: 23px; line-height: 1; letter-spacing: -0.02em; }
+.wordmark { font-family: var(--wordmark); font-weight: 600; font-size: 23px; line-height: 1; letter-spacing: -0.01em; }
 .home-top-btns { display: flex; gap: 2px; }
 .home-scroll { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: clamp(70px, 16vh, 170px) 24px 64px; }
 .home-col { width: min(720px, 100%); display: flex; flex-direction: column; gap: 22px; }
 .home-eye { display: flex; justify-content: center; }
 .home-head {
   margin: 0; display: flex; justify-content: center; align-items: baseline; gap: 14px;
-  font-family: var(--display); font-weight: 600; font-size: 48px; line-height: 56px; letter-spacing: -0.025em;
+  font-family: var(--display); font-weight: 600; font-size: 48px; line-height: 56px; letter-spacing: -0.005em;
 }
 .home-word { display: inline-grid; color: var(--acc); font-weight: 400; min-width: 6.6ch; }
 .home-word > span { grid-area: 1 / 1; }

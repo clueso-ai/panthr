@@ -209,7 +209,7 @@
     ctx.clearRect(0, 0, c.width, c.height);
     const b = r.getBoundingClientRect();
     ctx.lineWidth = Math.max(3, 8 * b.width / W) * devicePixelRatio; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#ff5b23'; ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 6 * devicePixelRatio;
+    ctx.strokeStyle = '#da5cc7'; ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 6 * devicePixelRatio;
     for (const s of strokes.concat(cur ? [cur] : [])) {
       ctx.beginPath(); s.forEach((p, i) => { const v = toView(p); i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1]); }); ctx.stroke();
     }

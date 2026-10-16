@@ -455,7 +455,7 @@
 .hd-line { position: absolute; background: rgba(255, 255, 255, 0.28); pointer-events: none; }
 .hd-line.v { width: 1px; }
 .hd-line.h { height: 1px; }
-.hd-line.c { background: rgba(255, 91, 35, 0.6); }
+.hd-line.c { background: color-mix(in srgb, var(--acc) 60%, transparent); }
 .hd-ruler { position: absolute; pointer-events: none; font-family: var(--mono); font-size: 9px; color: rgba(255, 255, 255, 0.75); }
 .hd-ruler.top { height: 14px; background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.25)); }
 .hd-ruler.left { width: 14px; background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.25)); }

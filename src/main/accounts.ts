@@ -32,7 +32,7 @@ import { opencodeBin } from './agents/opencode'
 export const DEFAULT_ID = 'default'
 export const CODEX_DEFAULT_ID = 'codex'
 export const OPENCODE_DEFAULT_ID = 'opencode'
-const COLORS = ['#ff5b23', '#3d63ff', '#12b07a', '#7c5cff', '#ffb000', '#e5487f', '#06b6d4']
+const COLORS = ['#da5cc7', '#3d63ff', '#12b07a', '#7c5cff', '#ffb000', '#ff5b23', '#06b6d4']
 
 /** The agents with accounts of their own to add (OpenCode keeps one sign-in). */
 type Several = 'claude' | 'codex'

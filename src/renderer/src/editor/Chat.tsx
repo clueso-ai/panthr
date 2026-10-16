@@ -197,14 +197,14 @@ export const Chat = memo(function Chat({ chat, history, onUndo }: {
                 )
               })()}
               {active && !steps.length && !texts.length && (
-                <div className="thinking"><LiveMark size={16} busy shots={false} /> <Shine text="Thinking" /></div>
+                <div className="thinking"><LiveMark size={16} busy cut="var(--pane)" shots={false} /> <Shine text="Thinking" /></div>
               )}
             </div>
             </TurnSteps.Provider>
           )
         })}
         {chat.checking && !chat.working && (
-          <div className="thinking"><LiveMark size={16} busy shots={false} /> <Shine text={`Checking ${chat.checking}`} /></div>
+          <div className="thinking"><LiveMark size={16} busy cut="var(--pane)" shots={false} /> <Shine text={`Checking ${chat.checking}`} /></div>
         )}
         {chat.queued.map((q, i) => (
           <motion.div key={`q${i}`} className="queued" {...rise(6, MOVE)}>
